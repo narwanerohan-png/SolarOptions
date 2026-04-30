@@ -173,12 +173,63 @@ export default function SolarApp() {
     const openRazorpay = () => {
       const options = {
         key: 'rzp_live_SYVCbNHoPZBoWv',
-        amount: 100, // INR 1.00 for testing
+        amount: 100, // ₹1 for testing (100 paise)
         currency: 'INR',
         name: 'Solar Options Pro Access',
         description: '30 Days Premium Leads Access',
-        handler: function (response: any) {
-          savePayment(response.razorpay_payment_id);
+        handler: (response: any) => {
+          console.log("Payment Success Handler Fired:", response.razorpay_payment_id);
+          
+          // 1. Generate local credentials immediately
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let genPwd = '';
+          for (let i = 0; i < 8; i++) {
+            genPwd += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + 30);
+          const expiryStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+          
+          const newCreds = { 
+            username: accessForm.email, 
+            password: genPwd,
+            expiry: expiryStr 
+          };
+
+          // 2. FORCE IMMEDIATE UI UPDATE
+          setCredentials(newCreds);
+          setShowAccessForm(false);
+          setShowCredentials(true);
+          setIsSubmitting(false);
+          setPaymentLoadingMessage('');
+
+          // 3. BACKGROUND SYNC TO GOOGLE SHEETS
+          fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+              ...accessForm,
+              password: genPwd,
+              paymentId: response.razorpay_payment_id,
+              action: 'register',
+              sheet: 'Sheet2',
+              expiryDate: expiry.toISOString(),
+              validUntil: expiryStr,
+              timestamp: new Date().toISOString()
+            })
+          }).then(() => {
+            console.log("Background sync to Sheet2 complete");
+          }).catch(err => {
+            console.error("Background sync error:", err);
+          });
+        },
+        modal: {
+          onDismiss: () => {
+            setIsSubmitting(false);
+            setPaymentLoadingMessage('');
+          }
         },
         prefill: {
           name: accessForm.companyName,
@@ -187,10 +238,22 @@ export default function SolarApp() {
         },
         theme: { color: '#10b981' },
       };
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-      setIsSubmitting(false);
-      setPaymentLoadingMessage('');
+      
+      try {
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          console.error("Razorpay Payment Failure Notice:", response.error);
+          alert(`Payment Error: ${response.error.description}. If you see 'Business Failure', please ensure this domain is registered in your Razorpay Dashboard.`);
+          setIsSubmitting(false);
+          setPaymentLoadingMessage('');
+        });
+        rzp.open();
+      } catch (err) {
+        console.error("Razorpay Initialization/Open Error:", err);
+        alert("Razorpay failed to open. This may be due to a domain mismatch in Live mode.");
+        setIsSubmitting(false);
+        setPaymentLoadingMessage('');
+      }
     };
 
     if (!(window as any).Razorpay) {
@@ -204,54 +267,8 @@ export default function SolarApp() {
   };
 
   const savePayment = async (paymentId: string) => {
-    setPaymentLoadingMessage('Activating your account...');
-    
-    // Generate secure random password
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let generatedPassword = '';
-    for (let i = 0; i < 8; i++) {
-      generatedPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
-    const expiryStr = expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-    
-    const userCredentials = { 
-      username: accessForm.email, 
-      password: generatedPassword,
-      expiry: expiryStr 
-    };
-    
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          ...accessForm,
-          password: generatedPassword,
-          paymentId,
-          action: 'register',
-          sheet: 'Sheet2', // Explicitly targeting sheet 2 logic
-          expiryDate: expiryDate.toISOString(),
-          validUntil: expiryStr,
-          timestamp: new Date().toISOString()
-        }),
-      });
-      
-      setCredentials(userCredentials);
-      setShowAccessForm(false);
-      setShowCredentials(true);
-    } catch (e) {
-      // Even if sheet saving fails, we show credentials since payment was charged
-      setCredentials(userCredentials);
-      setShowAccessForm(false);
-      setShowCredentials(true);
-      console.error("Sheet sync failed but payment confirmed", e);
-    } finally {
-      setIsSubmitting(false);
-      setPaymentLoadingMessage('');
-    }
+    // This is now handled directly in the Razorpay handler for better reliability
+    console.log("Legacy savePayment called (should be handled in handler):", paymentId);
   };
 
   const handleLogin = async () => {
