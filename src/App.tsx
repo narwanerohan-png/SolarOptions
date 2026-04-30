@@ -297,11 +297,18 @@ export default function SolarApp() {
           Calculator
         </button>
         <button 
-          onClick={() => setShowFeedbackModal(true)} 
+          onClick={() => { 
+            if (isLoggedIn) {
+              window.scrollTo(0, 0); 
+              setCurrentPage('epc'); 
+            } else {
+              setShowLoginModal(true);
+            }
+          }} 
           className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl border border-slate-700 transition-all cursor-pointer group"
         >
           <LogIn className="w-4 h-4 text-emerald-400" />
-          {isLoggedIn ? 'Dashboard' : 'Request Access'}
+          {isLoggedIn ? 'Dashboard' : 'Login'}
         </button>
       </div>
     </nav>
