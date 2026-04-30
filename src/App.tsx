@@ -249,6 +249,9 @@ export default function SolarApp() {
       if (data.success) {
         setIsLoggedIn(true);
         setShowLoginModal(false);
+        setCurrentPage('epc');
+        setEpcView('search');
+        window.scrollTo(0, 0);
       } else {
         alert(data.message || "Invalid credentials");
       }
@@ -300,7 +303,8 @@ export default function SolarApp() {
           onClick={() => { 
             if (isLoggedIn) {
               window.scrollTo(0, 0); 
-              setCurrentPage('epc'); 
+              setCurrentPage('epc');
+              setEpcView('search');
             } else {
               setShowLoginModal(true);
             }
@@ -754,7 +758,7 @@ export default function SolarApp() {
           <motion.div 
             key="epc"
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
-            className="max-w-7xl mx-auto px-6 py-12"
+            className="max-w-7xl mx-auto px-6 py-12 pt-28"
           >
             {isLoggedIn ? (
               <div className="space-y-8">
