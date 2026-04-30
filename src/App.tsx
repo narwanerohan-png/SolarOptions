@@ -211,7 +211,8 @@ export default function SolarApp() {
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({
               ...accessForm,
-              password: genPwd,
+              username: accessForm.email, // Explicitly map email to username for the script
+              password: genPwd,           // Explicitly send the generated code
               paymentId: response.razorpay_payment_id,
               action: 'register',
               sheet: 'Sheet2',
