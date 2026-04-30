@@ -173,7 +173,7 @@ export default function SolarApp() {
     const openRazorpay = () => {
       const options = {
         key: 'rzp_live_SYVCbNHoPZBoWv',
-        amount: 10000, // INR 100.00
+        amount: 100, // INR 1.00 for testing
         currency: 'INR',
         name: 'Solar Options Pro Access',
         description: '30 Days Premium Leads Access',
@@ -278,29 +278,30 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center relative z-20">
+    <nav className="fixed top-0 w-full z-[100] px-6 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-slate-900/50">
       <div 
-        onClick={() => setCurrentPage('landing')} 
-        className="flex items-center gap-2 font-black text-2xl tracking-tighter cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => { window.scrollTo(0, 0); setCurrentPage('landing'); }} 
+        className="flex items-center gap-3 cursor-pointer group"
       >
-        <div className="bg-emerald-500 p-2 rounded-xl shadow-lg shadow-emerald-500/20">
+        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
           <Sun className="w-6 h-6 text-slate-900" />
         </div>
-        SolarOptions<span className="text-emerald-500 inline-block -ml-0.5">.</span>in
+        <span className="text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
       </div>
-      <div className="flex items-center gap-2 sm:gap-6">
+      
+      <div className="flex items-center gap-8">
         <button 
-          onClick={() => setCurrentPage('consumer')} 
-          className={`text-sm font-semibold transition-colors hidden sm:block ${currentPage === 'consumer' ? 'text-emerald-400' : 'text-gray-400'}`}
+          onClick={() => { window.scrollTo(0, 0); setCurrentPage('consumer'); }} 
+          className="text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
         >
           Calculator
         </button>
         <button 
-          onClick={() => setCurrentPage('epc')} 
-          className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold border border-slate-700 hover:bg-slate-700 transition-all flex items-center gap-2"
+          onClick={() => setShowFeedbackModal(true)} 
+          className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl border border-slate-700 transition-all cursor-pointer group"
         >
-          <LogIn className="w-4 h-4" />
-          {isLoggedIn ? 'Dashboard' : 'Partner Login'}
+          <LogIn className="w-4 h-4 text-emerald-400" />
+          {isLoggedIn ? 'Dashboard' : 'Request Access'}
         </button>
       </div>
     </nav>
@@ -318,55 +319,72 @@ export default function SolarApp() {
             className="relative"
           >
             {/* Hero */}
-            <header className="max-w-5xl mx-auto text-center mt-12 px-6 pt-12 pb-12">
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8"
-              >
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
-              </motion.div>
-              <motion.h1 
-                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                className="text-4xl sm:text-7xl font-black mb-8 leading-[1.05] tracking-tight text-white"
-              >
-                Industrial <span className="text-emerald-400 italic">Rooftop</span> & Solar Design Tool.
-              </motion.h1>
-              <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
-                Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
-              </p>
+            <header className="relative w-full min-h-[60vh] flex items-center overflow-hidden border-b border-white/5">
+              {/* Video Background layer */}
+              <div className="absolute inset-0 z-0">
+                <video 
+                  autoPlay 
+                  muted 
+                  loop 
+                  playsInline 
+                  className="w-full h-full object-cover opacity-50"
+                >
+                  <source src="https://assets.mixkit.co/videos/preview/mixkit-solar-panels-on-the-roof-of-a-house-4841-large.mp4" type="video/mp4" />
+                </video>
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px]"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/10 via-slate-900/80 to-slate-900"></div>
+              </div>
+
+              <div className="max-w-6xl mx-auto text-center relative z-10 px-6 py-16 mt-8">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-6 shadow-2xl backdrop-blur-md"
+                >
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
+                </motion.div>
+                <motion.h1 
+                  initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                  className="text-4xl sm:text-6xl font-bold mb-4 leading-tight tracking-tight text-white drop-shadow-xl"
+                >
+                  <span className="text-emerald-400 italic">Rooftop</span> & Solar Design Tool.
+                </motion.h1>
+                <p className="text-lg sm:text-xl text-gray-300 mb-0 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-lg opacity-90">
+                  Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
+                </p>
+              </div>
             </header>
 
             {/* Strategy Section */}
-            <section className="max-w-6xl mx-auto px-6 pt-6 pb-24 border-t border-slate-800">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-20">
+            <section className="max-w-6xl mx-auto px-6 pt-8 pb-10 border-t border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
                 <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
                     <Database className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-100">1. Access Data</h3>
-                  <p className="text-gray-400 leading-relaxed font-light">
+                  <h3 className="text-xl font-bold text-gray-100">1. Access Data</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-light">
                     Browse our curated list of industrial facilities with extensive, potential rooftop areas 
                     across major clusters.
                   </p>
                 </div>
                 <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
                     <PenTool className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-100">2. Precision Design</h3>
-                  <p className="text-gray-400 leading-relaxed font-light">
+                  <h3 className="text-xl font-bold text-gray-100">2. Precision Design</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-light">
                     Sketch site boundaries and auto-populate panels with integrated safety walkways. 
                     Simulate real-world layouts in our 3D Studio.
                   </p>
                 </div>
                 <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-100">3. Approach & Close</h3>
-                  <p className="text-gray-400 leading-relaxed font-light">
+                  <h3 className="text-xl font-bold text-gray-100">3. Approach & Close</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-light">
                     Reach out with Decision Maker contact details and data-backed proposals already in hand. 
                     Reduce your sales cycle by 40%.
                   </p>
@@ -374,14 +392,14 @@ export default function SolarApp() {
               </div>
 
               {/* Enterprise Section */}
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/20 rounded-[40px] p-8 sm:p-12 text-center relative overflow-hidden mb-24">
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/20 rounded-[40px] p-8 sm:p-10 text-center relative overflow-hidden mb-10">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32"></div>
                 <div className="relative z-10">
-                  <div className="inline-block px-4 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-6">
+                  <div className="inline-block px-4 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">SolarOptions Pro</span>
                   </div>
-                  <h2 className="text-3xl sm:text-5xl font-bold mb-6 tracking-tight text-white italic">Scale your sales team.</h2>
-                  <p className="text-gray-400 max-w-xl mx-auto mb-12 text-lg font-light leading-relaxed">
+                  <h2 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight text-white">Scale your sales team.</h2>
+                  <p className="text-gray-400 max-w-xl mx-auto mb-8 text-base font-light leading-relaxed">
                     Unlock professional-grade industrial rooftop area dimensions potential for project and decision-maker contact details mapped specifically for EPC installers.
                   </p>
                   
@@ -440,7 +458,7 @@ export default function SolarApp() {
             </section>
 
             {/* SEO Keyword Sections */}
-            <section className="max-w-6xl mx-auto px-6 py-12 mb-20">
+            <section className="max-w-6xl mx-auto px-6 py-8 mb-12">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-left">
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
                   <h4 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-3">Solar Design Tool</h4>
@@ -462,9 +480,9 @@ export default function SolarApp() {
             </section>
 
             {/* Industrial Focus */}
-            <section className="bg-slate-800/50 py-24">
+            <section className="bg-slate-800/50 py-16">
               <div className="max-w-4xl mx-auto px-6 text-center">
-                <h2 className="text-3xl font-bold mb-12">Why professionals choose us</h2>
+                <h2 className="text-3xl font-bold mb-8">Why professionals choose us</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                   <div className="bg-slate-900/50 p-8 rounded-[32px] border border-slate-700/50 flex items-start gap-4 text-left">
                     <Shield className="w-6 h-6 text-emerald-400 shrink-0 mt-1" />
@@ -485,7 +503,7 @@ export default function SolarApp() {
             </section>
 
             {/* Solar Options Guide for SEO */}
-            <section className="max-w-4xl mx-auto px-6 py-12 text-left opacity-30 hover:opacity-100 transition-opacity">
+            <section className="max-w-4xl mx-auto px-6 py-8 text-left opacity-30 hover:opacity-100 transition-opacity">
                <h2 className="text-xl font-bold mb-6 text-gray-400">Industrial Solar Options & Resources</h2>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-[11px] text-gray-500">
                   <div>
