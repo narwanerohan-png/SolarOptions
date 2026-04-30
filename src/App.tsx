@@ -45,7 +45,7 @@ const sampleLeadsData: Lead[] = [
 
 export default function SolarApp() {
   // Navigation State
-  const [currentPage, setCurrentPage] = useState<'landing' | 'consumer' | 'epc'>('landing');
+  const [currentPage, setCurrentPage] = useState<'landing' | 'consumer' | 'epc' | 'privacy' | 'terms'>('landing');
   
   // App Logic State
   const [monthlyBill, setMonthlyBill] = useState(50000);
@@ -334,19 +334,18 @@ export default function SolarApp() {
                 Industrial <span className="text-emerald-400 italic">Rooftop</span> & Solar Design Tool.
               </motion.h1>
               <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
-                Connect with the most suitable locations. Sketch in 3D, simulate layouts with safety gaps, 
-                and generate professional PDF proposals in minutes.
+                Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
               </p>
             </header>
 
             {/* Strategy Section */}
             <section className="max-w-6xl mx-auto px-6 pt-6 pb-24 border-t border-slate-800">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-20">
                 <div className="space-y-4">
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
                     <Database className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black">1. Access Data</h3>
+                  <h3 className="text-2xl font-black text-gray-100">1. Access Data</h3>
                   <p className="text-gray-400 leading-relaxed font-light">
                     Browse our curated list of industrial facilities with extensive, potential rooftop areas 
                     across major clusters.
@@ -356,7 +355,7 @@ export default function SolarApp() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
                     <PenTool className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black">2. Precision Design</h3>
+                  <h3 className="text-2xl font-black text-gray-100">2. Precision Design</h3>
                   <p className="text-gray-400 leading-relaxed font-light">
                     Sketch site boundaries and auto-populate panels with integrated safety walkways. 
                     Simulate real-world layouts in our 3D Studio.
@@ -366,7 +365,7 @@ export default function SolarApp() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-black">3. Approach & Close</h3>
+                  <h3 className="text-2xl font-black text-gray-100">3. Approach & Close</h3>
                   <p className="text-gray-400 leading-relaxed font-light">
                     Reach out with Decision Maker contact details and data-backed proposals already in hand. 
                     Reduce your sales cycle by 40%.
@@ -374,19 +373,68 @@ export default function SolarApp() {
                 </div>
               </div>
 
+              {/* Enterprise Section */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/20 rounded-[40px] p-8 sm:p-12 text-center relative overflow-hidden mb-24">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32"></div>
+                <div className="relative z-10">
+                  <div className="inline-block px-4 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-6">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">SolarOptions Pro</span>
+                  </div>
+                  <h2 className="text-3xl sm:text-5xl font-bold mb-6 tracking-tight text-white italic">Scale your sales team.</h2>
+                  <p className="text-gray-400 max-w-xl mx-auto mb-12 text-lg font-light leading-relaxed">
+                    Unlock professional-grade industrial rooftop area dimensions potential for project and decision-maker contact details mapped specifically for EPC installers.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
+                    <div className="p-8 bg-white/5 rounded-3xl border border-white/10 group hover:border-emerald-500/30 transition-all">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Lite Access</p>
+                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Complimentary</p>
+                      <div className="space-y-3">
+                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> 3D Designer Access</p>
+                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Tech Potential Calculator</p>
+                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Est. Savings & Payback Period</p>
+                      </div>
+                    </div>
+                    <div className="p-8 bg-emerald-500/5 rounded-3xl border border-emerald-500/30 ring-2 ring-emerald-500/10 scale-105 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                      </div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Direct Intelligence</p>
+                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Enterprise</p>
+                      <div className="space-y-3">
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Potential Industries</p>
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Rooftop Area Dimensions</p>
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Potential Project</p>
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Monthly Savings</p>
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Contact Decision Maker</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button onClick={() => setCurrentPage('epc')} className="group w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 rounded-2xl text-slate-900 font-bold text-xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
-                  Partner Portal <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <button 
+                  onClick={() => {
+                    // @ts-ignore
+                    window.gtag?.('event', 'click_partner_portal');
+                    setCurrentPage('epc');
+                  }} 
+                  className="group w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 rounded-2xl text-slate-900 font-bold text-xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  Request Access <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <button 
                   onClick={() => {
+                    // @ts-ignore
+                    window.gtag?.('event', 'click_3d_designer');
                     setCurrentPage('epc');
                     setEpcView('design');
                   }} 
                   className="group w-full sm:w-auto px-10 py-5 bg-slate-800 hover:bg-slate-700 rounded-2xl text-white font-bold text-xl shadow-xl transition-all border border-slate-700 flex items-center justify-center gap-3"
                 >
                   <PenTool className="w-5 h-5 text-emerald-400" />
-                  Free 3D Solar Design Tool
+                  3D Solar Design Tool
                 </button>
               </div>
             </section>
@@ -463,7 +511,70 @@ export default function SolarApp() {
                 SolarOptions.in makes no claims regarding actual property availability or project realization. 
                 Final feasibility must be assessed on-site. For inquiries regarding update data or removal, contact us or <button onClick={() => setShowFeedbackModal(true)} className="text-emerald-500 font-bold hover:underline cursor-pointer">view feedback</button>.
               </p>
+              <div className="mt-8 flex items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('privacy'); }} className="hover:text-emerald-400 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-widest bg-transparent border-none p-0">Privacy Policy</button>
+                <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('terms'); }} className="hover:text-emerald-400 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-widest bg-transparent border-none p-0">Terms of Service</button>
+                <span>© 2024 SolarOptions</span>
+              </div>
             </footer>
+          </motion.div>
+        )}
+
+        {currentPage === 'privacy' && (
+          <motion.div 
+            key="privacy"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="max-w-3xl mx-auto px-6 py-24"
+          >
+            <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('landing'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
+              <ArrowLeft className="w-3 h-3" /> Back to Home
+            </button>
+            <h1 className="text-3xl font-medium mb-12 text-gray-200 tracking-tight">Privacy Policy</h1>
+            <div className="space-y-12 text-gray-400 leading-relaxed text-sm">
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">1. Minimal Tracking</h3>
+                <p className="font-light">We use industry-standard analytics (GA4) to understand how the 3D Designer is used. We do not track personal identifying information of our casual browsers. For registered EPC partners, we protect your login and search activity with encrypted storage.</p>
+              </section>
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">2. B2B Context</h3>
+                <p className="font-light">Our database contains professional business details, not private residence data. We are committed to the General Data Protection principles as applied to business-to-business solar consulting. We never share your project designs with competitors.</p>
+              </section>
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">3. Data Removal</h3>
+                <p className="font-light">Owners or representatives wishing to opt-out of industrial analytics mapping can do so instantly by emailing info@solaroptions.in. We maintain a strict compliance list to ensure your privacy preferences are respected across our modeling engine.</p>
+              </section>
+            </div>
+          </motion.div>
+        )}
+
+        {currentPage === 'terms' && (
+          <motion.div 
+            key="terms"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="max-w-3xl mx-auto px-6 py-24"
+          >
+            <button onClick={() => { window.scrollTo(0,0); setCurrentPage('landing'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
+              <ArrowLeft className="w-3 h-3" /> Back to Home
+            </button>
+            <h1 className="text-3xl font-medium mb-12 text-gray-200 tracking-tight">Terms of Service</h1>
+            <div className="space-y-12 text-gray-400 leading-relaxed text-sm">
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">1. Public Data Utilization</h3>
+                <p className="font-light">SolarOptions.in aggregates information derived exclusively from public datasets, industrial directories, and satellite imagery models. We do not perform private surveillance or store non-commercial personal data. All factory details are considered professional business information available in the public domain.</p>
+              </section>
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">2. Professional Responsibility & Indemnity</h3>
+                <p className="font-light">Users (EPC Partners & Solar Professionals) agree to use this platform as a preliminary tool. You are solely responsible for on-site verification. SolarOptions.in shall not be liable for any claims, losses, or legal allegations arising from your outreach to factory owners or your subsequent project implementations. You agree to indemnify this platform against any third-party claims resulting from your specific use of the provided data.</p>
+              </section>
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">3. Property Owner Protection</h3>
+                <p className="font-light">Inclusion in our database does not imply an endorsement or a request for solicitation by the property owner. We strictly bridge information gaps for B2B industrial development. Property owners may request data updates or removal at any time via the Feedback tool; such requests are handled with absolute priority to ensure professional boundaries are maintained.</p>
+              </section>
+              <section>
+                <h3 className="text-gray-300 font-semibold mb-3">4. Non-Scraping Agreement</h3>
+                <p className="font-light">Redistribution, automated scraping, or bulk harvesting of our leads for the purpose of reselling is strictly prohibited and protected by intellectual property laws. Access is granted for individual professional use only.</p>
+              </section>
+            </div>
           </motion.div>
         )}
 
