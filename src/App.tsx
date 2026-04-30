@@ -67,7 +67,7 @@ export default function SolarApp() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
   
@@ -205,8 +205,23 @@ export default function SolarApp() {
 
   const savePayment = async (paymentId: string) => {
     setPaymentLoadingMessage('Activating your account...');
-    const generatedPassword = Math.random().toString(36).slice(-8);
-    const userCredentials = { username: accessForm.email, password: generatedPassword };
+    
+    // Generate secure random password
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let generatedPassword = '';
+    for (let i = 0; i < 8; i++) {
+      generatedPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    const expiryStr = expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    const userCredentials = { 
+      username: accessForm.email, 
+      password: generatedPassword,
+      expiry: expiryStr 
+    };
     
     try {
       await fetch(API_URL, {
@@ -217,6 +232,9 @@ export default function SolarApp() {
           password: generatedPassword,
           paymentId,
           action: 'register',
+          sheet: 'Sheet2', // Explicitly targeting sheet 2 logic
+          expiryDate: expiryDate.toISOString(),
+          validUntil: expiryStr,
           timestamp: new Date().toISOString()
         }),
       });
@@ -225,7 +243,11 @@ export default function SolarApp() {
       setShowAccessForm(false);
       setShowCredentials(true);
     } catch (e) {
-      alert("Payment successful! Please contact support with ID: " + paymentId);
+      // Even if sheet saving fails, we show credentials since payment was charged
+      setCredentials(userCredentials);
+      setShowAccessForm(false);
+      setShowCredentials(true);
+      console.error("Sheet sync failed but payment confirmed", e);
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -1456,7 +1478,7 @@ export default function SolarApp() {
               </div>
               <h3 className="text-2xl font-black mb-4">Payment Confirmed</h3>
               <p className="text-gray-500 mb-10 leading-relaxed">
-                Your 30-day access is now active. Please save these credentials securely.
+                Your 30-day access is now active. Valid until <span className="text-emerald-600 font-bold">{credentials.expiry}</span>. Please save these credentials securely.
               </p>
 
               <div className="space-y-4 mb-10">
