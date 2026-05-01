@@ -450,7 +450,7 @@ export default function SolarApp() {
                   <span className="text-emerald-400">Rooftop</span> & Solar <br className="hidden sm:block" />Design Tool.
                 </motion.h1>
                 <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
-                  Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
+                  Elevating execution through better options, sharper planning, and confident decisions.
                 </p>
 
                 <motion.div 
@@ -550,7 +550,7 @@ export default function SolarApp() {
                     Empower your <span className="text-emerald-400">entire</span> sales organization.
                   </h2>
                   <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg font-normal leading-relaxed opacity-80">
-                    Unlock professional-grade industrial rooftop mapping, precision dimensions, and direct decision-maker intelligence built specifically for EPC solar installers.
+                    Enable team with the clarity to plan accurately, reach the right stakeholders, and execute with better results
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
