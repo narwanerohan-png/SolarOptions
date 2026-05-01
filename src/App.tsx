@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import SketchBoard from './components/SketchBoard';
 import ThreeScene from './components/ThreeScene';
@@ -70,6 +70,15 @@ export default function SolarApp() {
   const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(error => {
+        console.warn("Video Autoplay was blocked or failed:", error);
+      });
+    }
+  }, []);
   
   // Form State
   const [accessForm, setAccessForm] = useState({
@@ -321,48 +330,80 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className="fixed top-0 w-full z-[100] px-6 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-slate-900/50">
+    <nav className="fixed top-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-slate-900/50">
       <div 
         onClick={() => { window.scrollTo(0, 0); setCurrentPage('landing'); }} 
-        className="flex items-center gap-3 cursor-pointer group"
+        className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
+        aria-label="SolarOptions Home"
       >
-        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-          <Sun className="w-6 h-6 text-slate-900" />
+        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+          <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-slate-900" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
+        <span className="text-lg sm:text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
       </div>
       
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-3 sm:gap-6">
         <button 
           onClick={() => { window.scrollTo(0, 0); setCurrentPage('consumer'); }} 
-          className="text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+          className="hidden sm:block text-xs sm:text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+          aria-label="Solar Calculator"
         >
           Calculator
         </button>
-        <button 
-          onClick={() => { 
-            if (isLoggedIn) {
-              window.scrollTo(0, 0); 
-              setCurrentPage('epc');
-              setEpcView('search');
-            } else {
-              setShowLoginModal(true);
-            }
-          }} 
-          className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl border border-slate-700 transition-all cursor-pointer group"
-        >
-          <LogIn className="w-4 h-4 text-emerald-400" />
-          {isLoggedIn ? 'Dashboard' : 'Login'}
-        </button>
+        <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
+        {isLoggedIn ? (
+          <>
+            <button 
+              onClick={() => { window.scrollTo(0, 0); setCurrentPage('epc'); }} 
+              className="text-xs sm:text-sm font-bold text-emerald-400 hover:text-white transition-colors cursor-pointer"
+              aria-label="Access Dashboard"
+            >
+              Dashboard
+            </button>
+            <button 
+              onClick={() => setIsLoggedIn(false)} 
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              onClick={() => setShowLoginModal(true)} 
+              className="text-xs sm:text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Login
+            </button>
+            <button 
+              onClick={() => setShowAccessForm(true)}
+              className="px-4 pr-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
+            >
+              Request Access
+            </button>
+          </>
+        )}
       </div>
     </nav>
   );
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
-      <Nav />
+    <div className="min-h-screen bg-slate-900 text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden relative">
+      {/* Global Solar Background Layer */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none opacity-20"
+        style={{
+          backgroundImage: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.8)), url("https://images.unsplash.com/photo-1509391366360-fe5ace448016?auto=format&fit=crop&q=80&w=2000")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+        }}
+      />
+      
+      <div className="relative z-10">
+        <Nav />
 
-      <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait">
         {currentPage === 'landing' && (
           <motion.div 
             key="landing"
@@ -370,101 +411,159 @@ export default function SolarApp() {
             className="relative"
           >
             {/* Hero */}
-            <header className="relative w-full min-h-[60vh] flex items-center overflow-hidden border-b border-white/5">
+            <header className="relative w-full min-h-[70vh] flex items-center overflow-hidden border-b border-white/5">
               {/* Video Background layer */}
-              <div className="absolute inset-0 z-0">
+              <div className="absolute inset-0 z-0 bg-transparent">
                 <video 
+                  ref={videoRef}
                   autoPlay 
                   muted 
                   loop 
                   playsInline 
-                  className="w-full h-full object-cover opacity-50"
+                  preload="auto"
+                  className="w-full h-full object-cover opacity-60 mix-blend-lighten"
+                  poster="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=2000"
                 >
-                  <source src="https://assets.mixkit.co/videos/preview/mixkit-solar-panels-on-the-roof-of-a-house-4841-large.mp4" type="video/mp4" />
+                  <source src="https://videos.pexels.com/video-files/15920793/15920793-sd_640_360_25fps.mp4" type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px]"></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/10 via-slate-900/80 to-slate-900"></div>
+                <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px]"></div>
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/0 via-slate-900/30 to-slate-900"></div>
+                
+                {/* Scanline effect */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.01),rgba(0,255,0,0.005),rgba(0,0,255,0.01))] z-[1] bg-[length:100%_4px,3px_100%] pointer-events-none opacity-20"></div>
               </div>
 
-              <div className="max-w-6xl mx-auto text-center relative z-10 px-6 py-16 mt-8">
+              <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-24 mt-12">
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-6 shadow-2xl backdrop-blur-md"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8 backdrop-blur-md"
                 >
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
                 </motion.div>
                 <motion.h1 
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  className="text-4xl sm:text-6xl font-bold mb-4 leading-tight tracking-tight text-white drop-shadow-xl"
+                  className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 leading-[1.05] tracking-tight text-white drop-shadow-2xl"
                 >
-                  <span className="text-emerald-400 italic">Rooftop</span> & Solar Design Tool.
+                  <span className="text-emerald-400">Rooftop</span> & Solar <br className="hidden sm:block" />Design Tool.
                 </motion.h1>
-                <p className="text-lg sm:text-xl text-gray-300 mb-0 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-lg opacity-90">
+                <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
                   Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
                 </p>
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
+                >
+                  <button 
+                    onClick={() => setShowAccessForm(true)}
+                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    Request Access <ArrowRight className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                        window.scrollTo(0, 1000); // Scroll down to features or 3D section
+                        setCurrentPage('epc');
+                        setEpcView('design');
+                    }}
+                    className="w-full sm:w-auto px-10 py-5 bg-white/5 hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 backdrop-blur-md transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    Explore 3D Designer
+                  </button>
+                </motion.div>
+                
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1, duration: 1 }}
+                  className="flex flex-col items-center gap-3 mt-16"
+                >
+                  <span className="text-[10px] uppercase tracking-widest text-emerald-400 font-black opacity-40">Dive into the platform</span>
+                  <div className="w-px h-16 bg-gradient-to-b from-emerald-500/40 via-emerald-500/10 to-transparent"></div>
+                </motion.div>
               </div>
             </header>
 
             {/* Strategy Section */}
-            <section className="max-w-6xl mx-auto px-6 pt-8 pb-10 border-t border-slate-800">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
-                <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
+            <section id="features" className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                <motion.div 
+                  whileHover={{ y: -8 }}
+                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
+                >
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <Database className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-100">1. Access Data</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-light">
-                    Browse our curated list of industrial facilities with extensive, potential rooftop areas 
-                    across major clusters.
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">1. Right Rooftops</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
+                    Leverage high-potential rooftop data and deep industrial insights. Explore a curated network of industrial facilities across key clusters, so you approach the right sites with a clear strategy from day one.
                   </p>
-                </div>
-                <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
+                </motion.div>
+                
+                <motion.div 
+                  whileHover={{ y: -8 }}
+                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
+                >
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <PenTool className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-100">2. Precision Design</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-light">
-                    Sketch site boundaries and auto-populate panels with integrated safety walkways. 
-                    Simulate real-world layouts in our 3D Studio.
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">2. Design Faster</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
+                    Turn insights into precise, site-ready designs. Sketch boundaries, auto-place panels with safety walkways, and simulate real-world layouts in 3D—so you present a plan that is clear, practical, and built for confidence and closure.
                   </p>
-                </div>
-                <div className="space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-4">
+                </motion.div>
+
+                <motion.div 
+                  whileHover={{ y: -8 }}
+                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
+                >
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-100">3. Approach & Close</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-light">
-                    Reach out with Decision Maker contact details and data-backed proposals already in hand. 
-                    Reduce your sales cycle by 40%.
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">3. Close Better</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
+                    Reach the right decision-makers with data-backed proposals in hand. Eliminate blind outreach and guesswork—so your team moves with clarity, shortens the sales cycle, and closes deals faster.
                   </p>
-                </div>
+                </motion.div>
               </div>
 
               {/* Enterprise Section */}
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/20 rounded-[40px] p-8 sm:p-10 text-center relative overflow-hidden mb-10">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32"></div>
+              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-12 sm:p-20 text-center relative overflow-hidden mb-24 backdrop-blur-xl shadow-2xl shadow-black/50">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] -mr-48 -mt-48 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/5 blur-[120px] -ml-48 -mb-48 pointer-events-none"></div>
+                
                 <div className="relative z-10">
-                  <div className="inline-block px-4 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">SolarOptions Pro</span>
-                  </div>
-                  <h2 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight text-white">Scale your sales team.</h2>
-                  <p className="text-gray-400 max-w-xl mx-auto mb-8 text-base font-light leading-relaxed">
-                    Unlock professional-grade industrial rooftop area dimensions potential for project and decision-maker contact details mapped specifically for EPC installers.
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mt-0.5 block">Premium Platform for EPCs</span>
+                  </motion.div>
+                  
+                  <h2 className="text-4xl sm:text-5xl md:text-6xl font-black mb-8 tracking-tight text-white max-w-3xl mx-auto leading-tight">
+                    Empower your <span className="text-emerald-400">entire</span> sales organization.
+                  </h2>
+                  <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg font-normal leading-relaxed opacity-80">
+                    Unlock professional-grade industrial rooftop mapping, precision dimensions, and direct decision-maker intelligence built specifically for EPC solar installers.
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
-                    <div className="p-8 bg-white/5 rounded-3xl border border-white/10 group hover:border-emerald-500/30 transition-all">
+                    <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 group hover:border-emerald-500/30 transition-all shadow-xl">
                       <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Lite Access</p>
-                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Complimentary</p>
+                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Standard Access</p>
                       <div className="space-y-3">
                         <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> 3D Designer Access</p>
                         <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Tech Potential Calculator</p>
                         <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Est. Savings & Payback Period</p>
                       </div>
                     </div>
-                    <div className="p-8 bg-emerald-500/5 rounded-3xl border border-emerald-500/30 ring-2 ring-emerald-500/10 scale-105 shadow-2xl relative overflow-hidden">
+                    <div className="p-8 bg-slate-800 rounded-3xl border border-emerald-500/30 ring-2 ring-emerald-500/10 scale-105 shadow-2xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                       </div>
@@ -482,109 +581,69 @@ export default function SolarApp() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button 
-                  onClick={() => {
-                    // @ts-ignore
-                    window.gtag?.('event', 'click_partner_portal');
-                    setCurrentPage('epc');
-                  }} 
-                  className="group w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 rounded-2xl text-slate-900 font-bold text-xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                >
-                  Request Access <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button 
-                  onClick={() => {
-                    // @ts-ignore
-                    window.gtag?.('event', 'click_3d_designer');
-                    setCurrentPage('epc');
-                    setEpcView('design');
-                  }} 
-                  className="group w-full sm:w-auto px-10 py-5 bg-slate-800 hover:bg-slate-700 rounded-2xl text-white font-bold text-xl shadow-xl transition-all border border-slate-700 flex items-center justify-center gap-3"
-                >
-                  <PenTool className="w-5 h-5 text-emerald-400" />
-                  3D Solar Design Tool
-                </button>
-              </div>
+              {/* Removed redundant buttons section */}
             </section>
 
             {/* SEO Keyword Sections */}
-            <section className="max-w-6xl mx-auto px-6 py-8 mb-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-left">
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-3">Solar Design Tool</h4>
-                  <p className="text-xs text-gray-400 leading-relaxed">Advanced 3D simulation for industrial rooftops. Create precise PV layouts with safety gaps and generate professional PDF proposals.</p>
-                </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-3">Factory Data List</h4>
-                  <p className="text-xs text-gray-400 leading-relaxed">Curated intelligence of industrial facilities across MIDC and prime clusters, mapped specifically for solar EPC potential.</p>
-                </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-3">Decision Maker Contacts</h4>
-                  <p className="text-xs text-gray-400 leading-relaxed">Save weeks of prospecting with direct contact details of key stakeholders. Approach the right person with a data-backed plan.</p>
-                </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-3">Industrial Solar Calculator</h4>
-                  <p className="text-xs text-gray-400 leading-relaxed">Instant feasibility reports based on electricity consumption, available rooftop area, and current tariff rates.</p>
-                </div>
+            <section className="max-w-7xl mx-auto px-6 py-24 mb-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+                {[
+                  { title: "Solar Design Tool", desc: "Advanced 3D simulation for industrial rooftops. Create precise PV layouts with safety gaps and professional PDF proposals." },
+                  { title: "Factory Data List", desc: "Curated intelligence of industrial facilities across MIDC and prime clusters, mapped specifically for solar potential." },
+                  { title: "Decision Makers", desc: "Save weeks of prospecting with direct contact details. Approach stakeholders with a specialized data-backed plan." },
+                  { title: "Solar Calculator", desc: "Instant feasibility reports based on electricity consumption, available rooftop area, and regional tariff rates." }
+                ].map((item, i) => (
+                  <div key={i} className="p-8 bg-slate-900/30 rounded-[32px] border border-white/5 transition-colors hover:border-emerald-500/20 group">
+                    <h4 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-400 mb-4">{item.title}</h4>
+                    <p className="text-xs text-gray-400 leading-relaxed font-medium opacity-70 group-hover:opacity-100 transition-opacity">{item.desc}</p>
+                  </div>
+                ))}
               </div>
             </section>
 
-            {/* Industrial Focus */}
-            <section className="bg-slate-800/50 py-16">
-              <div className="max-w-4xl mx-auto px-6 text-center">
-                <h2 className="text-3xl font-bold mb-8">Why professionals choose us</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <div className="bg-slate-900/50 p-8 rounded-[32px] border border-slate-700/50 flex items-start gap-4 text-left">
-                    <Shield className="w-6 h-6 text-emerald-400 shrink-0 mt-1" />
-                    <div>
-                      <h4 className="font-bold mb-2">Potential Clusters</h4>
-                      <p className="text-sm text-gray-400">Data focused on MIDC and prime industrial zones where policy is favorable.</p>
-                    </div>
-                  </div>
-                  <div className="bg-slate-900/50 p-8 rounded-[32px] border border-slate-700/50 flex items-start gap-4 text-left">
-                    <Zap className="w-6 h-6 text-emerald-400 shrink-0 mt-1" />
-                    <div>
-                      <h4 className="font-bold mb-2">Instant Readiness</h4>
-                      <p className="text-sm text-gray-400">Get 30 days of seamless access to Decision Maker contact details and rooftop dimensions.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
 
             {/* Solar Options Guide for SEO */}
-            <section className="max-w-4xl mx-auto px-6 py-8 text-left opacity-30 hover:opacity-100 transition-opacity">
-               <h2 className="text-xl font-bold mb-6 text-gray-400">Industrial Solar Options & Resources</h2>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-[11px] text-gray-500">
-                  <div>
-                     <h3 className="font-bold text-gray-400 mb-2 uppercase tracking-widest">How much rooftop space for solar?</h3>
-                     <p className="leading-relaxed">Usually, 1 kWp of solar capacity requires approximately 100 square feet of shadow-free rooftop area. For industrial setups, our solar calculator helps estimate the exact capacity based on your MIDC factory's footprint.</p>
+            <section id="seo-insights" className="max-w-5xl mx-auto px-6 py-24 text-left border-t border-white/5">
+               <h2 className="text-3xl font-black mb-12 text-white/90 uppercase tracking-tight">Solar <br/><span className="text-emerald-400 italic font-medium">Insights Engine.</span></h2>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-sm text-gray-500">
+                  <div className="space-y-6">
+                     <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Industrial Rooftop Capacity</h3>
+                     <p className="leading-relaxed font-medium">Standard industrial solar requires ~100 sq.ft per kWp. Our modeling accounts for shadow-free areas in high-density zones like MIDC to ensure precision estimation.</p>
                   </div>
-                  <div>
-                     <h3 className="font-bold text-gray-400 mb-2 uppercase tracking-widest">Finding Solar EPC Near Me</h3>
-                     <p className="leading-relaxed">Building relationships with nearby EPC partners is easier when you have decision maker contact details. SolarOptions bridges the gap between industrial owners and local solar expertise.</p>
+                  <div className="space-y-6">
+                     <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Local EPC Connectivity</h3>
+                     <p className="leading-relaxed font-medium">Bridges the gap between industrial owners and certified EPC experts by providing verified site data and executive contact details for seamless outreach.</p>
                   </div>
-                  <div>
-                     <h3 className="font-bold text-gray-400 mb-2 uppercase tracking-widest">Solar Design Tool Features</h3>
-                     <p className="leading-relaxed">Our 3D solar design tool allows designers to visualize layouts, account for safety walkways, and calculate generation based on specific industrial rooftop orientations.</p>
+                  <div className="space-y-6">
+                     <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Design Optimization</h3>
+                     <p className="leading-relaxed font-medium">Advanced boundary calculations help in assessing net usable area, accounting for HVAC systems, skylights, and safety walkways on commercial buildings.</p>
                   </div>
                </div>
             </section>
 
-            {/* Disclaimer Footer */}
-            <footer className="max-w-4xl mx-auto px-6 py-24 text-center">
-              <p className="text-[10px] uppercase tracking-widest text-slate-600 mb-4 font-bold">Disclaimer</p>
-              <p className="text-xs text-gray-500 leading-relaxed font-medium bg-slate-800/30 p-6 rounded-2xl">
-                Data provided is sourced from public records and indicative computational models. 
-                SolarOptions.in makes no claims regarding actual property availability or project realization. 
-                Final feasibility must be assessed on-site. For inquiries regarding update data or removal, contact us or <button onClick={() => setShowFeedbackModal(true)} className="text-emerald-500 font-bold hover:underline cursor-pointer">view feedback</button>.
-              </p>
-              <div className="mt-8 flex items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('privacy'); }} className="hover:text-emerald-400 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-widest bg-transparent border-none p-0">Privacy Policy</button>
-                <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('terms'); }} className="hover:text-emerald-400 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-widest bg-transparent border-none p-0">Terms of Service</button>
-                <span>© 2024 SolarOptions</span>
-              </div>
+            {/* Final Footer */}
+            <footer className="max-w-6xl mx-auto px-6 py-24 mb-12">
+               <div className="bg-slate-900/50 p-12 rounded-[50px] border border-white/5 backdrop-blur-md">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div className="text-left space-y-4">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-slate-900 shadow-lg shadow-emerald-500/20">
+                            <Sun className="w-6 h-6" />
+                         </div>
+                         <span className="text-xl font-black text-white tracking-tighter">SolarOptions.in</span>
+                      </div>
+                      <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Lead Intelligence platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
+                    </div>
+                    <div className="flex flex-wrap justify-center md:justify-end gap-10">
+                       <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('privacy'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy</button>
+                       <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('terms'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms</button>
+                       <button onClick={() => setShowFeedbackModal(true)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Feedback</button>
+                    </div>
+                 </div>
+                 <div className="mt-12 pt-12 border-t border-white/5 text-[9px] text-gray-600 font-black uppercase tracking-[0.3em] text-center">
+                   Official Platform for Professional Solar EPC Partners
+                 </div>
+               </div>
             </footer>
           </motion.div>
         )}
@@ -651,146 +710,150 @@ export default function SolarApp() {
           <motion.div 
             key="consumer"
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="max-w-5xl mx-auto px-6 py-12"
+            className="max-w-6xl mx-auto px-6 py-24"
           >
-            <div className="flex justify-between items-center bg-white/5 border border-white/10 p-6 rounded-[32px] backdrop-blur-xl mb-12">
+            <div className="flex justify-between items-center bg-emerald-500/5 border border-emerald-500/20 p-6 rounded-[32px] backdrop-blur-xl mb-16">
                    <button 
                     onClick={() => setCurrentPage('landing')} 
-                    className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
+                    className="flex items-center gap-3 text-xs font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-all bg-emerald-500/10 px-6 py-3 rounded-2xl border border-emerald-500/10"
                    >
-                     <ArrowRight className="w-4 h-4 rotate-180" /> Back to Home
+                     <ArrowLeft className="w-4 h-4" /> Back to Dashboard
                    </button>
-                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/50">Feasibility Terminal</div>
+                   <div className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Feasibility Terminal v2.1</div>
             </div>
 
-            <div className="text-center mb-12">
-              <h1 className="text-3xl sm:text-5xl font-black mb-4">Industrial solar calculator</h1>
-              <p className="text-gray-400 max-w-xl mx-auto">Calculate the commercial potential of your industrial rooftop with our advanced solar modeling engine.</p>
+            <div className="text-center mb-16 space-y-4">
+              <h1 className="text-4xl sm:text-7xl font-black tracking-tight leading-none uppercase">Industrial <br/><span className="text-emerald-400 italic font-medium">Solar Intelligence</span></h1>
+              <p className="text-gray-500 max-w-xl mx-auto font-medium text-lg">Calculate precision commercial metrics for high-capacity industrial rooftop systems.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-              <div className="lg:col-span-12 bg-white text-slate-900 rounded-[48px] p-8 sm:p-12 shadow-2xl space-y-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <div className="space-y-10">
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Monthly Electricity Bill</label>
-                          <p className="text-2xl font-black text-emerald-600">₹{formatIndianNumber(monthlyBill)}</p>
-                        </div>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="20000" 
-                        max="1000000" 
-                        step="5000" 
-                        value={monthlyBill} 
-                        className="w-full h-3 bg-slate-100 rounded-2xl appearance-none cursor-pointer accent-emerald-500" 
-                        onChange={(e) => setMonthlyBill(Number(e.target.value))} 
-                      />
-                      <div className="flex justify-between text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-                        <span>Min ₹20k</span>
-                        <span>Max ₹10L</span>
-                      </div>
+            <div className="bg-slate-800/50 border border-white/10 rounded-[60px] p-8 sm:p-16 backdrop-blur-xl shadow-3xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                  <div className="space-y-12">
+                    <div className="space-y-8">
+                       <div className="space-y-2">
+                         <div className="flex justify-between items-end mb-4">
+                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Monthly Load (Avg Bill)</label>
+                           <p className="text-3xl font-black text-white font-mono leading-none">₹{formatIndianNumber(monthlyBill)}</p>
+                         </div>
+                         <input 
+                           type="range" min="20000" max="1000000" step="10000" 
+                           value={monthlyBill} 
+                           className="w-full h-1.5 bg-slate-800 rounded-2xl appearance-none cursor-pointer accent-emerald-500" 
+                           onChange={(e) => setMonthlyBill(Number(e.target.value))} 
+                         />
+                         <div className="flex justify-between text-[8px] font-black text-gray-700 uppercase tracking-widest pt-2">
+                           <span>MIN 20K</span>
+                           <span>MAX 10L</span>
+                         </div>
+                       </div>
+
+                       <div className="space-y-2">
+                         <div className="flex justify-between items-end mb-4">
+                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Available Footprint</label>
+                           <p className="text-3xl font-black text-white font-mono leading-none">{formatIndianNumber(rooftopSpace)} <span className="text-xs text-gray-500">SQFT</span></p>
+                         </div>
+                         <input 
+                           type="range" min="1000" max="100000" step="1000" 
+                           value={rooftopSpace} 
+                           className="w-full h-1.5 bg-slate-800 rounded-2xl appearance-none cursor-pointer accent-emerald-500" 
+                           onChange={(e) => setRooftopSpace(Number(e.target.value))} 
+                         />
+                         <div className="flex justify-between text-[8px] font-black text-gray-700 uppercase tracking-widest pt-2">
+                           <span>MIN 1K</span>
+                           <span>MAX 1L</span>
+                         </div>
+                       </div>
+
+                       <div className="space-y-4 pt-4">
+                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Grid Tariff Rate</label>
+                         <div className="grid grid-cols-5 gap-3">
+                           {[7, 8, 9, 10, 11].map(rate => (
+                             <button
+                               key={rate}
+                               onClick={() => setElectricityRate(rate)}
+                               className={cn(
+                                 "py-4 rounded-2xl text-xs font-black transition-all border",
+                                 electricityRate === rate 
+                                   ? "bg-emerald-500 text-slate-900 border-emerald-500 shadow-lg shadow-emerald-500/20" 
+                                   : "bg-slate-900/50 text-gray-500 border-white/5 hover:border-white/10 hover:text-gray-300"
+                               )}
+                             >
+                               ₹{rate}
+                             </button>
+                           ))}
+                         </div>
+                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Electricity Rate (per kW)</label>
-                      <div className="relative group">
-                        <select 
-                          value={electricityRate}
-                          onChange={(e) => setElectricityRate(Number(e.target.value))}
-                          className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-[24px] outline-none focus:border-emerald-500 appearance-none font-black text-xl transition-all cursor-pointer"
-                        >
-                          {[7, 8, 9, 10, 11].map(rate => (
-                            <option key={rate} value={rate}>₹{rate} per unit</option>
-                          ))}
-                        </select>
-                        <ChevronRight className="absolute right-8 top-1/2 -translate-y-1/2 w-6 h-6 text-emerald-500 rotate-90 pointer-events-none group-hover:scale-110 transition-transform" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Rooftop Space</label>
-                          <p className="text-2xl font-black text-emerald-600">{formatIndianNumber(rooftopSpace)} <span className="text-sm text-slate-400">sq.ft</span></p>
-                        </div>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="1000" 
-                        max="100000" 
-                        step="500" 
-                        value={rooftopSpace} 
-                        className="w-full h-3 bg-slate-100 rounded-2xl appearance-none cursor-pointer accent-emerald-500" 
-                        onChange={(e) => setRooftopSpace(Number(e.target.value))} 
-                      />
-                      <div className="flex justify-between text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-                        <span>Min 1k sq.ft</span>
-                        <span>Max 1L sq.ft</span>
-                      </div>
+                    <div className="bg-slate-800/60 p-8 rounded-[40px] border border-white/10 flex items-center gap-6 group">
+                       <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-all">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                       </div>
+                       <div>
+                          <h4 className="text-white font-bold tracking-tight">Estimated Savings</h4>
+                          <p className="text-emerald-400 font-bold text-lg leading-tight mt-0.5">85% Reduction <span className="text-gray-500 text-xs font-medium italic">— Across life cycle</span></p>
+                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-[40px] p-8 border border-slate-100 grid grid-cols-2 gap-4">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm col-span-2">
-                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Recommended Capacity</p>
-                       <p className="text-3xl font-black text-emerald-600">{formatPower(calculatorResult.plantSize)}</p>
-                       <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                  <div className="bg-slate-800/50 rounded-[50px] p-10 border border-white/10 grid grid-cols-2 gap-6 relative">
+                    <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-500/10 blur-[80px] pointer-events-none" />
+                    
+                    <div className="bg-slate-800/70 p-8 rounded-[40px] border border-white/10 col-span-2 shadow-2xl relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform">
+                          <Zap size={60} />
+                       </div>
+                       <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mb-4">Recommended Capacity</p>
+                       <p className="text-5xl font-black text-emerald-400 leading-none mb-6">{formatPower(calculatorResult.plantSize)}</p>
+                       <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(100, (calculatorResult.plantSize / 1000) * 100)}%` }}
-                            className="h-full bg-emerald-500"
+                            className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                           />
                        </div>
                     </div>
 
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Yearly Units</p>
-                      <p className="text-lg font-black">{formatIndianNumber(calculatorResult.yearlyGeneration)} <span className="text-[10px] text-slate-400">kWh</span></p>
+                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Yearly Generation</p>
+                      <p className="text-xl font-bold text-white leading-none">{formatIndianNumber(calculatorResult.yearlyGeneration)} <span className="text-[10px] text-gray-600">KWH</span></p>
                     </div>
 
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Yearly Savings</p>
-                      <p className="text-lg font-black text-emerald-600">₹{formatIndianNumber(calculatorResult.yearlySavings)}</p>
+                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10 group overflow-hidden relative">
+                      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500/50 group-hover:h-full transition-all duration-700 opacity-20 pointer-events-none" />
+                      <p className="text-[9px] text-emerald-500 font-black uppercase tracking-[0.2em] mb-2">Yearly Savings</p>
+                      <p className="text-xl font-bold text-emerald-400 leading-none">₹{formatIndianNumber(calculatorResult.yearlySavings)}</p>
                     </div>
 
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Project Cost</p>
-                      <p className="text-lg font-black">₹{formatIndianNumber(calculatorResult.projectCost)}</p>
+                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">System Cost (Est)</p>
+                      <p className="text-xl font-bold text-white leading-none">₹{formatIndianNumber(calculatorResult.projectCost)}</p>
                     </div>
 
-                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">ROI Payback</p>
-                      <p className="text-lg font-black">{calculatorResult.payback} <span className="text-[10px] text-slate-400 uppercase">Years</span></p>
+                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">ROI Payback</p>
+                      <p className="text-xl font-bold text-white leading-none font-mono">{calculatorResult.payback} <span className="text-[10px] text-gray-600">YRS</span></p>
                     </div>
-
-                    <div className="col-span-2 pt-4">
-                      <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                        <p className="text-xs text-emerald-700 font-medium">Estimated savings of <span className="font-bold">85%</span> on your current electricity expenditure.</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+            </div>
 
-                <div className="pt-8 border-t border-slate-100">
-                  <div className="bg-slate-900 text-white p-10 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-8 group">
-                    <div className="space-y-2 text-center md:text-left">
-                      <h3 className="text-2xl font-black italic">Get Technical Feasibility Visit</h3>
-                      <p className="text-gray-400 text-sm max-w-sm">Receive most suitable proposal as per the actual energy consumption pattern and feasibility.</p>
+                <div className="mt-20 pt-16 border-t border-white/5">
+                  <div className="bg-emerald-500 text-slate-900 p-12 rounded-[50px] flex flex-col md:flex-row items-center justify-between gap-12 group relative overflow-hidden">
+                    <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-[60px]" />
+                    <div className="space-y-4 text-center md:text-left relative z-10">
+                      <h3 className="text-3xl sm:text-4xl font-black leading-[1.1]">Get Technical <br/><span className="italic opacity-80">Feasibility Design.</span></h3>
+                      <p className="text-slate-900/70 text-sm max-w-sm font-bold uppercase tracking-wide">Professional on-site audit & precise system layout design.</p>
                     </div>
                     <button 
                       onClick={() => setShowQuoteModal(true)}
-                      className="w-full md:w-auto px-10 py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      className="w-full md:w-auto px-12 py-6 bg-slate-900 text-white font-black rounded-3xl shadow-3xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4 relative z-10 group"
                     >
-                      Get Detailed Quote <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-all" />
+                      REQUEST DETAILED PROPOSAL <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-all text-emerald-500" />
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
           </motion.div>
         )}
 
@@ -834,26 +897,23 @@ export default function SolarApp() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => setIsLoggedIn(false)} className="px-6 py-3 bg-rose-500/10 text-rose-500 rounded-2xl text-xs font-black uppercase tracking-widest border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all shadow-lg active:scale-95">
-                    Secure Logout
-                  </button>
                 </header>
 
                 {epcView === 'search' && (
                   <>
-                    <div className="flex flex-wrap gap-4 bg-slate-800/50 p-4 rounded-3xl border border-slate-700/50 backdrop-blur-md">
+                    <div className="flex flex-wrap gap-4 bg-slate-700/40 p-4 rounded-3xl border border-white/5 backdrop-blur-md">
                       <div className="relative group flex-1 min-w-[240px]">
                           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-emerald-400 transition-colors" />
                           <input 
                             value={rooftopSearch} 
                             onChange={(e) => { setRooftopSearch(e.target.value); setCurrentPageIndex(1); }}
                             placeholder="Search rooftop size (exact e.g. 6000)" 
-                            className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl outline-none focus:border-emerald-500 transition-all font-medium"
+                            className="w-full pl-11 pr-4 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-500 transition-all font-medium"
                           />
                       </div>
                       <select 
                         value={regionFilter} onChange={(e) => { setRegionFilter(e.target.value); setCurrentPageIndex(1); }}
-                        className="px-6 py-3 bg-slate-900 border border-slate-700 rounded-2xl outline-none focus:border-emerald-400 font-bold"
+                        className="px-6 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-400 font-bold"
                       >
                         <option value="all">All Regions</option>
                         <option value="pune">Pune Cluster</option>
@@ -861,35 +921,39 @@ export default function SolarApp() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {filteredLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).map((lead, i) => (
                         <motion.div 
                           key={i} 
-                          whileHover={{ y: -4 }}
-                          className="bg-white text-slate-900 p-8 rounded-[40px] shadow-2xl flex flex-col justify-between"
+                          whileHover={{ y: -8, transition: { duration: 0.3, ease: 'easeOut' } }}
+                          className="group bg-white text-slate-900 p-10 rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col justify-between border border-slate-100 hover:shadow-[0_40px_70px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden"
                         >
                           <div>
-                            <div className="flex justify-between items-start mb-4">
-                              <h3 className="font-black text-xl leading-tight h-14 line-clamp-2">{lead.factory}</h3>
-                              <span className="text-[10px] font-bold uppercase py-1 px-3 bg-emerald-100 text-emerald-700 rounded-full">{lead.region}</span>
+                            <div className="flex justify-between items-start mb-10">
+                                <h3 className="font-black text-2xl leading-[1.1] pr-4 text-slate-800 tracking-tight">{lead.factory}</h3>
+                                <span className="shrink-0 text-[10px] font-black uppercase py-1.5 px-3 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100/50">{lead.region}</span>
                             </div>
-                            <div className="space-y-4 mb-8">
-                              <div className="flex justify-between border-b border-slate-100 pb-3">
-                                  <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Site Size</span>
-                                  <span className="font-bold">{formatIndianNumber(lead.rooftop)} sq.ft</span>
+                            
+                            <div className="space-y-4 mb-10">
+                              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                                  <span className="text-slate-400 text-[11px] font-black uppercase tracking-widest">Site Size</span>
+                                  <span className="font-black text-lg text-slate-800">{formatIndianNumber(lead.rooftop)} <span className="text-xs font-bold text-slate-400">sq.ft</span></span>
                               </div>
-                              <div className="flex justify-between border-b border-slate-100 pb-3">
-                                  <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Potential</span>
-                                  <span className="font-black text-emerald-600">{formatPower(lead.kw)}</span>
+                              <div className="flex justify-between items-center">
+                                  <span className="text-slate-400 text-[11px] font-black uppercase tracking-widest">Potential</span>
+                                  <span className="font-black text-lg text-emerald-500">{formatPower(lead.kw)}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 font-medium h-10 line-clamp-2">
-                                  <MapPin className="w-3.5 h-3.5 shrink-0" /> {lead.location}
-                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mb-8 text-slate-400">
+                               <MapPin className="w-4 h-4 text-slate-300" />
+                               <span className="text-xs font-semibold">{lead.location}</span>
                             </div>
                           </div>
+                          
                           <button 
                             onClick={() => setSelectedLead(lead)}
-                            className="w-full py-3 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-emerald-500 transition-all"
+                            className="w-full py-5 bg-[#121826] hover:bg-slate-800 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2"
                           >
                             View Full Specs
                           </button>
@@ -898,11 +962,11 @@ export default function SolarApp() {
                     </div>
 
                     {/* Pagination Controls */}
-                    <div className="flex items-center justify-center gap-6 mt-12 bg-slate-800/20 p-6 rounded-[32px] border border-slate-800">
+                    <div className="flex items-center justify-center gap-6 mt-12 bg-black/40 p-6 rounded-[32px] backdrop-blur-xl">
                         <button 
                           disabled={currentPageIndex === 1}
                           onClick={() => setCurrentPageIndex(p => Math.max(1, p - 1))}
-                          className="p-3 bg-white text-slate-900 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md"
                         >
                           <ArrowRight className="w-5 h-5 rotate-180" />
                         </button>
@@ -912,7 +976,7 @@ export default function SolarApp() {
                         <button 
                           disabled={currentPageIndex === totalPages}
                           onClick={() => setCurrentPageIndex(p => Math.min(totalPages, p + 1))}
-                          className="p-3 bg-white text-slate-900 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md"
                         >
                           <ArrowRight className="w-5 h-5" />
                         </button>
@@ -921,116 +985,122 @@ export default function SolarApp() {
                 )}
 
                 {epcView === 'design' && (
-                  <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
-                     <div className="flex justify-between items-center no-print">
-                        <button 
-                          onClick={() => setEpcView('search')}
-                          className="flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors"
-                        >
-                          <ArrowLeft size={16} />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Back</span>
-                        </button>
-                        <button 
-                          onClick={() => window.location.reload()}
-                          className="flex items-center gap-2 px-6 py-2 bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all border border-slate-100"
-                        >
-                           <RefreshCw size={12} />
-                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">New Project</span>
-                        </button>
-                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {/* STEP 1: Small Input Card */}
-                      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 space-y-6">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white">
-                            <Target size={16} />
-                          </div>
-                          <h3 className="text-xl font-black text-slate-900">1. Project Identity</h3>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Building Name</label>
-                            <input 
-                              type="text" 
-                              value={designFactoryName || ''} 
-                              onChange={e => setDesignFactoryName(e.target.value)}
-                              placeholder="Enter industrial site name..."
-                              className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-slate-900 font-bold focus:border-emerald-500 transition-all outline-none"
-                            />
-                          </div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-[1700px] mx-auto px-4"
+                  >
+                    <div className="flex justify-between items-center mb-8 no-print">
+                      <button 
+                        onClick={() => setEpcView('search')}
+                        className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-white uppercase tracking-[0.2em] transition-all group"
+                      >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        Back
+                      </button>
+                      <button 
+                         onClick={() => window.location.reload()}
+                         className="px-8 py-3 bg-white text-slate-900 rounded-2xl text-xs font-black uppercase tracking-[0.2em] border border-white/10 hover:bg-emerald-500 transition-all flex items-center gap-3 shadow-lg"
+                      >
+                        <RefreshCw size={16} /> New Project
+                      </button>
+                    </div>
 
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-end">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none ml-1">Target Area</label>
-                              <span className="text-xl font-black text-slate-900 font-mono">{designTargetArea.toLocaleString()} <span className="text-xs text-slate-400">SQFT</span></span>
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch mb-12">
+                      {/* STEP 1: Identity Card (3 columns) */}
+                      <div className="xl:col-span-4 bg-white p-12 rounded-[56px] border border-slate-100 flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-full min-h-[600px]">
+                        <div>
+                          <div className="flex items-center gap-4 mb-12">
+                            <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                              <Target size={20} />
                             </div>
-                            <input 
-                              type="range" min="1000" max="100000" step="1000"
-                              value={designTargetArea}
-                              onChange={e => setDesignTargetArea(Number(e.target.value))}
-                              className="w-full h-2 bg-slate-100 rounded-xl appearance-none cursor-pointer accent-emerald-500"
-                            />
+                            <h3 className="text-3xl font-black text-slate-800 tracking-tight">1. Project Identity</h3>
                           </div>
+                          
+                          <div className="space-y-12">
+                            <div className="space-y-4">
+                              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] block ml-1">Building Name</label>
+                              <input 
+                                type="text" 
+                                value={designFactoryName || ''} 
+                                onChange={e => setDesignFactoryName(e.target.value)}
+                                placeholder="Enter industrial site name..."
+                                className="w-full bg-[#F8FAFC] border border-slate-100 rounded-[24px] p-6 text-slate-800 font-bold focus:border-emerald-500/30 transition-all outline-none placeholder:text-slate-300 text-lg"
+                              />
+                            </div>
+                            
+                            <div className="space-y-6">
+                              <div className="flex justify-between items-end">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1">Target Area</label>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-4xl font-black text-slate-800 tracking-tight">{designTargetArea.toLocaleString()}</span>
+                                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">SQFT</span>
+                                </div>
+                              </div>
+                              <input 
+                                type="range" min="1000" max="100000" step="1000"
+                                value={designTargetArea}
+                                onChange={e => setDesignTargetArea(Number(e.target.value))}
+                                className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
 
-                          <div className="grid grid-cols-2 gap-4 pt-2">
-                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Project Potential</p>
-                                <p className="text-lg font-black text-slate-900">
-                                  {designPanelCount > 0 
-                                    ? (designPanelCount * 0.55).toFixed(1) 
-                                    : (designTargetArea / 65).toFixed(1)} 
-                                  <span className="text-[10px] text-slate-400"> kW</span>
-                                </p>
-                             </div>
-                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{designPanelCount > 0 ? 'Actual Modules' : 'Est. Modules'}</p>
-                                <p className="text-lg font-black text-slate-900">
-                                  {designPanelCount > 0 
-                                    ? designPanelCount 
-                                    : Math.floor((designTargetArea / 75) / 0.55)} 
-                                  <span className="text-[10px] text-slate-400"> Panels</span>
-                                </p>
-                             </div>
-                          </div>
+                        <div className="grid grid-cols-2 gap-4 pt-12">
+                           <div className="bg-[#F8FAFC] p-8 rounded-[32px] border border-slate-50">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Project Potential</p>
+                              <p className="text-3xl font-black text-slate-800">
+                                {designPanelCount > 0 
+                                  ? (designPanelCount * 0.55).toFixed(1) 
+                                  : (designTargetArea / 65).toFixed(1)} 
+                                <span className="text-xs font-bold text-slate-400 ml-1">kW</span>
+                              </p>
+                           </div>
+                           <div className="bg-[#F8FAFC] p-8 rounded-[32px] border border-slate-50">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Est. Modules</p>
+                              <p className="text-3xl font-black text-slate-800">
+                                {designPanelCount > 0 
+                                  ? designPanelCount 
+                                  : Math.floor((designTargetArea / 75) / 0.55)} 
+                                <span className="text-xs font-bold text-slate-400 ml-1">Panels</span>
+                              </p>
+                           </div>
                         </div>
                       </div>
 
-                      {/* STEP 2: Design Canvas Card */}
-                      <div className="bg-white p-2 rounded-[40px] shadow-sm border border-slate-100 flex flex-col overflow-hidden h-[500px]">
-                        <header className="p-6 flex justify-between items-center bg-white">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center text-white">
-                              <PenTool size={16} />
+                      {/* STEP 2: Design Canvas Card (8 columns) */}
+                      <div className="xl:col-span-8 bg-white rounded-[56px] border border-slate-100 flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.03)] min-h-[700px]">
+                        <header className="px-10 py-8 flex justify-between items-center border-b border-slate-50 bg-white z-10">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-xl">
+                              <PenTool size={20} />
                             </div>
-                            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">2. Sketch Boundaries</h3>
+                            <h3 className="text-3xl font-black text-slate-800 tracking-tight uppercase">2. SKETCH BOUNDARIES</h3>
                           </div>
                           
-                          <div className="flex gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
-                             <button 
-                               onClick={() => setDesignPhase('rooftops')}
-                               className={cn(
-                                 "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                 designPhase === 'rooftops' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                               )}
-                             >
-                               Roof
-                             </button>
-                             <button 
-                               onClick={() => setDesignPhase('panels')}
-                               disabled={designBuildings.length === 0}
-                               className={cn(
-                                 "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                 designPhase === 'panels' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600",
-                                 designBuildings.length === 0 && "opacity-30 cursor-not-allowed"
-                               )}
-                             >
-                               Panels
-                             </button>
+                          <div className="flex bg-[#F8FAFC] p-1.5 rounded-[20px] border border-slate-100 shadow-inner">
+                             {[
+                               { id: 'rooftops', label: 'ROOF' },
+                               { id: 'panels', label: 'PANELS' }
+                             ].map((phase) => (
+                               <button 
+                                 key={phase.id}
+                                 onClick={() => setDesignPhase(phase.id as any)}
+                                 disabled={phase.id === 'panels' && designBuildings.length === 0}
+                                 className={cn(
+                                   "px-10 py-3 rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                                   designPhase === phase.id ? "bg-white text-emerald-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600",
+                                   phase.id === 'panels' && designBuildings.length === 0 && "opacity-30 cursor-not-allowed"
+                                 )}
+                               >
+                                 {phase.label}
+                               </button>
+                             ))}
                           </div>
                         </header>
                         
-                        <div className="flex-1 bg-slate-50 relative">
+                        <div className="flex-1 bg-[#F8FAFC] relative overflow-hidden">
                           <SketchBoard 
                             targetArea={designTargetArea * 0.092903} 
                             onComplete={(data) => {
@@ -1101,7 +1171,7 @@ export default function SolarApp() {
                            <div className="flex justify-center">
                               <button 
                                 onClick={() => setShowDesignProposal(true)}
-                                className="px-10 py-5 bg-white text-slate-900 font-black rounded-2xl shadow-sm border border-slate-100 hover:scale-105 transition-all flex items-center gap-3"
+                                className="px-10 py-5 bg-slate-900 text-white font-black rounded-2xl shadow-2xl border border-slate-800 hover:scale-105 transition-all flex items-center gap-3 group"
                               >
                                 <Layout size={18} className="text-emerald-500" /> Export Design
                               </button>
@@ -1109,19 +1179,19 @@ export default function SolarApp() {
                          </div>
                        )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
 
                 {/* Design Proposal Modal */}
                 <AnimatePresence>
                   {showDesignProposal && (
-                    <div className="fixed inset-0 bg-slate-950/98 flex items-center justify-center z-[250] p-4 sm:p-8" onClick={() => setShowDesignProposal(false)}>
+                    <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[250] p-4 sm:p-8" onClick={() => setShowDesignProposal(false)}>
                       <motion.div 
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
-                        className="bg-white rounded-[50px] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl relative"
+                        className="bg-slate-900 rounded-[50px] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl relative border border-slate-800"
                         onClick={e => e.stopPropagation()}
                       >
                          <div className="sticky top-0 right-0 p-8 flex justify-end z-10">
@@ -1248,13 +1318,13 @@ export default function SolarApp() {
 
                 {epcView === 'inbox' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center bg-emerald-500/10 p-6 rounded-[32px] border border-emerald-500/20">
+                    <div className="flex justify-between items-center bg-emerald-500/5 p-8 rounded-[32px] border border-emerald-500/20 backdrop-blur-md">
                       <div>
-                        <h2 className="text-xl font-black text-emerald-400">Leads Inbox</h2>
-                        <p className="text-gray-400 text-sm">Secure storage for customer inquiries and feedback.</p>
+                        <h2 className="text-2xl font-black text-emerald-400 tracking-tight">Leads Inbox</h2>
+                        <p className="text-gray-400 text-sm font-medium opacity-80">Secure storage for customer inquiries and feedback.</p>
                       </div>
-                      <div className="bg-emerald-500 text-slate-900 px-6 py-2 rounded-full font-black text-sm">
-                        {inboxData.length} Messages
+                      <div className="bg-emerald-500 text-slate-900 px-8 py-3 rounded-2xl font-black text-sm shadow-lg shadow-emerald-500/20">
+                        {inboxData.length} New Messages
                       </div>
                     </div>
 
@@ -1269,53 +1339,53 @@ export default function SolarApp() {
                         </div>
                       ) : (
                         inboxData.map((item, idx) => (
-                          <div key={idx} className="bg-white text-slate-900 p-8 rounded-[40px] border border-slate-100 shadow-xl flex flex-col md:flex-row gap-8">
+                          <div key={idx} className="bg-slate-900/40 text-white p-8 rounded-[40px] border border-white/5 shadow-2xl flex flex-col md:flex-row gap-8 backdrop-blur-md group hover:border-emerald-500/30 transition-all">
                             <div className="shrink-0">
-                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black ${item.type === 'quote' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black ${item.type === 'quote' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                   {item.type === 'quote' ? 'QT' : 'FB'}
                                </div>
                             </div>
-                            <div className="flex-1 space-y-4">
-                               <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                            <div className="flex-1 space-y-6">
+                               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                   <div>
-                                     <h4 className="font-black text-xl italic">{item.type === 'quote' ? 'Detailed Quote Inquiry' : 'Customer Feedback'}</h4>
-                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{new Date(item.timestamp).toLocaleString()}</p>
+                                     <h4 className="font-bold text-2xl tracking-tight">{item.type === 'quote' ? 'Detailed Quote Inquiry' : 'Customer Feedback'}</h4>
+                                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mt-1">{new Date(item.timestamp).toLocaleString()}</p>
                                   </div>
-                                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${item.status === 'new' ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 text-slate-400'}`}>
+                                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${item.status === 'new' ? 'bg-emerald-500 text-slate-900' : 'bg-slate-700 text-slate-400'}`}>
                                      {item.status}
                                   </div>
                                </div>
 
                                {item.type === 'quote' ? (
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-900/50 p-8 rounded-[32px] border border-white/5">
                                    <div>
-                                      <p className="text-[9px] text-gray-400 font-bold uppercase">Factory</p>
-                                      <p className="font-bold">{item.factory}</p>
+                                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Factory</p>
+                                      <p className="font-bold text-sm text-gray-100">{item.factory}</p>
                                    </div>
                                    <div>
-                                      <p className="text-[9px] text-gray-400 font-bold uppercase">Location</p>
-                                      <p className="font-bold">{item.location}</p>
+                                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Location</p>
+                                      <p className="font-bold text-sm text-gray-100">{item.location}</p>
                                    </div>
                                    <div>
-                                      <p className="text-[9px] text-gray-400 font-bold uppercase">Estimated Load</p>
-                                      <p className="font-bold">{item.units} Units/Mo</p>
+                                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Load</p>
+                                      <p className="font-bold text-sm text-gray-100">{item.units} Units/Mo</p>
                                    </div>
                                    <div>
-                                      <p className="text-[9px] text-gray-400 font-bold uppercase">Contact</p>
-                                      <p className="font-bold text-emerald-600">{item.contact}</p>
+                                      <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Contact</p>
+                                      <p className="font-bold text-sm text-emerald-400">{item.contact}</p>
                                    </div>
                                  </div>
                                ) : (
-                                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 italic text-slate-600 leading-relaxed font-medium">
+                                 <div className="bg-slate-900/50 p-8 rounded-[32px] border border-white/5 italic text-gray-400 text-base leading-relaxed font-medium">
                                    "{item.message}"
                                  </div>
                                )}
                                
-                               <div className="flex gap-3">
-                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2">
-                                     Reply via WhatsApp <ArrowRight className="w-4 h-4" />
+                               <div className="flex gap-4 pt-2">
+                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
+                                     Reply WhatsApp <ArrowRight className="w-4 h-4" />
                                   </button>
-                                  <button className="px-6 py-3 border border-slate-200 text-slate-400 rounded-2xl text-xs font-bold hover:text-slate-900 transition-all">
+                                  <button className="px-8 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5">
                                      Archive
                                   </button>
                                </div>
@@ -1354,34 +1424,34 @@ export default function SolarApp() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="bg-white rounded-[40px] p-8 shadow-2xl relative overflow-hidden h-64 border border-emerald-500/10 group flex flex-col justify-between"
+                      className="bg-slate-900/40 rounded-[40px] p-8 shadow-2xl relative overflow-hidden h-64 border border-white/10 group flex flex-col justify-between backdrop-blur-md"
                     >
                       <div className="flex justify-between items-start mb-4">
                          <div className="pr-4">
-                            <h4 className="font-black text-slate-900 text-lg leading-tight mb-1 line-clamp-2">{lead.factory}</h4>
+                            <h4 className="font-bold text-white text-lg leading-tight mb-2 line-clamp-2">{lead.factory}</h4>
                             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest leading-none">Potential Details</p>
                          </div>
-                         <div className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black uppercase text-slate-400 shrink-0">Locked</div>
+                         <div className="bg-slate-800 px-3 py-1 rounded-full text-[10px] font-black uppercase text-slate-500 shrink-0 border border-white/5">Locked</div>
                       </div>
 
                       <div className="space-y-4">
-                        <div className="flex justify-between items-end border-b border-slate-50 pb-3">
+                        <div className="flex justify-between items-end border-b border-white/5 pb-4">
                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Site Size</p>
-                              <p className="font-bold text-slate-900">{formatIndianNumber(lead.rooftop)} sq.ft</p>
+                              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Site Size</p>
+                              <p className="font-bold text-white text-sm">{formatIndianNumber(lead.rooftop)} <span className="text-[10px] opacity-60 font-medium">SQFT</span></p>
                            </div>
                            <div className="text-right space-y-1">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Potential</p>
-                              <p className="font-black text-emerald-600">{formatPower(lead.kw)}</p>
+                              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Potential</p>
+                              <p className="font-black text-emerald-400 text-sm">{formatPower(lead.kw)}</p>
                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-400 font-medium truncate">
-                           <MapPin className="w-3.5 h-3.5" /> {lead.location}
+                        <div className="flex items-center gap-2 text-xs text-gray-500 font-medium truncate">
+                           <MapPin className="w-3.5 h-3.5 text-emerald-500/50" /> {lead.location}
                         </div>
                       </div>
 
-                      <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                         <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-xl scale-90 group-hover:scale-100 transition-transform">
+                      <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[4px]">
+                         <div className="bg-emerald-500 text-slate-900 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-2xl scale-90 group-hover:scale-100 transition-all">
                             <Shield className="w-4 h-4" /> Locked Details
                          </div>
                       </div>
@@ -1391,9 +1461,9 @@ export default function SolarApp() {
 
                  <div className="bg-white/5 border border-white/10 p-12 rounded-[50px] text-center backdrop-blur-xl relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-emerald-500/10 to-transparent pointer-events-none" />
-                    <p className="text-xl font-bold mb-8 relative z-10">Premium Professional Integration</p>
+                    <h3 className="text-3xl font-black mb-10 relative z-10 text-white uppercase tracking-tight">Professional <span className="text-emerald-400 italic">Integration</span></h3>
                     <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
-                    <button onClick={() => setShowLoginModal(true)} className="px-10 py-5 bg-white text-slate-900 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all flex items-center justify-center gap-2">
+                    <button onClick={() => setShowLoginModal(true)} className="px-10 py-5 bg-slate-800 text-white rounded-2xl font-bold text-lg hover:bg-slate-700 transition-all flex items-center justify-center gap-2 border border-slate-700">
                           <LogIn className="w-5 h-5" /> Login
                        </button>
                        <button onClick={() => setShowAccessForm(true)} className="px-10 py-5 bg-emerald-500 text-slate-900 rounded-2xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
@@ -1412,38 +1482,43 @@ export default function SolarApp() {
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4 backdrop-blur-md" onClick={() => setShowLoginModal(false)}>
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[250] p-4 backdrop-blur-xl" onClick={() => setShowLoginModal(false)}>
            <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white text-slate-900 p-8 sm:p-12 rounded-[40px] w-full max-w-md shadow-2xl relative overflow-hidden" 
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-slate-900/80 backdrop-blur-2xl text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-white/10 shadow-emerald-500/5" 
             onClick={e => e.stopPropagation()}
            >
               <div className="absolute top-0 right-0 p-6">
-                <button onClick={() => setShowLoginModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                <button onClick={() => setShowLoginModal(false)} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-black mb-2 text-slate-900">Login Access</h3>
-                <p className="text-gray-500 text-sm font-medium">Use credentials shared after payments</p>
-              </div>
+              <div className="space-y-10">
+                 <div className="space-y-4">
+                   <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
+                     <Sun className="w-8 h-8 text-slate-900" />
+                   </div>
+                   <h2 className="text-4xl font-black tracking-tight leading-tight">Secure <br/><span className="text-emerald-400 italic">Access.</span></h2>
+                   <p className="text-gray-400 font-medium leading-relaxed">Enterprise solar intelligence dashboard for approved partners.</p>
+                 </div>
 
               <div className="space-y-6">
                 <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Username</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Username</label>
                   <input 
                     placeholder="Enter Username" 
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium" 
+                    className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
                     onChange={e => setLoginForm({...loginForm, username: e.target.value})} 
                   />
                 </div>
                 <div className="space-y-2 text-left">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Password</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Password</label>
                     <button 
                       onClick={() => setShowForgotPasswordModal(true)}
-                      className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest hover:underline"
+                      className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest hover:underline"
                     >
                       Forgot?
                     </button>
@@ -1451,7 +1526,7 @@ export default function SolarApp() {
                   <input 
                     type="password" 
                     placeholder="Enter Password" 
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium" 
+                    className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
                     onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
                   />
                 </div>
@@ -1459,74 +1534,75 @@ export default function SolarApp() {
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setShowLoginModal(false)}
-                    className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all"
+                    className="flex-1 py-4 bg-slate-800 text-slate-400 font-bold rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={handleLogin} 
-                    className="flex-[2] py-4 bg-emerald-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-emerald-600/20 hover:bg-emerald-500 transition-all disabled:opacity-50"
+                    className="flex-[2] py-4 bg-emerald-500 text-slate-900 font-black text-lg rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50"
                   >
                     {isSubmitting ? 'Verifying...' : 'Login Now'}
                   </button>
                 </div>
                 
-                <div className="pt-6 border-t border-slate-100">
+                <div className="pt-6 border-t border-slate-800">
                   <button 
                     onClick={() => { setShowLoginModal(false); setShowAccessForm(true); }}
-                    className="w-full py-4 text-slate-400 text-sm font-medium hover:text-emerald-600 transition-colors"
+                    className="w-full py-4 text-slate-500 text-sm font-medium hover:text-emerald-400 transition-colors"
                   >
                     Don't have access? <span className="font-bold underline">Register Here</span>
                   </button>
                 </div>
               </div>
+            </div>
            </motion.div>
         </div>
       )}
 
       {/* Credentials Modal */}
       {showCredentials && (
-        <div className="fixed inset-0 bg-emerald-950/95 flex items-center justify-center z-[110] p-4 backdrop-blur-xl">
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl">
            <motion.div 
-            initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="bg-white text-slate-900 p-8 sm:p-12 rounded-[50px] w-full max-w-md shadow-2xl text-center"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-slate-800" 
            >
-              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-8 text-emerald-600">
-                <Shield className="w-10 h-10" />
+              <div className="mb-10 text-center">
+                <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20 mx-auto">
+                  <ShieldCheck className="w-8 h-8 text-slate-900" />
+                </div>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tight">Dashboard <span className="text-emerald-400 italic">Unlocked.</span></h3>
+                <p className="text-gray-400 text-sm font-medium">Enterprise credentials initialized. Save securely.</p>
               </div>
-              <h3 className="text-2xl font-black mb-4">Payment Confirmed</h3>
-              <p className="text-gray-500 mb-10 leading-relaxed">
-                Your 30-day access is now active. Valid until <span className="text-emerald-600 font-bold">{credentials.expiry}</span>. Please save these credentials securely.
-              </p>
 
               <div className="space-y-4 mb-10">
-                <div className="bg-slate-50 p-6 rounded-3xl text-left border border-slate-100 group relative">
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Username</p>
-                   <p className="font-mono font-bold text-lg select-all">{credentials.username}</p>
+                <div className="bg-slate-950/50 p-6 rounded-3xl text-left border border-slate-800 group relative">
+                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Username</p>
+                   <p className="font-mono font-bold text-lg select-all text-white">{credentials.username}</p>
                    <button 
-                    onClick={() => { navigator.clipboard.writeText(credentials.username); alert("Copied!"); }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-white rounded-xl shadow-sm transition-all"
+                    onClick={() => { navigator.clipboard.writeText(credentials.username); }}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-slate-800 rounded-xl hover:bg-emerald-500 hover:text-slate-900 transition-all text-gray-400 border border-slate-700"
                    >
-                     <Copy className="w-4 h-4 text-emerald-600" />
+                     <Copy className="w-4 h-4" />
                    </button>
                 </div>
-                <div className="bg-slate-50 p-6 rounded-3xl text-left border border-slate-100 group relative">
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Generated Password</p>
-                   <p className="font-mono font-bold text-lg select-all">{credentials.password}</p>
+                <div className="bg-slate-950/50 p-6 rounded-3xl text-left border border-slate-800 group relative">
+                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Secure Token</p>
+                   <p className="font-mono font-bold text-lg select-all text-emerald-400">{credentials.password}</p>
                    <button 
-                    onClick={() => { navigator.clipboard.writeText(credentials.password); alert("Copied!"); }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-white rounded-xl shadow-sm transition-all"
+                    onClick={() => { navigator.clipboard.writeText(credentials.password); }}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-slate-800 rounded-xl hover:bg-emerald-500 hover:text-slate-900 transition-all text-gray-400 border border-slate-700"
                    >
-                     <Copy className="w-4 h-4 text-emerald-600" />
+                     <Copy className="w-4 h-4" />
                    </button>
                 </div>
               </div>
 
               <button 
                 onClick={() => { setShowCredentials(false); setShowLoginModal(true); }}
-                className="w-full py-5 bg-emerald-600 text-white font-black text-xl rounded-2xl shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                className="w-full py-5 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-95 transition-all flex items-center justify-center gap-3"
               >
-                Continue to Dashboard <ArrowRight className="w-6 h-6" />
+                Continue to Terminal <ArrowRight className="w-5 h-5" />
               </button>
            </motion.div>
         </div>
@@ -1537,7 +1613,7 @@ export default function SolarApp() {
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 backdrop-blur-sm" onClick={() => setShowForgotPasswordModal(false)}>
            <motion.div 
             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white text-slate-900 p-8 sm:p-12 rounded-[40px] w-full max-w-sm" 
+            className="bg-slate-900 text-white p-8 sm:p-12 rounded-[40px] w-full max-w-sm border border-slate-800" 
             onClick={e => e.stopPropagation()}
            >
               <h3 className="text-2xl font-black mb-4">Reset Access</h3>
@@ -1560,31 +1636,36 @@ export default function SolarApp() {
 
       {/* Feedback Modal */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 backdrop-blur-sm" onClick={() => setShowFeedbackModal(false)}>
+        <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl" onClick={() => setShowFeedbackModal(false)}>
            <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white text-slate-900 p-8 sm:p-12 rounded-[50px] w-full max-w-md shadow-2xl relative" 
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative border border-white/5" 
             onClick={e => e.stopPropagation()}
            >
-              <h3 className="text-3xl font-black mb-2">Feedback</h3>
-              <p className="text-gray-500 mb-8 font-medium">Help us improve the database quality.</p>
+              <div className="mb-10 text-left">
+                <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
+                  <MessageSquare className="w-7 h-7 text-slate-900" />
+                </div>
+                <h3 className="text-3xl font-black mb-2 uppercase tracking-tight">System <span className="text-emerald-400 italic">Feedback.</span></h3>
+                <p className="text-gray-400 font-medium leading-relaxed">Help us calibrate our industrial solar intelligence engine.</p>
+              </div>
               
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Message</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Protocol</label>
                   <textarea 
                     rows={4}
-                    placeholder="Tell us about data accuracy or suggestions..." 
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium resize-none"
+                    placeholder="Describe data inconsistencies or system suggestions..." 
+                    className="w-full px-6 py-5 bg-slate-900/50 border border-white/5 rounded-3xl outline-none focus:border-emerald-500/50 text-white transition-all font-medium resize-none placeholder:text-gray-700"
                   />
                 </div>
-                <div className="flex gap-4">
-                   <button onClick={() => setShowFeedbackModal(false)} className="flex-1 py-4 bg-slate-100 font-bold rounded-2xl">Cancel</button>
+                <div className="flex gap-4 pt-4">
+                   <button onClick={() => setShowFeedbackModal(false)} className="flex-1 py-5 bg-slate-800 text-gray-400 font-bold rounded-2xl hover:bg-slate-700 transition-all">Dismiss</button>
                    <button 
-                    onClick={() => { alert("Feedback received. Thank you!"); setShowFeedbackModal(false); }}
-                    className="flex-[2] py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg"
+                    onClick={() => { setShowFeedbackModal(false); }}
+                    className="flex-[2] py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all uppercase text-xs tracking-widest"
                    >
-                     Submit Feedback
+                     Submit Signal
                    </button>
                 </div>
               </div>
@@ -1595,9 +1676,9 @@ export default function SolarApp() {
       {/* Floating Action Buttons */}
       <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-40">
          <motion.button 
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }}
           onClick={() => setShowFeedbackModal(true)}
-          className="w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-emerald-500 transition-colors"
+          className="w-14 h-14 bg-slate-900 text-emerald-400 rounded-2xl shadow-3xl flex items-center justify-center border border-white/10 hover:border-emerald-500/50 backdrop-blur-md transition-all"
          >
            <MessageSquare className="w-6 h-6" />
          </motion.button>
@@ -1605,60 +1686,62 @@ export default function SolarApp() {
 
       {/* Access/Payment Modal */}
       {showAccessForm && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-sm" onClick={() => setShowAccessForm(false)}>
+        <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[200] p-4 backdrop-blur-xl" onClick={() => setShowAccessForm(false)}>
            <motion.div 
-            initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className="bg-white text-slate-900 p-8 sm:p-12 rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto" 
+            initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide" 
             onClick={e => e.stopPropagation()}
            >
-              <div className="flex justify-between items-start mb-8">
-                 <div>
-                    <h3 className="text-3xl font-black mb-1">Request Data Access</h3>
-                    <p className="text-gray-400 text-sm">30-day regional access to all industrial facility leads.</p>
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-10">
+                 <div className="space-y-2">
+                    <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
+                    <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
                  </div>
-                 <div className="bg-emerald-100 text-emerald-600 px-4 py-2 rounded-2xl text-xs font-black uppercase">₹100 Only</div>
+                 <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹100 Enterprise</div>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Company Entity</label>
-                  <input placeholder="Enter Company Name" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none" onChange={e => setAccessForm({...accessForm, companyName: e.target.value})} />
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Company Entity</label>
+                  <input placeholder="Legal Entity Name" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, companyName: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Mobile (Direct)</label>
-                  <input placeholder="Enter Mobile Number" maxLength={10} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none" onChange={e => setAccessForm({...accessForm, contact: e.target.value.replace(/\D/g, '')})} />
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Mobile (Direct)</label>
+                  <input placeholder="Direct Line" maxLength={10} className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, contact: e.target.value.replace(/\D/g, '')})} />
                 </div>
                 <div className="col-span-full space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Work Email (Login Identity)</label>
-                  <input placeholder="Enter Work Email" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none" onChange={e => setAccessForm({...accessForm, email: e.target.value})} />
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Corporate Email</label>
+                  <input placeholder="work@company.com" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, email: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active City</label>
-                  <input placeholder="Enter Active City" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none" onChange={e => setAccessForm({...accessForm, location: e.target.value})} />
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Industrial Zone</label>
+                  <input placeholder="e.g. MIDC Chakan" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, location: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Business Type</label>
-                  <input placeholder="Enter Business Type" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none" onChange={e => setAccessForm({...accessForm, companyType: e.target.value})} />
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Business Authority</label>
+                  <input placeholder="Owner / EPC / Consultant" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, companyType: e.target.value})} />
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-6 rounded-3xl border border-dashed border-slate-200 mb-8 flex items-center gap-4">
-                 <Shield className="w-10 h-10 text-emerald-500 shrink-0" />
-                 <p className="text-xs text-gray-500 leading-relaxed font-medium">
-                   Secure payment via Razorpay. Credentials will be generated instantly and emailed to you after successful reconciliation.
+              <div className="bg-slate-900/50 p-8 rounded-[40px] border border-white/5 mb-12 flex flex-col sm:flex-row items-center gap-6 group">
+                 <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center border border-white/10 group-hover:bg-emerald-500 transition-all duration-500">
+                   <Shield className="w-8 h-8 text-emerald-500 group-hover:text-slate-900" />
+                 </div>
+                 <p className="text-xs text-gray-400 leading-relaxed font-medium">
+                   Secure gateway validation via Razorpay. Credentials will be <span className="text-white font-bold italic underline decoration-emerald-500/50">deployed instantly</span> after payment reconciliation.
                  </p>
               </div>
 
-              <div className="flex gap-4 mt-10">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <button 
                   onClick={() => setShowAccessForm(false)}
-                  className="flex-1 py-5 bg-slate-100 text-slate-900 font-bold text-xl rounded-2xl hover:bg-slate-200 transition-all"
+                  className="flex-1 py-6 bg-slate-800 text-gray-400 font-black text-xs uppercase tracking-widest rounded-3xl hover:bg-slate-700 transition-all border border-white/5"
                 >
-                  Go Back
+                  Dismiss
                 </button>
-                <button onClick={handlePayment} className="group flex-[2] py-5 bg-emerald-500 text-slate-900 font-black text-xl rounded-2xl shadow-[0_20px_40px_rgba(16,185,129,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                <button onClick={handlePayment} className="group flex-[2] py-6 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-3xl shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4">
                   {isSubmitting ? (paymentLoadingMessage || 'Initializing...') : 'Proceed to Gateway'}
-                  <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
            </motion.div>
@@ -1677,80 +1760,80 @@ export default function SolarApp() {
               className="absolute inset-0 bg-slate-900/90 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              className="bg-white rounded-[40px] w-full max-w-lg p-10 sm:p-12 relative z-10 shadow-2xl overflow-hidden"
+              exit={{ scale: 0.95, opacity: 0, y: 30 }}
+              className="bg-slate-900 rounded-[50px] w-full max-w-lg p-10 sm:p-16 relative z-10 shadow-3xl overflow-hidden border border-white/5"
+              onClick={e => e.stopPropagation()}
             >
               <div className="absolute top-0 right-0 p-8">
                 <button 
                   onClick={() => setShowQuoteModal(false)}
-                  className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                  className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-white/5"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="mb-8">
-                <h3 className="text-3xl font-black text-slate-900 mb-2 italic">Request Solar Quote</h3>
-                <p className="text-slate-500 font-medium">Looking for a professional solar power plant integration?</p>
+              <div className="mb-10 text-left space-y-4">
+                 <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-500/20">
+                   <FileText className="w-7 h-7 text-slate-900" />
+                 </div>
+                 <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight">Request <br/><span className="text-emerald-400 italic font-medium">Solar Proposal.</span></h3>
+                 <p className="text-gray-400 font-medium">Tailored industrial feasibility analysis for your facility.</p>
               </div>
 
-              <div className="space-y-6">
-                <p className="text-xs font-bold text-emerald-600 bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                  Fill in your details and we'll generate the most suitable proposal for your facility.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Factory Name</label>
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Factory / Entity Name</label>
                     <input 
                       type="text"
                       value={quoteData.factory}
                       onChange={(e) => setQuoteData({...quoteData, factory: e.target.value})}
                       placeholder="Enter company name"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 text-slate-900 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-6 py-4 text-white font-bold placeholder:text-gray-700 focus:border-emerald-500/50 outline-none transition-all"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Location</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Industry Zone / Level</label>
                     <input 
                       type="text"
                       value={quoteData.location}
                       onChange={(e) => setQuoteData({...quoteData, location: e.target.value})}
-                      placeholder="City/Area"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 text-slate-900 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      placeholder="City/MIDC Area"
+                      className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-6 py-4 text-white font-bold placeholder:text-gray-700 focus:border-emerald-500/50 outline-none transition-all"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Avg. Monthly Units</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Avg. Monthly Units (kWh)</label>
                     <input 
                       type="number"
                       value={quoteData.units}
                       onChange={(e) => setQuoteData({...quoteData, units: e.target.value})}
-                      placeholder="Units consumption"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 text-slate-900 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      placeholder="e.g. 50000"
+                      className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-6 py-4 text-white font-bold placeholder:text-gray-700 focus:border-emerald-500/50 outline-none transition-all"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Contact Number</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Executive Contact</label>
                     <input 
                       type="tel"
                       value={quoteData.contact}
                       onChange={(e) => setQuoteData({...quoteData, contact: e.target.value})}
-                      placeholder="Primary phone"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 text-slate-900 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      placeholder="+91 Phone Number"
+                      className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-6 py-4 text-white font-bold placeholder:text-gray-700 focus:border-emerald-500/50 outline-none transition-all"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 pt-4">
+                <div className="pt-6">
                   <button 
                     onClick={async () => {
-                      if (!quoteData.factory || !quoteData.contact) return alert('Please provide at least factory name and contact number.');
+                      if (!quoteData.factory || !quoteData.contact) return alert('Missing essential details.');
                       setIsSubmittingQuote(true);
                       try {
                         await fetch('/api/feedback', {
@@ -1761,23 +1844,17 @@ export default function SolarApp() {
                         setIsSubmittingQuote(false);
                         setShowQuoteModal(false);
                         setQuoteData({ factory: '', location: '', units: '', contact: '' });
-                        alert('Thank you! We will contact you soon with the most suitable Solar Options.');
                       } catch (error) {
-                        console.error('Quote error:', error);
-                        alert('Could not submit request. Please try again.');
                         setIsSubmittingQuote(false);
                       }
                     }}
                     disabled={isSubmittingQuote}
-                    className="w-full py-5 bg-emerald-500 text-slate-900 rounded-[28px] font-black text-lg hover:bg-emerald-400 disabled:opacity-50 transition-all shadow-xl shadow-emerald-500/20 active:scale-95"
+                    className={cn(
+                      "w-full py-6 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-3xl shadow-3xl transition-all flex items-center justify-center gap-4",
+                      isSubmittingQuote ? "opacity-50 cursor-not-allowed" : "hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98]"
+                    )}
                   >
-                    {isSubmittingQuote ? 'Sending Inquiry...' : 'Submit Request'}
-                  </button>
-                  <button 
-                    onClick={() => setShowQuoteModal(false)}
-                    className="w-full py-4 text-slate-400 font-bold hover:text-slate-900 transition-colors uppercase tracking-widest text-xs"
-                  >
-                    Cancel
+                    {isSubmittingQuote ? "Processing..." : "Generate Analysis Report"} <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -1801,46 +1878,46 @@ export default function SolarApp() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[40px] w-full max-w-md p-10 relative z-10 shadow-2xl overflow-hidden"
+              className="bg-slate-900 rounded-[40px] w-full max-w-md p-10 relative z-10 shadow-2xl overflow-hidden border border-slate-800"
             >
               <div className="absolute top-0 right-0 p-6">
                 <button 
                   onClick={() => setShowFeedbackModal(false)}
-                  className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                  className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all border border-slate-700"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="mb-8">
-                <div className="w-16 h-16 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-500 mb-6 font-black text-2xl italic">
+                <div className="w-16 h-16 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-400 mb-6 font-black text-2xl italic border border-emerald-500/20">
                   SO
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Share Feedback</h3>
-                <p className="text-slate-500 font-medium">Your insights help us improve the platform for everyone.</p>
+                <h3 className="text-2xl font-black text-white mb-2">Share Feedback</h3>
+                <p className="text-gray-400 font-medium">Your insights help us improve the platform for everyone.</p>
               </div>
 
               <div className="space-y-6">
-                <div className="bg-slate-50 p-8 rounded-[32px] border border-slate-100 text-center space-y-4">
-                  <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto text-emerald-500">
-                    <Mail className="w-6 h-6" />
+                <div className="bg-slate-950/50 p-8 rounded-[40px] border border-slate-800 text-center space-y-4">
+                  <div className="w-14 h-14 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl flex items-center justify-center mx-auto text-emerald-400">
+                    <Mail className="w-7 h-7" />
                   </div>
                   <div>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Direct Email</p>
-                    <p className="text-xl font-black text-slate-900 select-all">info@solaroptions.in</p>
+                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Direct Signal</p>
+                    <p className="text-xl font-black text-white select-all">info@solaroptions.in</p>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed px-2">
-                    For technical support, data removal requests, or general inquiries, please reach out to our team via email. We typically respond within 24 hours.
+                <div className="space-y-6">
+                  <p className="text-sm text-gray-400 font-medium leading-relaxed px-4 text-center">
+                    Technical support, data resolution, or enterprise inquiries are processed within 24 hours.
                   </p>
                   
                   <button 
                     onClick={() => window.location.href = 'mailto:info@solaroptions.in?subject=SolarOptions Feedback'}
-                    className="w-full py-5 bg-slate-900 text-white rounded-[28px] font-black text-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+                    className="w-full py-6 bg-emerald-500 text-slate-900 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center justify-center gap-4 shadow-xl shadow-emerald-500/10"
                   >
-                    Compose Email <ArrowRight className="w-5 h-5" />
+                    Transmit Email <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
                 
@@ -1872,77 +1949,110 @@ export default function SolarApp() {
       {/* Full Specs Modal */}
       <AnimatePresence>
         {selectedLead && (
-          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[150] p-4 backdrop-blur-md" onClick={() => setSelectedLead(null)}>
+          <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl" onClick={() => setSelectedLead(null)}>
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white text-slate-900 p-8 sm:p-12 rounded-[50px] w-full max-w-2xl shadow-2xl relative overflow-hidden" 
+              exit={{ scale: 0.95, opacity: 0, y: 30 }}
+              className="bg-slate-900 text-white p-10 sm:p-16 rounded-[60px] w-full max-w-2xl shadow-3xl relative overflow-hidden border border-white/5" 
               onClick={e => e.stopPropagation()}
             >
-               <div className="absolute top-0 right-0 p-8">
-                  <button onClick={() => setSelectedLead(null)} className="p-3 bg-slate-100 rounded-full hover:bg-rose-50 transition-colors text-slate-400 hover:text-rose-500">
+               <div className="absolute top-0 right-0 p-10">
+                  <button onClick={() => setSelectedLead(null)} className="w-12 h-12 bg-slate-800 rounded-full hover:bg-rose-500/10 transition-all text-gray-500 hover:text-rose-400 border border-white/5 flex items-center justify-center">
                     <X className="w-6 h-6" />
                   </button>
                </div>
 
-                <div className="mb-10">
-                  <h3 className="text-2xl font-black mb-2 pr-12 leading-tight">{selectedLead.factory}</h3>
-                  <div className="flex items-center gap-2 text-emerald-600 font-bold uppercase text-[10px] tracking-widest">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    Potential Details
+                <div className="mb-12 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                      <Sun className="w-6 h-6 text-slate-900" />
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Site Analysis Protocol</span>
+                  </div>
+                  <h3 className="text-4xl font-black pr-16 leading-tight uppercase tracking-tight">{selectedLead.factory}</h3>
+                  <div className="flex items-center gap-3 text-gray-400 font-medium pt-2">
+                    <MapPin className="w-5 h-5 text-emerald-500" /> {selectedLead.location}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
-                  <div className="space-y-6">
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Rooftop Area</p>
-                      <p className="text-xl font-black">{formatIndianNumber(selectedLead.rooftop)} sq.ft</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                    <div className="space-y-4">
+                      {/* Primary Metric: Rooftop */}
+                      <div className="bg-slate-800/40 p-8 rounded-[32px] border border-white/5 shadow-lg group hover:border-emerald-500/10 transition-all cursor-default">
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Available Rooftop</p>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-3xl font-black text-white tracking-tight">
+                            {formatIndianNumber(selectedLead.rooftop)}
+                          </p>
+                          <span className="text-xs font-bold text-gray-600 uppercase">sq.ft</span>
+                        </div>
+                      </div>
+                      
+                      {/* Secondary Metrics: Grid Layout */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-800/40 p-6 rounded-[32px] border border-white/5 shadow-md group hover:border-emerald-500/10 transition-all">
+                          <p className="text-[9px] font-black text-emerald-500/50 uppercase tracking-[0.2em] mb-3">Capacity</p>
+                          <p className="text-xl font-black text-emerald-400 leading-none">{formatPower(selectedLead.kw)}</p>
+                        </div>
+
+                        <div className="bg-slate-800/40 p-6 rounded-[32px] border border-white/5 shadow-md group hover:border-emerald-500/10 transition-all">
+                          <p className="text-[9px] font-black text-emerald-500/50 uppercase tracking-[0.2em] mb-3">Monthly Saving</p>
+                          <p className="text-xl font-black text-emerald-400 leading-none">₹{formatIndianNumber(Math.round(selectedLead.kw * 120 * 8))}</p>
+                        </div>
+                      </div>
+
+                      {/* Summary/Status Badge */}
+                      <div className="bg-slate-800/20 p-5 rounded-[24px] border border-white/5 flex items-center justify-between">
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Protocol Analysis</span>
+                        <div className="flex items-center gap-2 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/10">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                           <span className="text-[10px] font-black text-emerald-400 uppercase tracking-tight">Verified Zone</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
-                      <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest mb-1">Monthly Savings</p>
-                      <p className="text-xl font-black text-emerald-600">₹{formatIndianNumber(selectedLead.monthlySavings || 'NA')}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-slate-900 text-white p-8 rounded-[40px] space-y-6">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Decision Maker</p>
-                      <p className="font-bold text-lg">{selectedLead.owner || 'Potential Manager'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Direct Contact</p>
-                      <p className="font-bold text-lg text-emerald-400">{selectedLead.contact || 'Resource Locked'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Email Address</p>
-                      <p className="font-bold text-sm break-all opacity-80">{selectedLead.email || 'Partner Exclusive'}</p>
-                    </div>
-                  </div>
+
+                   <div className="bg-slate-900/80 p-10 rounded-[50px] border border-white/5 space-y-8 relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 p-6 opacity-20">
+                       <Shield className="w-12 h-12 text-gray-600" />
+                     </div>
+                     <div className="space-y-1">
+                       <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Decision Authority</p>
+                       <p className="font-bold text-lg text-white">{selectedLead.owner || 'Corporate Manager'}</p>
+                     </div>
+                     <div className="space-y-1">
+                       <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Digital Contact</p>
+                       <p className="font-bold text-lg text-emerald-400">{selectedLead.contact || 'Platform Locked'}</p>
+                     </div>
+                     <div className="space-y-1">
+                       <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">System Email</p>
+                       <p className="font-bold text-xs text-gray-400 break-all">{selectedLead.email || 'partner-exclusive@domain.in'}</p>
+                     </div>
+                   </div>
                 </div>
 
-               <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-6">
                   <button 
                     onClick={() => {
-                      const msg = `Hello, I'm interested in the solar project potential for ${selectedLead.factory} at ${selectedLead.location}. Area: ${selectedLead.rooftop} sqft.`;
+                      const msg = `Industrial Solar Protocol: Analysis for ${selectedLead.factory}. Zone: ${selectedLead.location}. Potential: ${selectedLead.rooftop} sqft.`;
                       window.open(`https://wa.me/91862606122?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
-                    className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+                    className="flex-1 py-6 bg-slate-800 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5 flex items-center justify-center gap-4"
                   >
-                    Action Plan <MessageSquare className="w-5 h-5" />
+                    Action Plan <ArrowRight className="w-5 h-5" />
                   </button>
                   <button 
                     onClick={() => setSelectedLead(null)}
-                    className="flex-1 py-5 bg-emerald-500 text-slate-900 rounded-3xl font-black text-lg hover:shadow-2xl shadow-emerald-500/20 transition-all"
+                    className="flex-1 py-6 bg-emerald-500 text-slate-900 rounded-3xl font-black text-xs uppercase tracking-widest shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     Close Specs
                   </button>
-               </div>
+                </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
