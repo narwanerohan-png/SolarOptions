@@ -450,7 +450,7 @@ export default function SolarApp() {
                   <span className="text-emerald-400">Rooftop</span> & Solar <br className="hidden sm:block" />Design Tool.
                 </motion.h1>
                 <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
-                  Elevating execution with clearer options, sharper planning, and more confident decisions.
+                  Access factory locations, rooftop estimates, and key decision-maker insights — so your sales team approaches the right opportunity with clarity.
                 </p>
 
                 <motion.div 
@@ -550,7 +550,7 @@ export default function SolarApp() {
                     Empower your <span className="text-emerald-400">entire</span> sales organization.
                   </h2>
                   <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg font-normal leading-relaxed opacity-80">
-                    Enable team with the clarity to plan accurately, reach the right stakeholders, and execute with better results
+                    Unlock professional-grade industrial rooftop mapping, precision dimensions, and direct decision-maker intelligence built specifically for EPC solar installers.
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
@@ -1695,7 +1695,7 @@ export default function SolarApp() {
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-10">
                  <div className="space-y-2">
                     <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
-                    <p className="text-gray-400 text-sm font-medium">Access to planning and 3D design tools, valid for 30 days.</p>
+                    <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
                  </div>
                  <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹100 Enterprise</div>
               </div>
