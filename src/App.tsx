@@ -473,7 +473,7 @@ export default function SolarApp() {
                     }}
                     className="w-full sm:w-auto px-10 py-5 bg-white/5 hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 backdrop-blur-md transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
-                    Explore 3D Designer
+                    Start 3D Design
                   </button>
                 </motion.div>
                 
