@@ -450,7 +450,7 @@ export default function SolarApp() {
                   <span className="text-emerald-400">Rooftop</span> & Solar <br className="hidden sm:block" />Design Tool.
                 </motion.h1>
                 <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
-                  Elevating execution with greater clarity, sharper planning, and more confident decisions. opportunity with clarity.
+                  Elevating execution with clearer options, sharper planning, and more confident decisions.
                 </p>
 
                 <motion.div 
