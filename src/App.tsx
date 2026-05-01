@@ -1382,7 +1382,7 @@ export default function SolarApp() {
                                )}
                                
                                <div className="flex gap-4 pt-2">
-                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
+                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '918626036122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
                                      Reply WhatsApp <ArrowRight className="w-4 h-4" />
                                   </button>
                                   <button className="px-8 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5">
@@ -2035,7 +2035,7 @@ export default function SolarApp() {
                   <button 
                     onClick={() => {
                       const msg = `Industrial Solar Protocol: Analysis for ${selectedLead.factory}. Zone: ${selectedLead.location}. Potential: ${selectedLead.rooftop} sqft.`;
-                      window.open(`https://wa.me/91862606122?text=${encodeURIComponent(msg)}`, '_blank');
+                      window.open(`https://wa.me/918626036122?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                     className="flex-1 py-6 bg-slate-800 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5 flex items-center justify-center gap-4"
                   >
