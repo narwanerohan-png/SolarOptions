@@ -379,7 +379,7 @@ export default function SolarApp() {
               onClick={() => setShowAccessForm(true)}
               className="px-4 pr-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
             >
-              Request Access
+              Get Access
             </button>
           </>
         )}
@@ -463,7 +463,7 @@ export default function SolarApp() {
                     onClick={() => setShowAccessForm(true)}
                     className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
-                    Request Access <ArrowRight className="w-5 h-5" />
+                    Get Access <ArrowRight className="w-5 h-5" />
                   </button>
                   <button 
                     onClick={() => {
@@ -1467,7 +1467,7 @@ export default function SolarApp() {
                           <LogIn className="w-5 h-5" /> Login
                        </button>
                        <button onClick={() => setShowAccessForm(true)} className="px-10 py-5 bg-emerald-500 text-slate-900 rounded-2xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all">
-                          Request Access
+                          Get Access
                        </button>
                     </div>
                     <p className="mt-8 text-xs text-slate-500 relative z-10">Immediate activation upon successful payment integration.</p>
