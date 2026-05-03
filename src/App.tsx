@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { Helmet } from 'react-helmet-async';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import SketchBoard from './components/SketchBoard';
 import ThreeScene from './components/ThreeScene';
 import { Point, PanelConfig } from './utils/geometry';
@@ -44,10 +46,26 @@ const sampleLeadsData: Lead[] = [
 ];
 
 export default function SolarApp() {
-  // Navigation State
-  const [currentPage, setCurrentPage] = useState<'landing' | 'consumer' | 'epc' | 'privacy' | 'terms'>('landing');
-  
-  // App Logic State
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // derivation of currentPage from location for backward compatibility in some logic
+  const currentPage = useMemo(() => {
+    const path = location.pathname;
+    if (path === '/solar-rooftop-calculator') return 'consumer';
+    if (path === '/3d-layout-designer' || path === '/factory-data-insights') return 'epc';
+    if (path === '/privacy') return 'privacy';
+    if (path === '/terms') return 'terms';
+    return 'landing';
+  }, [location.pathname]);
+
+  // derivation of epcView from location
+  const epcView = useMemo(() => {
+    if (location.pathname === '/3d-layout-designer') return 'design';
+    if (location.pathname === '/leads-inbox') return 'inbox';
+    return 'search'; 
+  }, [location.pathname]) as 'search' | 'design' | 'inbox';
+
   const [monthlyBill, setMonthlyBill] = useState(50000);
   const [rooftopSpace, setRooftopSpace] = useState(5000);
   const [electricityRate, setElectricityRate] = useState(8);
@@ -70,15 +88,7 @@ export default function SolarApp() {
   const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(error => {
-        console.warn("Video Autoplay was blocked or failed:", error);
-      });
-    }
-  }, []);
+  const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
   
   // Form State
   const [accessForm, setAccessForm] = useState({
@@ -94,7 +104,6 @@ export default function SolarApp() {
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [rooftopSearch, setRooftopSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
-  const [epcView, setEpcView] = useState<'search' | 'inbox' | 'design'>('search');
   const [inboxData, setInboxData] = useState<any[]>([]);
 
   // Design Tool State
@@ -182,7 +191,7 @@ export default function SolarApp() {
     const openRazorpay = () => {
       const options = {
         key: 'rzp_live_SYVCbNHoPZBoWv',
-        amount: 100, // ₹1 for testing (100 paise)
+        amount: 780000, // ₹7800 per month
         currency: 'INR',
         name: 'Solar Options Pro Access',
         description: '30 Days Premium Leads Access',
@@ -298,8 +307,7 @@ export default function SolarApp() {
       if (data.success) {
         setIsLoggedIn(true);
         setShowLoginModal(false);
-        setCurrentPage('epc');
-        setEpcView('search');
+        navigate('/factory-data-insights');
         window.scrollTo(0, 0);
       } else {
         alert(data.message || "Invalid credentials");
@@ -332,7 +340,7 @@ export default function SolarApp() {
   const Nav = () => (
     <nav className="fixed top-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-slate-900/50">
       <div 
-        onClick={() => { window.scrollTo(0, 0); setCurrentPage('landing'); }} 
+        onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
         className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
         aria-label="SolarOptions Home"
       >
@@ -344,8 +352,11 @@ export default function SolarApp() {
       
       <div className="flex items-center gap-3 sm:gap-6">
         <button 
-          onClick={() => { window.scrollTo(0, 0); setCurrentPage('consumer'); }} 
-          className="hidden sm:block text-xs sm:text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+          onClick={() => { window.scrollTo(0, 0); navigate('/solar-rooftop-calculator'); }} 
+          className={cn(
+            "hidden sm:block text-xs sm:text-sm font-bold transition-colors cursor-pointer",
+            location.pathname === '/solar-rooftop-calculator' ? "text-emerald-400" : "text-gray-400 hover:text-white"
+          )}
           aria-label="Solar Calculator"
         >
           Calculator
@@ -354,14 +365,17 @@ export default function SolarApp() {
         {isLoggedIn ? (
           <>
             <button 
-              onClick={() => { window.scrollTo(0, 0); setCurrentPage('epc'); }} 
-              className="text-xs sm:text-sm font-bold text-emerald-400 hover:text-white transition-colors cursor-pointer"
+              onClick={() => { window.scrollTo(0, 0); navigate('/factory-data-insights'); }} 
+              className={cn(
+                "text-xs sm:text-sm font-bold transition-colors cursor-pointer",
+                (location.pathname === '/factory-data-insights' || location.pathname === '/3d-layout-designer') ? "text-emerald-400" : "text-gray-400 hover:text-white"
+              )}
               aria-label="Access Dashboard"
             >
               Dashboard
             </button>
             <button 
-              onClick={() => setIsLoggedIn(false)} 
+              onClick={() => { setIsLoggedIn(false); navigate('/'); }} 
               className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"
             >
               Logout
@@ -389,16 +403,34 @@ export default function SolarApp() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden relative">
-      {/* Global Solar Background Layer */}
-      <div 
-        className="fixed inset-0 z-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.8)), url("https://images.unsplash.com/photo-1509391366360-fe5ace448016?auto=format&fit=crop&q=80&w=2000")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed',
-        }}
-      />
+      <Helmet>
+        {currentPage === 'landing' && (
+          <>
+            <title>SolarOptions.in | Global Industrial Solar ROI Calculator & 3D Design</title>
+            <meta name="description" content="The world's most advanced tool for industrial solar ROI calculation and 3D rooftop sketching. Scale your solar business with precision." />
+          </>
+        )}
+        {currentPage === 'consumer' && (
+          <>
+            <title>Industrial Solar Calculator | Instant ROI & Savings Analysis</title>
+            <meta name="description" content="Calculate your industrial solar potential in seconds. Get precise estimates for plant size, generation, and payback periods." />
+          </>
+        )}
+        {currentPage === 'epc' && epcView === 'design' && (
+          <>
+            <title>3D Solar Rooftop Designer | Sketch & Visualize PV Systems</title>
+            <meta name="description" content="Sketch rooftop boundaries in 2D and visualize solar panel layouts in 3D for industrial sites globally." />
+          </>
+        )}
+        {currentPage === 'epc' && epcView === 'search' && (
+          <>
+            <title>Industrial Factory Data Explorer | Lead Generation for Solar EPCs</title>
+            <meta name="description" content="Explore thousands of industrial factory rooftops with precision data. Generate leads and scale your EPC solar installation business." />
+          </>
+        )}
+      </Helmet>
+      {/* Global Background Layer */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900" />
       
       <div className="relative z-10">
         <Nav />
@@ -411,28 +443,25 @@ export default function SolarApp() {
             className="relative"
           >
             {/* Hero */}
-            <header className="relative w-full min-h-[70vh] flex items-center overflow-hidden border-b border-white/5">
-              {/* Video Background layer */}
-              <div className="absolute inset-0 z-0 bg-transparent">
-                <video 
-                  ref={videoRef}
-                  autoPlay 
-                  muted 
-                  loop 
-                  playsInline 
+            <header className="relative w-full min-h-[85vh] flex items-center overflow-hidden">
+              {/* Professional Aerial Background Video */}
+              <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
                   preload="auto"
-                  className="w-full h-full object-cover opacity-60 mix-blend-lighten"
-                  poster="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=2000"
+                  poster="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=1920"
+                  className="w-full h-full object-cover opacity-[0.5] blur-[2px] scale-105"
                 >
-                  <source src="https://videos.pexels.com/video-files/15920793/15920793-sd_640_360_25fps.mp4" type="video/mp4" />
+                  <source src="https://player.vimeo.com/external/370364955.sd.mp4?s=740611847c28373f1d00f796be4b459b794d2f09&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[0.5px]"></div>
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/0 via-slate-900/30 to-slate-900"></div>
-                
-                {/* Scanline effect */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.01),rgba(0,255,0,0.005),rgba(0,0,255,0.01))] z-[1] bg-[length:100%_4px,3px_100%] pointer-events-none opacity-20"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900" />
+                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900 to-transparent" />
               </div>
+
+              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
 
               <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-24 mt-12">
                 <motion.div
@@ -468,8 +497,7 @@ export default function SolarApp() {
                   <button 
                     onClick={() => {
                         window.scrollTo(0, 1000); // Scroll down to features or 3D section
-                        setCurrentPage('epc');
-                        setEpcView('design');
+                        navigate('/3d-layout-designer');
                     }}
                     className="w-full sm:w-auto px-10 py-5 bg-white/5 hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 backdrop-blur-md transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
@@ -550,7 +578,7 @@ export default function SolarApp() {
                     Empower your <span className="text-emerald-400">entire</span> sales organization.
                   </h2>
                   <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg font-normal leading-relaxed opacity-80">
-                    Enable team with the clarity to plan accurately, reach the right stakeholders, and execute with better results
+                    Enable team with the clarity to plan accurately, reach the right stakeholders, and execute smart for better results.
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
@@ -584,14 +612,31 @@ export default function SolarApp() {
               {/* Removed redundant buttons section */}
             </section>
 
-            {/* SEO Keyword Sections */}
-            <section className="max-w-7xl mx-auto px-6 py-24 mb-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {/* Bottom Background Image Section */}
+            <div className="relative overflow-hidden">
+               {/* Professional Aerial Solar Plant Background */}
+               <div className="absolute inset-0 z-0 pointer-events-none">
+                 <img 
+                   src="https://images.unsplash.com/photo-1542332213-31f87348057f?auto=format&fit=crop&q=80&w=1920" 
+                   alt="Aerial view solar power plant"
+                   className="w-full h-full object-cover opacity-[0.04] blur-[3px] scale-110"
+                   referrerPolicy="no-referrer"
+                 />
+                 <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-900/40 to-slate-900" />
+                 <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-slate-900 to-transparent" />
+                 <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-slate-900 to-transparent" />
+               </div>
+
+               <div className="relative z-10">
+                 {/* SEO Keyword Sections */}
+                 <section className="max-w-7xl mx-auto px-6 py-24 mb-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 text-left">
                 {[
-                  { title: "Solar Design Tool", desc: "Advanced 3D simulation for industrial rooftops. Create precise PV layouts with safety gaps and professional PDF proposals." },
-                  { title: "Factory Data List", desc: "Curated intelligence of industrial facilities across MIDC and prime clusters, mapped specifically for solar potential." },
-                  { title: "Decision Makers", desc: "Save weeks of prospecting with direct contact details. Approach stakeholders with a specialized data-backed plan." },
-                  { title: "Solar Calculator", desc: "Instant feasibility reports based on electricity consumption, available rooftop area, and regional tariff rates." }
+                  { title: "Solar Design Tool", desc: "Advanced 3D solar design tool for industrial rooftops. Create accurate PV system layouts with safety spacing, optimize panel placement, and generate professional solar project proposals for EPC execution." },
+                  { title: "Factory Data List", desc: "Access a curated database of industrial facilities across MIDC and key industrial zones, mapped with rooftop solar potential to help identify high-value solar installation opportunities." },
+                  { title: "Decision Makers", desc: "Connect directly with key decision-makers in industrial facilities. Save prospecting time with verified contact insights and approach stakeholders with data-driven solar proposals." },
+                  { title: "Solar Calculator", desc: "Instant solar feasibility calculator for industrial and commercial projects. Estimate system size, rooftop solar capacity, and potential savings based on electricity usage, rooftop area, and local tariff structures." },
+                  { title: "Solar Project Costing", desc: "Estimate industrial solar project cost with accurate, data-driven calculations. Analyze system size, installation cost, ROI, and payback period based on rooftop area, electricity consumption, and current tariff rates." }
                 ].map((item, i) => (
                   <div key={i} className="p-8 bg-slate-900/30 rounded-[32px] border border-white/5 transition-colors hover:border-emerald-500/20 group">
                     <h4 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-400 mb-4">{item.title}</h4>
@@ -601,22 +646,21 @@ export default function SolarApp() {
               </div>
             </section>
 
-
-            {/* Solar Options Guide for SEO */}
+                {/* Solar Options Guide for SEO */}
             <section id="seo-insights" className="max-w-5xl mx-auto px-6 py-24 text-left border-t border-white/5">
                <h2 className="text-3xl font-black mb-12 text-white/90 uppercase tracking-tight">Solar <br/><span className="text-emerald-400 italic font-medium">Insights Engine.</span></h2>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-sm text-gray-500">
                   <div className="space-y-6">
                      <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Industrial Rooftop Capacity</h3>
-                     <p className="leading-relaxed font-medium">Standard industrial solar requires ~100 sq.ft per kWp. Our modeling accounts for shadow-free areas in high-density zones like MIDC to ensure precision estimation.</p>
+                     <p className="leading-relaxed font-medium">Estimate industrial solar rooftop capacity using standard benchmarks (~100 sq.ft per kWp). Our analysis considers shadow-free areas and real-world constraints to deliver accurate solar potential assessments.</p>
                   </div>
                   <div className="space-y-6">
                      <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Local EPC Connectivity</h3>
-                     <p className="leading-relaxed font-medium">Bridges the gap between industrial owners and certified EPC experts by providing verified site data and executive contact details for seamless outreach.</p>
+                     <p className="leading-relaxed font-medium">Enable seamless collaboration between industrial clients and solar EPC companies with verified site data and direct access to decision-makers.</p>
                   </div>
                   <div className="space-y-6">
                      <h3 className="font-black text-gray-300 uppercase tracking-[0.2em] text-[10px]">Design Optimization</h3>
-                     <p className="leading-relaxed font-medium">Advanced boundary calculations help in assessing net usable area, accounting for HVAC systems, skylights, and safety walkways on commercial buildings.</p>
+                     <p className="leading-relaxed font-medium">Optimize solar panel layouts using advanced rooftop analysis. Accurately calculate usable area by accounting for HVAC systems, skylights, and safety pathways.</p>
                   </div>
                </div>
             </section>
@@ -635,8 +679,8 @@ export default function SolarApp() {
                       <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Lead Intelligence platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
                     </div>
                     <div className="flex flex-wrap justify-center md:justify-end gap-10">
-                       <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('privacy'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy</button>
-                       <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('terms'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms</button>
+                       <button onClick={() => { window.scrollTo(0, 0); navigate('/privacy'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy</button>
+                       <button onClick={() => { window.scrollTo(0, 0); navigate('/terms'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms</button>
                        <button onClick={() => setShowFeedbackModal(true)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Feedback</button>
                     </div>
                  </div>
@@ -645,6 +689,8 @@ export default function SolarApp() {
                  </div>
                </div>
             </footer>
+               </div>
+            </div>
           </motion.div>
         )}
 
@@ -654,22 +700,81 @@ export default function SolarApp() {
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             className="max-w-3xl mx-auto px-6 py-24"
           >
-            <button onClick={() => { window.scrollTo(0, 0); setCurrentPage('landing'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
+            <button onClick={() => { window.scrollTo(0, 0); navigate('/'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
               <ArrowLeft className="w-3 h-3" /> Back to Home
             </button>
             <h1 className="text-3xl font-medium mb-12 text-gray-200 tracking-tight">Privacy Policy</h1>
-            <div className="space-y-12 text-gray-400 leading-relaxed text-sm">
+            <div className="space-y-10 text-gray-400 leading-relaxed text-sm">
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">1. Minimal Tracking</h3>
-                <p className="font-light">We use industry-standard analytics (GA4) to understand how the 3D Designer is used. We do not track personal identifying information of our casual browsers. For registered EPC partners, we protect your login and search activity with encrypted storage.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 1. Minimal Tracking & Data Collection
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">We use industry-standard analytics tools (such as Google Analytics 4) to understand how users interact with our platform. This includes general usage data like pages visited, time spent, and device information. We do not collect personally identifiable information from casual visitors unless voluntarily provided. For registered users or EPC partners, basic details such as name, email, phone number, and project-related inputs may be stored securely to improve service delivery.</p>
               </section>
+
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">2. B2B Context</h3>
-                <p className="font-light">Our database contains professional business details, not private residence data. We are committed to the General Data Protection principles as applied to business-to-business solar consulting. We never share your project designs with competitors.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 2. How We Use Data
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">We use collected data to provide rooftop solar estimates and design insights, improve platform performance and user experience, communicate with users regarding inquiries or access requests, and enhance accuracy of solar planning tools.</p>
               </section>
+
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">3. Data Removal</h3>
-                <p className="font-light">Owners or representatives wishing to opt-out of industrial analytics mapping can do so instantly by emailing info@solaroptions.in. We maintain a strict compliance list to ensure your privacy preferences are respected across our modeling engine.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 3. Cookies & Analytics
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">Our website uses cookies and similar technologies to support analytics and improve usability. Users can choose to disable cookies through their browser settings, though some features may be affected.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 4. B2B Data Context
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">Our platform is designed for industrial and commercial use. The data we handle relates to business properties and professional contacts, not private residential information. We do not sell or share your project data with competitors. Any data used is strictly for enabling solar analysis and business communication.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 5. Data Sharing
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">We do not sell user data. Limited data may be shared with trusted third-party service providers (such as hosting or analytics platforms) strictly for operational purposes and under secure conditions.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 6. Data Security
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">We implement appropriate security measures including encrypted storage, controlled access, and secure infrastructure to protect your data from unauthorized access or misuse.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 7. User Rights
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">You have the right to request access to your data, request correction or deletion, and opt out of data usage for analysis. To exercise these rights, contact us at the email below.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 8. Data Removal / Opt-Out
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">Owners or authorized representatives who wish to opt out of industrial analytics mapping or data usage can do so by contacting us. We maintain a compliance list to ensure your preferences are respected. 📧 Email: info@solaroptions.in</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 9. Disclaimer
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5 italic opacity-70 italic font-medium">All rooftop potential, system sizing, and savings insights provided on this platform are approximate estimates based on available data and assumptions. These should not be considered final technical or financial commitments.</p>
+              </section>
+
+              <section className="pt-8 border-t border-white/5">
+                <h3 className="text-emerald-400 font-black uppercase tracking-[0.2em] text-xs mb-4">Contact Information</h3>
+                <div className="space-y-1 font-bold text-gray-200">
+                  <p>SolarOptions.in</p>
+                  <p>India</p>
+                  <p className="text-emerald-500">info@solaroptions.in</p>
+                </div>
               </section>
             </div>
           </motion.div>
@@ -681,26 +786,115 @@ export default function SolarApp() {
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             className="max-w-3xl mx-auto px-6 py-24"
           >
-            <button onClick={() => { window.scrollTo(0,0); setCurrentPage('landing'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
+            <button onClick={() => { window.scrollTo(0,0); navigate('/'); }} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-300 mb-16 transition-colors uppercase tracking-[0.2em]">
               <ArrowLeft className="w-3 h-3" /> Back to Home
             </button>
             <h1 className="text-3xl font-medium mb-12 text-gray-200 tracking-tight">Terms of Service</h1>
-            <div className="space-y-12 text-gray-400 leading-relaxed text-sm">
+            <div className="space-y-10 text-gray-400 leading-relaxed text-sm">
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">1. Public Data Utilization</h3>
-                <p className="font-light">SolarOptions.in aggregates information derived exclusively from public datasets, industrial directories, and satellite imagery models. We do not perform private surveillance or store non-commercial personal data. All factory details are considered professional business information available in the public domain.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 1. Acceptance of Terms
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">By accessing or using SolarOptions.in, you agree to comply with and be bound by these Terms of Service. If you do not agree, please refrain from using the platform.</p>
               </section>
+
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">2. Professional Responsibility & Indemnity</h3>
-                <p className="font-light">Users (EPC Partners & Solar Professionals) agree to use this platform as a preliminary tool. You are solely responsible for on-site verification. SolarOptions.in shall not be liable for any claims, losses, or legal allegations arising from your outreach to factory owners or your subsequent project implementations. You agree to indemnify this platform against any third-party claims resulting from your specific use of the provided data.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 2. Platform Nature & Public Data Utilization
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">SolarOptions.in aggregates and analyzes data derived from publicly available sources, including industrial directories, satellite imagery, and analytical models. We do not conduct private surveillance or collect non-commercial personal data. All information presented is intended for business-to-business (B2B) use and relates to professional or industrial entities.</p>
               </section>
+
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">3. Property Owner Protection</h3>
-                <p className="font-light">Inclusion in our database does not imply an endorsement or a request for solicitation by the property owner. We strictly bridge information gaps for B2B industrial development. Property owners may request data updates or removal at any time via the Feedback tool; such requests are handled with absolute priority to ensure professional boundaries are maintained.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 3. Permitted Use
+                </h3>
+                <div className="font-light pl-3.5 border-l border-white/5">
+                  <p className="mb-3">The platform is intended for:</p>
+                  <ul className="space-y-1.5 ml-4">
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-emerald-500/50 rounded-full"></span> EPC companies</li>
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-emerald-500/50 rounded-full"></span> Solar professionals</li>
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-emerald-500/50 rounded-full"></span> Commercial and industrial feasibility analysis</li>
+                  </ul>
+                  <p className="mt-3">Users agree to use the platform only for lawful, professional purposes and not for harassment, unsolicited spamming, or misuse of business data.</p>
+                </div>
               </section>
+
               <section>
-                <h3 className="text-gray-300 font-semibold mb-3">4. Non-Scraping Agreement</h3>
-                <p className="font-light">Redistribution, automated scraping, or bulk harvesting of our leads for the purpose of reselling is strictly prohibited and protected by intellectual property laws. Access is granted for individual professional use only.</p>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 4. Professional Responsibility & Disclaimer
+                </h3>
+                <div className="font-light pl-3.5 border-l border-white/5 space-y-3">
+                  <p>All insights, including rooftop potential, system sizing, and savings estimates, are indicative and approximate.</p>
+                  <p>Users are solely responsible for conducting on-site verification, validating technical feasibility, and ensuring compliance with applicable laws and regulations.</p>
+                  <p>SolarOptions.in shall not be held liable for any decisions, losses, or outcomes resulting from reliance on platform data.</p>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 5. Limitation of Liability
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">To the maximum extent permitted by law, SolarOptions.in shall not be liable for direct or indirect damages, business losses, or missed opportunities claims arising from user outreach or project execution. Use of the platform is entirely at the user’s own risk.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 6. Indemnification
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">You agree to indemnify and hold harmless SolarOptions.in, its owners, and affiliates from any claims, damages, or legal actions arising from your use of the platform, your communication with third parties, or any violation of these Terms.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 7. Property Owner Rights
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">Inclusion of any business or property in our database does not imply endorsement, solicitation consent, or partnership. Property owners or authorized representatives may request data correction or data removal. Such requests will be processed on priority to maintain professional and ethical standards.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 8. Data Access & Restrictions
+                </h3>
+                <div className="font-light pl-3.5 border-l border-white/5 space-y-3">
+                  <p>All data, insights, and platform outputs are protected by intellectual property principles. Users are strictly prohibited from:</p>
+                  <ul className="space-y-1.5 ml-4">
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-rose-500/50 rounded-full"></span> Automated scraping or data extraction</li>
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-rose-500/50 rounded-full"></span> Bulk downloading or redistribution</li>
+                    <li className="flex items-center gap-2"><span className="w-1 h-1 bg-rose-500/50 rounded-full"></span> Reselling or commercial reuse of platform data</li>
+                  </ul>
+                  <p>Access is granted for individual professional use only.</p>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 9. Account & Access Control
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">Where applicable, users are responsible for maintaining the confidentiality of their login credentials and for all activities under their account.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 10. Modifications to Service
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">SolarOptions.in reserves the right to modify, update, or discontinue any part of the platform or these Terms at any time without prior notice.</p>
+              </section>
+
+              <section>
+                <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 11. Governing Law
+                </h3>
+                <p className="font-light pl-3.5 border-l border-white/5">These Terms shall be governed by and interpreted in accordance with the laws of India. Any disputes shall be subject to the jurisdiction of appropriate courts in India.</p>
+              </section>
+
+              <section className="pt-8 border-t border-white/5">
+                <h3 className="text-emerald-400 font-black uppercase tracking-[0.2em] text-xs mb-4">Contact Information</h3>
+                <div className="space-y-1 font-bold text-gray-200">
+                  <p>SolarOptions.in</p>
+                  <p>India</p>
+                  <p className="text-emerald-500">info@solaroptions.in</p>
+                </div>
               </section>
             </div>
           </motion.div>
@@ -714,7 +908,7 @@ export default function SolarApp() {
           >
             <div className="flex justify-between items-center bg-emerald-500/5 border border-emerald-500/20 p-6 rounded-[32px] backdrop-blur-xl mb-16">
                    <button 
-                    onClick={() => setCurrentPage('landing')} 
+                    onClick={() => navigate('/')} 
                     className="flex items-center gap-3 text-xs font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-all bg-emerald-500/10 px-6 py-3 rounded-2xl border border-emerald-500/10"
                    >
                      <ArrowLeft className="w-4 h-4" /> Back to Dashboard
@@ -876,23 +1070,22 @@ export default function SolarApp() {
                       <div className="h-4 w-[1px] bg-slate-700" />
                       <div className="flex gap-4">
                         <button 
-                          onClick={() => setEpcView('search')}
+                          onClick={() => navigate('/factory-data-insights')}
                           className={`text-xs font-black uppercase tracking-widest transition-all ${epcView === 'search' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400'}`}
                         >
                           Explore Sites
                         </button>
                         <button 
-                          onClick={() => setEpcView('design')}
+                          onClick={() => navigate('/3d-layout-designer')}
                           className={`text-xs font-black uppercase tracking-widest transition-all ${epcView === 'design' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400'}`}
                         >
                           Design Tool
                         </button>
                         <button 
-                          onClick={() => setEpcView('inbox')}
-                          className={`text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${epcView === 'inbox' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400'}`}
+                          onClick={() => {}} 
+                          className={`text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${epcView === 'inbox' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400 opacity-50 cursor-not-allowed'}`}
                         >
                           Leads Inbox 
-                          {inboxData.length > 0 && <span className="bg-emerald-500 text-slate-900 px-1.5 py-0.5 rounded-full text-[8px]">{inboxData.length}</span>}
                         </button>
                       </div>
                     </div>
@@ -992,17 +1185,11 @@ export default function SolarApp() {
                   >
                     <div className="flex justify-between items-center mb-8 no-print">
                       <button 
-                        onClick={() => setEpcView('search')}
+                        onClick={() => navigate('/factory-data-insights')}
                         className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-white uppercase tracking-[0.2em] transition-all group"
                       >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                         Back
-                      </button>
-                      <button 
-                         onClick={() => window.location.reload()}
-                         className="px-8 py-3 bg-white text-slate-900 rounded-2xl text-xs font-black uppercase tracking-[0.2em] border border-white/10 hover:bg-emerald-500 transition-all flex items-center gap-3 shadow-lg"
-                      >
-                        <RefreshCw size={16} /> New Project
                       </button>
                     </div>
 
@@ -1014,7 +1201,7 @@ export default function SolarApp() {
                             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                               <Target size={20} />
                             </div>
-                            <h3 className="text-3xl font-black text-slate-800 tracking-tight">1. Project Identity</h3>
+                            <h3 className="text-3xl font-black text-slate-800 tracking-tight uppercase">1. Project Identity</h3>
                           </div>
                           
                           <div className="space-y-12">
@@ -1207,14 +1394,14 @@ export default function SolarApp() {
                                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Engineering Specification</span>
                                   </div>
-                                  <h2 className="text-4xl font-black italic tracking-tight text-slate-900">
+                                  <h2 className="text-4xl font-black italic tracking-tight text-white">
                                     {designFactoryName || 'Untitled Project'}
                                   </h2>
                                   <p className="text-slate-400 font-medium">Technical Solar PV Proposal & System Simulation</p>
                                </div>
                                <div className="text-right">
-                                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Generated On</p>
-                                  <p className="text-slate-900 font-bold">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Generated On</p>
+                                  <p className="text-white font-bold">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                                </div>
                             </div>
 
@@ -1234,12 +1421,12 @@ export default function SolarApp() {
 
                                <div className="flex justify-between items-center px-12 border-t border-slate-50 pt-8">
                                   <div className="space-y-1">
-                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Calculated Peak</p>
-                                     <p className="text-3xl font-black text-slate-900">{(designPanelCount * 0.55).toFixed(1)} kWp</p>
+                                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Project size</p>
+                                     <p className="text-3xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} kWp</p>
                                   </div>
                                   <div className="text-right space-y-1">
-                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Modules</p>
-                                     <p className="text-3xl font-black text-slate-900">{designPanelCount} Nos</p>
+                                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Number of panels</p>
+                                     <p className="text-3xl font-black text-white">{designPanelCount} Nos</p>
                                   </div>
                                </div>
                             </div>
@@ -1294,11 +1481,11 @@ export default function SolarApp() {
                                      {/* Overlay Stats in the scene itself to save space */}
                                      <div className="absolute bottom-12 right-12 flex gap-8">
                                         <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">System Capacity</p>
+                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project size</p>
                                            <p className="text-2xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
                                         </div>
                                         <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Total Modules</p>
+                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Number of panels</p>
                                            <p className="text-2xl font-black text-white">{designPanelCount} <span className="text-xs">Nos</span></p>
                                         </div>
                                      </div>
@@ -1382,7 +1569,7 @@ export default function SolarApp() {
                                )}
                                
                                <div className="flex gap-4 pt-2">
-                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '918626036122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
+                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
                                      Reply WhatsApp <ArrowRight className="w-4 h-4" />
                                   </button>
                                   <button className="px-8 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5">
@@ -1401,7 +1588,7 @@ export default function SolarApp() {
               <div className="max-w-4xl mx-auto space-y-12">
                  <div className="flex justify-between items-center bg-white/5 border border-white/10 p-6 rounded-[32px] backdrop-blur-xl mb-12">
                    <button 
-                    onClick={() => setCurrentPage('landing')} 
+                    onClick={() => navigate('/')} 
                     className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
                    >
                      <ArrowRight className="w-4 h-4 rotate-180" /> Back to Home
@@ -1610,7 +1797,7 @@ export default function SolarApp() {
 
       {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 backdrop-blur-sm" onClick={() => setShowForgotPasswordModal(false)}>
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[500] p-4 backdrop-blur-sm" onClick={() => setShowForgotPasswordModal(false)}>
            <motion.div 
             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-slate-900 text-white p-8 sm:p-12 rounded-[40px] w-full max-w-sm border border-slate-800" 
@@ -1697,7 +1884,7 @@ export default function SolarApp() {
                     <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
                     <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
                  </div>
-                 <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹100 Enterprise</div>
+                 <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹7800 Enterprise</div>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
@@ -1739,10 +1926,12 @@ export default function SolarApp() {
                 >
                   Dismiss
                 </button>
-                <button onClick={handlePayment} className="group flex-[2] py-6 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-3xl shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4">
-                  {isSubmitting ? (paymentLoadingMessage || 'Initializing...') : 'Proceed to Gateway'}
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                <div className="flex-[4] flex flex-col sm:flex-row gap-4">
+                  <button onClick={handlePayment} className="flex-1 py-6 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-3xl shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 w-full">
+                    {isSubmitting ? (paymentLoadingMessage || 'Initializing...') : 'Domestic (INR)'}
+                    <Zap className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
               </div>
            </motion.div>
         </div>
@@ -2031,18 +2220,88 @@ export default function SolarApp() {
                    </div>
                 </div>
 
+                <AnimatePresence>
+                  {showActionPlanDetails && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden mb-10"
+                    >
+                      <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[40px] p-10">
+                        <h4 className="text-emerald-400 font-black text-xs uppercase tracking-[0.25em] mb-8 flex items-center gap-3">
+                          <ShieldCheck className="w-5 h-5" /> Recommended Action Plan
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-[10px] font-black">1</div>
+                              <p className="text-[10px] font-black text-white uppercase tracking-widest">Email Outreach</p>
+                            </div>
+                            <p className="text-gray-400 text-xs leading-relaxed">
+                              Send a personalized email. Start with key insights:
+                            </p>
+                            <ul className="space-y-2">
+                              <li className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-bold">
+                                <div className="w-1 h-1 rounded-full bg-emerald-400/40" />
+                                Estimated rooftop solar potential
+                              </li>
+                              <li className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-bold">
+                                <div className="w-1 h-1 rounded-full bg-emerald-400/40" />
+                                Approximate monthly savings
+                              </li>
+                            </ul>
+                            <p className="text-gray-500 text-[10px] italic leading-relaxed pt-2">
+                              Position it as a quick observation to help them understand the opportunity.
+                            </p>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-[10px] font-black">2</div>
+                              <p className="text-[10px] font-black text-white uppercase tracking-widest">Call Outreach</p>
+                            </div>
+                            <p className="text-gray-400 text-xs leading-relaxed">
+                              If contacting via phone:
+                            </p>
+                            <ul className="space-y-2">
+                              <li className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-bold">
+                                <div className="w-1 h-1 rounded-full bg-emerald-400/40" />
+                                Address them by their name
+                              </li>
+                              <li className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-bold">
+                                <div className="w-1 h-1 rounded-full bg-emerald-400/40" />
+                                Verify number using verification tool
+                              </li>
+                              <li className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-bold">
+                                <div className="w-1 h-1 rounded-full bg-emerald-400/40" />
+                                Ensure speaking to correct authority
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="mt-10 pt-8 border-t border-white/5 flex items-center justify-center gap-4">
+                          <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
+                              Goal: <span className="text-white">Personalized Digital Engagement</span>
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <div className="flex flex-col sm:flex-row gap-6">
                   <button 
-                    onClick={() => {
-                      const msg = `Industrial Solar Protocol: Analysis for ${selectedLead.factory}. Zone: ${selectedLead.location}. Potential: ${selectedLead.rooftop} sqft.`;
-                      window.open(`https://wa.me/918626036122?text=${encodeURIComponent(msg)}`, '_blank');
-                    }}
-                    className="flex-1 py-6 bg-slate-800 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5 flex items-center justify-center gap-4"
+                    onClick={() => setShowActionPlanDetails(!showActionPlanDetails)}
+                    className={`flex-1 py-6 rounded-3xl font-black text-xs uppercase tracking-widest transition-all border flex items-center justify-center gap-4 ${showActionPlanDetails ? 'bg-white text-slate-900 border-white' : 'bg-slate-800 text-white border-white/5 hover:bg-slate-700'}`}
                   >
-                    Action Plan <ArrowRight className="w-5 h-5" />
+                    {showActionPlanDetails ? 'Hide Plan' : 'Action Plan'} 
+                    <ArrowRight className={`w-5 h-5 transition-transform ${showActionPlanDetails ? 'rotate-90' : ''}`} />
                   </button>
                   <button 
-                    onClick={() => setSelectedLead(null)}
+                    onClick={() => { setSelectedLead(null); setShowActionPlanDetails(false); }}
                     className="flex-1 py-6 bg-emerald-500 text-slate-900 rounded-3xl font-black text-xs uppercase tracking-widest shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     Close Specs
