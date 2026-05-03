@@ -1047,6 +1047,27 @@ export default function SolarApp() {
                     </button>
                   </div>
                 </div>
+                
+                {/* SEO Informational Content Section */}
+                <div className="mt-24 pt-16 border-t border-white/5 pb-12">
+                  <div className="text-center mb-16">
+                     <h2 className="text-2xl font-black text-white uppercase tracking-tight">Industrial Solar Rooftop Calculator for Accurate <span className="text-emerald-400 italic font-medium">Cost & Savings</span></h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-500">
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Economics of Scale & LCOE</h3>
+                      <p className="leading-relaxed font-medium">
+                        Our industrial solar rooftop calculator helps businesses quickly estimate system size, project cost, and expected savings. By analyzing your monthly electricity consumption and available rooftop area, the tool provides a reliable estimate of solar capacity and financial returns for industrial and commercial installations. Transitioning to solar power for industrial facilities is more than an environmental choice—it's a high-impact financial hedge against volatile grid tariffs. Our calculator utilizes sophisticated financial modeling to estimate your Levelized Cost of Energy (LCOE), demonstrating how industrial-scale installations benefit from significant economies of scale. By spreading fixed costs over a larger capacity, the per-watt installation price drops sharply compared to residential projects, securing 25 years of predictable power.
+                      </p>
+                    </div>
+                    <div className="space-y-6">
+                      <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Strategic Energy Planning</h3>
+                      <p className="leading-relaxed font-medium">
+                        In industrial facilities, electricity costs form a major part of operational expenses. With rising grid tariffs (₹7–₹11 per unit), switching to solar can reduce up to 70–85% of daytime electricity costs. This tool helps EPC companies and factory owners understand the feasibility of installing a solar power plant using real-world assumptions and industry benchmarks. Leveraging our tool allows stakeholders to evaluate the trade-offs between CAPEX-heavy ownership and OPEX-based PPA (Power Purchase Agreement) models. Key performance indicators such as the Internal Rate of Return (IRR) and the Payback Period—often as low as 3 years in industrial clusters—are heavily influenced by net-metering policies and accelerated depreciation benefits. We bridge the gap between intent and engineering feasibility.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
           </motion.div>
         )}
@@ -1173,6 +1194,27 @@ export default function SolarApp() {
                         >
                           <ArrowRight className="w-5 h-5" />
                         </button>
+                    </div>
+
+                    {/* SEO Informational Content Section */}
+                    <div className="mt-24 pt-16 border-t border-white/5 pb-12">
+                      <div className="mb-12">
+                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Factory Data for <span className="text-emerald-400 italic font-medium">Industrial Solar Lead Generation</span></h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-400 opacity-80">
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Target the Right Industrial Solar Projects</h3>
+                          <p className="leading-relaxed font-medium">
+                            Access verified industrial factory data with rooftop solar potential to identify high-value solar opportunities. Our platform helps solar EPC companies find factories with large rooftop areas (5,000 to 100,000+ sq.ft), making it easier to target the right prospects for industrial solar installations. With accurate factory data and solar insights, EPC companies can identify factories suitable for rooftop solar, focus on high-potential industrial zones like MIDC clusters, and approach clients with data-backed proposals. This improves conversion rates by targeting only those sites where solar feasibility is strong.
+                          </p>
+                        </div>
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Faster Sales & Better Conversion</h3>
+                          <p className="leading-relaxed font-medium">
+                            Instead of manual searching, this tool provides ready-to-use industrial solar leads with insights on rooftop suitability, location clusters, and site potential. This helps reduce customer acquisition cost and improves the efficiency of solar sales efforts. By accessing decision-ready data, your team can skip initial research and prospecting, reach the right stakeholders faster, and present solar solutions with confidence. This approach helps EPC companies move from basic outreach to strategic solar project planning, leading to faster deal closures and better project outcomes.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1365,6 +1407,27 @@ export default function SolarApp() {
                            </div>
                          </div>
                        )}
+                    </div>
+
+                    {/* SEO Informational Content Section */}
+                    <div className="mt-24 pt-16 border-t border-white/5 pb-12">
+                      <div className="mb-12">
+                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">3D Solar Rooftop <span className="text-emerald-400 italic font-medium">Design Tool for Industrial Projects</span></h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-400 opacity-80">
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Accurate Layout & Shadow Analysis</h3>
+                          <p className="leading-relaxed font-medium">
+                            Create accurate 3D solar rooftop designs for industrial and commercial buildings. This tool helps solar EPC companies visualize panel layouts, optimize space usage, and generate professional solar project designs based on real rooftop conditions. By using a digital 3D model, you can plan solar installations more efficiently and present clear, data-driven designs to industrial clients. The 3D solar designer allows you to design panel layout with proper spacing, analyze shadow-free areas, and account for obstacles like HVAC units, vents, and walkways.
+                          </p>
+                        </div>
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Better Proposals & Faster Client Approval</h3>
+                          <p className="leading-relaxed font-medium">
+                            This ensures maximum energy generation and realistic system performance for industrial solar projects. With clear 3D visualization, you can show exact panel placement on rooftop, build trust with stakeholders, and improve proposal quality. The tool also helps in creating structured solar designs that support EPC execution and reduce design errors during installation. Using advanced engineering simulations, we provide a robust framework for technical site feasibility as well as a professional layout blueprint.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1580,6 +1643,27 @@ export default function SolarApp() {
                           </div>
                         ))
                       )}
+                    </div>
+
+                    {/* SEO Informational Content Section */}
+                    <div className="mt-24 pt-16 border-t border-white/5 pb-12">
+                      <div className="mb-12 text-center">
+                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">High-Performance <span className="text-emerald-400 italic font-medium">Solar Lead Management & CRO</span></h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-400 opacity-80 text-left">
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Centralized Unified Sales Truth</h3>
+                          <p className="leading-relaxed font-medium">
+                            For a high-growth solar organization, lead leakage is the silent killer of profitability. Our Leads Inbox serves as a centralized 'source of truth,' aggregating inquiries from every touchpoint into a unified, secure dashboard. By eliminating fragmented communication channels, your sales team can maintain a consistent brand voice and ensure every multi-megawatt prospect is handled with the appropriate technical depth. The system categorizes leads by intent—separating detailed feasibility inquiries from general feedback—enabling your managers to allocate resources according to project value. In the world of industrial solar B2B, a structured response protocol is the difference between a missed opportunity and a long-term strategic partnership.
+                          </p>
+                        </div>
+                        <div className="space-y-6">
+                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Conversion Rate Optimization (CRO) & Engagement</h3>
+                          <p className="leading-relaxed font-medium">
+                            The core of modern lead triage is the 'Speed to Lead'. Integrating direct engagement tools like WhatsApp allows your representatives to reach prospects within the critical 5-minute window of their inquiry. This immediate responsiveness significantly boosts conversion rates by establishing trust while the project's energy challenges are top-of-mind for the client. Beyond speed, our portal emphasizes data integrity; by having site location, rooftop metrics, and load profiles directly linked to the conversation, your team can provide personalized, data-backed advice from the first interaction. Scaling an EPC business requires robust pipeine visibility—use our Leads Inbox to optimize your engagement strategy and ensure your sales engine is running at peak efficiency.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2111,7 +2195,7 @@ export default function SolarApp() {
                 </div>
                 
                 <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest mt-4">
-                  SolarOptions.in • Industrial Solar Intelligence
+                  SolarOptions.in • solar rooftop calculator
                 </p>
               </div>
             </motion.div>
