@@ -69,7 +69,12 @@ export default function SolarApp() {
   const [monthlyBill, setMonthlyBill] = useState(50000);
   const [rooftopSpace, setRooftopSpace] = useState(5000);
   const [electricityRate, setElectricityRate] = useState(8);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('solar_options_isLoggedIn') === 'true';
+    }
+    return false;
+  });
   const [liveLeads, setLiveLeads] = useState<Lead[]>(sampleLeadsData);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -306,6 +311,7 @@ export default function SolarApp() {
       const data = await resp.json();
       if (data.success) {
         setIsLoggedIn(true);
+        localStorage.setItem('solar_options_isLoggedIn', 'true');
         setShowLoginModal(false);
         navigate('/factory-data-insights');
         window.scrollTo(0, 0);
@@ -375,7 +381,11 @@ export default function SolarApp() {
               Dashboard
             </button>
             <button 
-              onClick={() => { setIsLoggedIn(false); navigate('/'); }} 
+              onClick={() => { 
+                setIsLoggedIn(false); 
+                localStorage.removeItem('solar_options_isLoggedIn');
+                navigate('/'); 
+              }} 
               className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"
             >
               Logout
