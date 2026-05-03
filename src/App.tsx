@@ -2138,12 +2138,12 @@ export default function SolarApp() {
       {/* Full Specs Modal */}
       <AnimatePresence>
         {selectedLead && (
-          <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl" onClick={() => setSelectedLead(null)}>
+          <div className="fixed inset-0 bg-slate-900/95 flex justify-center z-[300] p-4 backdrop-blur-xl overflow-y-auto" onClick={() => setSelectedLead(null)}>
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-slate-900 text-white p-10 sm:p-16 rounded-[60px] w-full max-w-2xl shadow-3xl relative overflow-hidden border border-white/5" 
+              className="bg-slate-900 text-white p-10 sm:p-16 rounded-[60px] w-full max-w-2xl shadow-3xl relative my-auto border border-white/5" 
               onClick={e => e.stopPropagation()}
             >
                <div className="absolute top-0 right-0 p-10">
