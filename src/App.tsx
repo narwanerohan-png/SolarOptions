@@ -138,7 +138,7 @@ export default function SolarApp() {
     // Give state time to update and browser to show the image in print layout
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 500);
   };
 
   useEffect(() => {
@@ -1538,28 +1538,30 @@ export default function SolarApp() {
                             <style>{`
                               @media print {
                                 @page { size: A4; margin: 0; }
-                                body { margin: 0; -webkit-print-color-adjust: exact; background: white !important; }
-                                .no-print { display: none !important; }
-                                /* Hide everything except our print container */
-                                body > :not(.print-only), 
-                                .no-print,
-                                #root > :not(.print-only) {
-                                  display: none !important;
+                                body { 
+                                  margin: 0; 
+                                  -webkit-print-color-adjust: exact; 
+                                  background: white !important; 
+                                }
+                                body * {
+                                  visibility: hidden;
+                                }
+                                .print-only, .print-only * {
+                                  visibility: visible !important;
                                 }
                                 .print-only {
                                   display: block !important;
-                                  position: absolute !important;
+                                  position: fixed !important;
                                   top: 0 !important;
                                   left: 0 !important;
                                   width: 100% !important;
                                   height: 100% !important;
                                   margin: 0 !important;
                                   padding: 0 !important;
-                                  visibility: visible !important;
+                                  background: white !important;
+                                  z-index: 999999 !important;
                                 }
-                                .print-only * {
-                                  visibility: visible !important;
-                                }
+                                .no-print { display: none !important; }
                               }
                             `}</style>
                             <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
