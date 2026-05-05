@@ -1543,23 +1543,24 @@ export default function SolarApp() {
                                   -webkit-print-color-adjust: exact; 
                                   background: white !important; 
                                 }
-                                body * {
-                                  visibility: hidden;
-                                }
-                                .print-only, .print-only * {
-                                  visibility: visible !important;
+                                .no-print,
+                                #root > :not(.print-only),
+                                body > :not(.print-only) {
+                                  display: none !important;
                                 }
                                 .print-only {
                                   display: block !important;
                                   position: fixed !important;
                                   top: 0 !important;
                                   left: 0 !important;
-                                  width: 100% !important;
-                                  height: 100% !important;
+                                  width: 210mm !important;
+                                  height: 297mm !important;
+                                  max-height: 297mm !important;
                                   margin: 0 !important;
                                   padding: 0 !important;
                                   background: white !important;
                                   z-index: 999999 !important;
+                                  overflow: hidden !important;
                                 }
                                 .no-print { display: none !important; }
                               }
