@@ -1532,92 +1532,6 @@ export default function SolarApp() {
                                </button>
                             </div>
                          </div>
-
-                         {/* A4 Print Layout Overlay */}
-                         <div className="hidden print:block fixed inset-0 bg-white z-[999] p-0 print-only">
-                            <style>{`
-                              @media print {
-                                @page { size: A4; margin: 0; }
-                                body { 
-                                  margin: 0; 
-                                  -webkit-print-color-adjust: exact; 
-                                  background: white !important; 
-                                }
-                                .no-print,
-                                #root > :not(.print-only),
-                                body > :not(.print-only) {
-                                  display: none !important;
-                                }
-                                .print-only {
-                                  display: block !important;
-                                  position: fixed !important;
-                                  top: 0 !important;
-                                  left: 0 !important;
-                                  width: 210mm !important;
-                                  height: 297mm !important;
-                                  max-height: 297mm !important;
-                                  margin: 0 !important;
-                                  padding: 0 !important;
-                                  background: white !important;
-                                  z-index: 999999 !important;
-                                  overflow: hidden !important;
-                                }
-                                .no-print { display: none !important; }
-                              }
-                            `}</style>
-                            <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
-                               {/* Letterhead Space (Upper 20%) - Left EMPTY for pre-printed letterhead */}
-                               <div className="h-[60mm] w-full flex flex-col justify-end p-12">
-                                  <div className="flex justify-between items-end border-b border-slate-100 pb-4">
-                                     <div className="space-y-1">
-                                        <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-900">Technical Design Proposal</h2>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
-                                     </div>
-                                     <div className="text-right">
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
-                                        <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString('en-IN')}</p>
-                                     </div>
-                                  </div>
-                               </div>
-
-                               {/* Design View (Lower 80%) */}
-                               <div className="flex-1 p-12 flex flex-col pt-4">
-                                  <div className="w-full flex-1 bg-slate-900 rounded-[3rem] overflow-hidden border border-slate-100 relative shadow-2xl">
-                                     {capturedDesignImage ? (
-                                       <img 
-                                         src={capturedDesignImage} 
-                                         alt="Solar Design Capture" 
-                                         className="w-full h-full object-cover"
-                                       />
-                                     ) : (
-                                       <div className="w-full h-full flex items-center justify-center text-white/20 font-black uppercase tracking-widest">
-                                         Regenerating 3D Model...
-                                       </div>
-                                     )}
-                                     <div className="absolute top-12 left-12">
-                                        <div className="bg-slate-900/80 px-6 py-3 rounded-2xl border border-white/10 text-[11px] font-black text-white uppercase tracking-[0.4em] backdrop-blur-xl">3D Site Model</div>
-                                     </div>
-                                     
-                                     {/* Overlay Stats in the scene itself to save space */}
-                                     <div className="absolute bottom-12 right-12 flex gap-8">
-                                        <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project size</p>
-                                           <p className="text-2xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
-                                        </div>
-                                        <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                                           <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Number of panels</p>
-                                           <p className="text-2xl font-black text-white">{designPanelCount} <span className="text-xs">Nos</span></p>
-                                        </div>
-                                     </div>
-                                  </div>
-
-                                  <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">
-                                     <p>VALID FOR 30 DAYS</p>
-                                     <p>PREPARED BY PARTNER CENTRAL</p>
-                                  </div>
-                               </div>
-                            </div>
-                         </div>
                       </motion.div>
                     </div>
                   )}
@@ -2452,6 +2366,171 @@ export default function SolarApp() {
           </div>
         )}
       </AnimatePresence>
+      </div>
+
+      {/* A4 Print Layout Overlay - Root Level to avoid parent display:none issues */}
+      <div id="print-proposal" className="hidden print:block fixed inset-0 bg-white z-[9999] p-0">
+         <style>{`
+           @media print {
+             @page { size: A4; margin: 0; }
+             html, body { 
+               height: 297mm !important;
+               overflow: hidden !important;
+             }
+             body * {
+               visibility: hidden !important;
+             }
+             #print-proposal, #print-proposal * {
+               visibility: visible !important;
+             }
+             #print-proposal {
+               position: absolute !important;
+               left: 0 !important;
+               top: 0 !important;
+               width: 210mm !important;
+               height: 297mm !important;
+               display: block !important;
+               background: white !important;
+               z-index: 9999999 !important;
+               margin: 0 !important;
+               padding: 0 !important;
+             }
+           }
+         `}</style>
+         <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
+            {/* Letterhead Space */}
+            <div className="h-[60mm] w-full flex flex-col justify-end p-12">
+               <div className="flex justify-between items-end border-b border-slate-100 pb-4">
+                  <div className="space-y-1">
+                     <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-900">Technical Design Proposal</h2>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                     <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString('en-IN')}</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Design View */}
+            <div className="flex-1 p-12 flex flex-col pt-4">
+               <div className="w-full flex-1 bg-slate-900 rounded-[3rem] overflow-hidden border border-slate-100 relative shadow-2xl">
+                  {capturedDesignImage ? (
+                    <img 
+                      src={capturedDesignImage} 
+                      alt="Solar Design Capture" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black uppercase tracking-widest">
+                      Regenerating 3D Model...
+                    </div>
+                  )}
+                  <div className="absolute top-12 left-12">
+                     <div className="bg-slate-900/80 px-6 py-3 rounded-2xl border border-white/10 text-[11px] font-black text-white uppercase tracking-[0.4em] backdrop-blur-xl">3D Site Model</div>
+                  </div>
+                  
+                  <div className="absolute bottom-12 right-12 flex gap-8">
+                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project size</p>
+                        <p className="text-2xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
+                     </div>
+                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Number of panels</p>
+                        <p className="text-2xl font-black text-white">{designPanelCount} <span className="text-xs">Nos</span></p>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">
+                  <p>VALID FOR 30 DAYS</p>
+                  <p>PREPARED BY PARTNER CENTRAL</p>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* A4 Print Layout Overlay - Root Level to avoid parent display:none issues */}
+      <div id="print-proposal" className="hidden print:block fixed inset-0 bg-white z-[9999] p-0">
+         <style>{`
+           @media print {
+             @page { size: A4; margin: 0; }
+             html, body { 
+               height: 297mm !important;
+               overflow: hidden !important;
+             }
+             body > :not(#print-proposal) {
+               display: none !important;
+             }
+             #print-proposal {
+               visibility: visible !important;
+               display: block !important;
+               position: absolute !important;
+               left: 0 !important;
+               top: 0 !important;
+               width: 210mm !important;
+               height: 297mm !important;
+               background: white !important;
+               z-index: 9999999 !important;
+               margin: 0 !important;
+               padding: 0 !important;
+             }
+             #print-proposal * {
+               visibility: visible !important;
+             }
+           }
+         `}</style>
+         <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
+            {/* Letterhead Space */}
+            <div className="h-[60mm] w-full flex flex-col justify-end p-12">
+               <div className="flex justify-between items-end border-b border-slate-100 pb-4">
+                  <div className="space-y-1">
+                     <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-900">Technical Design Proposal</h2>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                     <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString('en-IN')}</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Design View */}
+            <div className="flex-1 p-12 flex flex-col pt-4">
+               <div className="w-full flex-1 bg-slate-900 rounded-[3rem] overflow-hidden border border-slate-100 relative shadow-2xl">
+                  {capturedDesignImage ? (
+                    <img 
+                      src={capturedDesignImage} 
+                      alt="Solar Design Capture" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black uppercase tracking-widest">
+                      Regenerating 3D Model...
+                    </div>
+                  )}
+                  <div className="absolute top-12 left-12">
+                     <div className="bg-slate-900/80 px-6 py-3 rounded-2xl border border-white/10 text-[11px] font-black text-white uppercase tracking-[0.4em] backdrop-blur-xl">3D Site Model</div>
+                  </div>
+                  
+                  <div className="absolute bottom-12 right-12 flex gap-8">
+                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project size</p>
+                        <p className="text-2xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
+                     </div>
+                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Number of panels</p>
+                        <p className="text-2xl font-black text-white">{designPanelCount} <span className="text-xs">Nos</span></p>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">
+                  <p>VALID FOR 30 DAYS</p>
+                  <p>PREPARED BY PARTNER CENTRAL</p>
+               </div>
+            </div>
+         </div>
       </div>
     </div>
   );
