@@ -3,6 +3,7 @@ import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shie
 import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import * as THREE from 'three';
 import SketchBoard from './components/SketchBoard';
 import ThreeScene from './components/ThreeScene';
 import { Point, PanelConfig } from './utils/geometry';
@@ -122,6 +123,23 @@ export default function SolarApp() {
   const [isVisualizing, setIsVisualizing] = useState(false);
   const [designPanelCount, setDesignPanelCount] = useState(0);
   const [showDesignProposal, setShowDesignProposal] = useState(false);
+  const glRef = useRef<THREE.WebGLRenderer | null>(null);
+  const [capturedDesignImage, setCapturedDesignImage] = useState<string | null>(null);
+
+  const handleDownloadProposal = () => {
+    if (glRef.current) {
+      try {
+        const dataUrl = glRef.current.domElement.toDataURL('image/png');
+        setCapturedDesignImage(dataUrl);
+      } catch (err) {
+        console.error("Failed to capture design image:", err);
+      }
+    }
+    // Give state time to update and browser to show the image in print layout
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
 
   useEffect(() => {
     if (isLoggedIn && epcView === 'inbox') {
@@ -1486,6 +1504,7 @@ export default function SolarApp() {
                                     panelZones={designPanelZones}
                                     buildingHeight={6}
                                     panelConfig={designPanelConfig}
+                                    glRef={glRef}
                                   />
                                   <div className="absolute top-8 left-8">
                                      <div className="bg-slate-900/80 px-4 py-2 rounded-xl text-[10px] font-black text-white uppercase tracking-widest backdrop-blur-md">3D System View</div>
@@ -1506,7 +1525,7 @@ export default function SolarApp() {
 
                             <div className="pt-8 flex justify-center pb-2 no-print">
                                <button 
-                                 onClick={() => window.print()}
+                                 onClick={handleDownloadProposal}
                                  className="flex items-center gap-3 px-10 py-4 bg-emerald-500 text-slate-900 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-emerald-500/20"
                                >
                                  <ExternalLink size={16} /> Download Design PDF
@@ -1515,38 +1534,63 @@ export default function SolarApp() {
                          </div>
 
                          {/* A4 Print Layout Overlay */}
-                         <div className="hidden print:block fixed inset-0 bg-white z-[999] p-0">
+                         <div className="hidden print:block fixed inset-0 bg-white z-[999] p-0 print-only">
                             <style>{`
                               @media print {
                                 @page { size: A4; margin: 0; }
-                                body { margin: 0; -webkit-print-color-adjust: exact; }
+                                body { margin: 0; -webkit-print-color-adjust: exact; background: white !important; }
                                 .no-print { display: none !important; }
+                                /* Hide everything except our print container */
+                                body > :not(.print-only), 
+                                .no-print,
+                                #root > :not(.print-only) {
+                                  display: none !important;
+                                }
+                                .print-only {
+                                  display: block !important;
+                                  position: absolute !important;
+                                  top: 0 !important;
+                                  left: 0 !important;
+                                  width: 100% !important;
+                                  height: 100% !important;
+                                  margin: 0 !important;
+                                  padding: 0 !important;
+                                  visibility: visible !important;
+                                }
+                                .print-only * {
+                                  visibility: visible !important;
+                                }
                               }
                             `}</style>
-                            <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col">
+                            <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
                                {/* Letterhead Space (Upper 20%) - Left EMPTY for pre-printed letterhead */}
-                               <div className="h-[75mm] w-full flex flex-col justify-end p-12">
+                               <div className="h-[60mm] w-full flex flex-col justify-end p-12">
                                   <div className="flex justify-between items-end border-b border-slate-100 pb-4">
                                      <div className="space-y-1">
-                                        <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-300">Technical Design Proposal</h2>
-                                        <p className="text-[10px] font-bold text-slate-200">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
+                                        <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-900">Technical Design Proposal</h2>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
                                      </div>
                                      <div className="text-right">
-                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Date</p>
-                                        <p className="text-xs font-black text-slate-400">{new Date().toLocaleDateString('en-IN')}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                                        <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString('en-IN')}</p>
                                      </div>
                                   </div>
                                </div>
 
                                {/* Design View (Lower 80%) */}
-                               <div className="flex-1 p-12 flex flex-col">
+                               <div className="flex-1 p-12 flex flex-col pt-4">
                                   <div className="w-full flex-1 bg-slate-900 rounded-[3rem] overflow-hidden border border-slate-100 relative shadow-2xl">
-                                     <ThreeScene 
-                                       buildings={designBuildings}
-                                       panelZones={designPanelZones}
-                                       buildingHeight={6}
-                                       panelConfig={designPanelConfig}
-                                     />
+                                     {capturedDesignImage ? (
+                                       <img 
+                                         src={capturedDesignImage} 
+                                         alt="Solar Design Capture" 
+                                         className="w-full h-full object-cover"
+                                       />
+                                     ) : (
+                                       <div className="w-full h-full flex items-center justify-center text-white/20 font-black uppercase tracking-widest">
+                                         Regenerating 3D Model...
+                                       </div>
+                                     )}
                                      <div className="absolute top-12 left-12">
                                         <div className="bg-slate-900/80 px-6 py-3 rounded-2xl border border-white/10 text-[11px] font-black text-white uppercase tracking-[0.4em] backdrop-blur-xl">3D Site Model</div>
                                      </div>
@@ -1564,7 +1608,7 @@ export default function SolarApp() {
                                      </div>
                                   </div>
 
-                                  <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] italic">
+                                  <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">
                                      <p>VALID FOR 30 DAYS</p>
                                      <p>PREPARED BY PARTNER CENTRAL</p>
                                   </div>

@@ -79,7 +79,7 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
   );
 }
 
-export default function ThreeScene({ buildings, panelZones, buildingHeight, panelConfig, onPlacementsUpdate }: ThreeSceneProps) {
+export default function ThreeScene({ buildings, panelZones, buildingHeight, panelConfig, onPlacementsUpdate, glRef }: ThreeSceneProps & { glRef?: React.MutableRefObject<THREE.WebGLRenderer | null> }) {
   const activePanelPolygons = useMemo(() => {
     return panelZones.length > 0 ? panelZones : buildings;
   }, [panelZones, buildings]);
@@ -88,9 +88,14 @@ export default function ThreeScene({ buildings, panelZones, buildingHeight, pane
     <div className="w-full h-full bg-[#f8fafc]">
       <Canvas 
         shadows 
-        gl={{ antialias: true, alpha: true }} 
+        gl={{ 
+          antialias: true, 
+          alpha: true,
+          preserveDrawingBuffer: true 
+        }} 
         onCreated={({ gl }) => {
           gl.shadowMap.type = THREE.PCFShadowMap;
+          if (glRef) glRef.current = gl;
         }}
         camera={{ position: [50, 50, 50], fov: 45 }}
       >
