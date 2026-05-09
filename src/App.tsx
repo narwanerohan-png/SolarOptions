@@ -126,19 +126,31 @@ export default function SolarApp() {
   const glRef = useRef<THREE.WebGLRenderer | null>(null);
   const [capturedDesignImage, setCapturedDesignImage] = useState<string | null>(null);
 
+  const closeDesignProposal = () => {
+    setShowDesignProposal(false);
+    setCapturedDesignImage(null);
+  };
+
   const handleDownloadProposal = () => {
     if (glRef.current) {
       try {
-        const dataUrl = glRef.current.domElement.toDataURL('image/png');
+        // Ensure we capture with high quality
+        const dataUrl = glRef.current.domElement.toDataURL('image/png', 1.0);
         setCapturedDesignImage(dataUrl);
+        
+        // Give more time for the state to update and for the image to be fully loaded and rendered
+        // 800ms is usually enough for the browser to decode and layout the image
+        setTimeout(() => {
+          window.print();
+        }, 800);
       } catch (err) {
         console.error("Failed to capture design image:", err);
+        // Fallback print attempt
+        window.print();
       }
-    }
-    // Give state time to update and browser to show the image in print layout
-    setTimeout(() => {
+    } else {
       window.print();
-    }, 500);
+    }
   };
 
   useEffect(() => {
@@ -362,7 +374,7 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 bg-slate-900/40 backdrop-blur-xl border-b border-white/5 shadow-2xl">
+    <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 bg-slate-900/40 backdrop-blur-xl border-b border-white/5 shadow-2xl no-print">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
         <div 
           onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
@@ -1484,7 +1496,7 @@ export default function SolarApp() {
                 {/* Design Proposal Modal */}
                 <AnimatePresence>
                   {showDesignProposal && (
-                    <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[250] p-4 sm:p-8" onClick={() => setShowDesignProposal(false)}>
+                    <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[250] p-4 sm:p-8" onClick={closeDesignProposal}>
                       <motion.div 
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
@@ -1493,7 +1505,7 @@ export default function SolarApp() {
                         onClick={e => e.stopPropagation()}
                       >
                          <div className="sticky top-0 right-0 p-8 flex justify-end z-10">
-                            <button onClick={() => setShowDesignProposal(false)} className="p-3 bg-slate-100 rounded-full hover:bg-rose-50 transition-colors">
+                            <button onClick={closeDesignProposal} className="p-3 bg-slate-100 rounded-full hover:bg-rose-50 transition-colors">
                               <X className="w-6 h-6 text-slate-400" />
                             </button>
                          </div>
@@ -2388,14 +2400,18 @@ export default function SolarApp() {
       </AnimatePresence>
       </div>
 
-      {/* A4 Print Layout Overlay - Root Level to avoid parent display:none issues */}
+      {/* A4 Print Layout Overlay */}
       <div id="print-proposal" className="hidden print:block fixed inset-0 bg-white z-[9999] p-0">
          <style>{`
            @media print {
              @page { size: A4; margin: 0; }
              html, body { 
                height: 297mm !important;
-               overflow: hidden !important;
+               margin: 0 !important;
+               padding: 0 !important;
+               background: white !important;
+               -webkit-print-color-adjust: exact !important;
+               print-color-adjust: exact !important;
              }
              body * {
                visibility: hidden !important;
@@ -2404,86 +2420,6 @@ export default function SolarApp() {
                visibility: visible !important;
              }
              #print-proposal {
-               position: absolute !important;
-               left: 0 !important;
-               top: 0 !important;
-               width: 210mm !important;
-               height: 297mm !important;
-               display: block !important;
-               background: white !important;
-               z-index: 9999999 !important;
-               margin: 0 !important;
-               padding: 0 !important;
-             }
-           }
-         `}</style>
-         <div className="w-[210mm] h-[297mm] mx-auto bg-white flex flex-col text-slate-900">
-            {/* Letterhead Space */}
-            <div className="h-[60mm] w-full flex flex-col justify-end p-12">
-               <div className="flex justify-between items-end border-b border-slate-100 pb-4">
-                  <div className="space-y-1">
-                     <h2 className="text-xl font-black uppercase tracking-[0.3em] text-slate-900">Technical Design Proposal</h2>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase">INTERNAL REF: {new Date().getTime().toString(36).toUpperCase()}</p>
-                  </div>
-                  <div className="text-right">
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
-                     <p className="text-xs font-black text-slate-900">{new Date().toLocaleDateString('en-IN')}</p>
-                  </div>
-               </div>
-            </div>
-
-            {/* Design View */}
-            <div className="flex-1 p-12 flex flex-col pt-4">
-               <div className="w-full flex-1 bg-slate-900 rounded-[3rem] overflow-hidden border border-slate-100 relative shadow-2xl">
-                  {capturedDesignImage ? (
-                    <img 
-                      src={capturedDesignImage} 
-                      alt="Solar Design Capture" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black uppercase tracking-widest">
-                      Regenerating 3D Model...
-                    </div>
-                  )}
-                  <div className="absolute top-12 left-12">
-                     <div className="bg-slate-900/80 px-6 py-3 rounded-2xl border border-white/10 text-[11px] font-black text-white uppercase tracking-[0.4em] backdrop-blur-xl">3D Site Model</div>
-                  </div>
-                  
-                  <div className="absolute bottom-12 right-12 flex gap-8">
-                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project size</p>
-                        <p className="text-2xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
-                     </div>
-                     <div className="bg-slate-900/80 p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Number of panels</p>
-                        <p className="text-2xl font-black text-white">{designPanelCount} <span className="text-xs">Nos</span></p>
-                     </div>
-                  </div>
-               </div>
-
-               <div className="p-8 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic">
-                  <p>VALID FOR 30 DAYS</p>
-                  <p>PREPARED BY PARTNER CENTRAL</p>
-               </div>
-            </div>
-         </div>
-      </div>
-
-      {/* A4 Print Layout Overlay - Root Level to avoid parent display:none issues */}
-      <div id="print-proposal" className="hidden print:block fixed inset-0 bg-white z-[9999] p-0">
-         <style>{`
-           @media print {
-             @page { size: A4; margin: 0; }
-             html, body { 
-               height: 297mm !important;
-               overflow: hidden !important;
-             }
-             body > :not(#print-proposal) {
-               display: none !important;
-             }
-             #print-proposal {
-               visibility: visible !important;
                display: block !important;
                position: absolute !important;
                left: 0 !important;
@@ -2492,11 +2428,6 @@ export default function SolarApp() {
                height: 297mm !important;
                background: white !important;
                z-index: 9999999 !important;
-               margin: 0 !important;
-               padding: 0 !important;
-             }
-             #print-proposal * {
-               visibility: visible !important;
              }
            }
          `}</style>
