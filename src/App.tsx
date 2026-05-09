@@ -362,7 +362,7 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className="fixed top-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-slate-900/50">
+    <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between border-b border-white/5 bg-slate-900/40 backdrop-blur-xl shadow-2xl">
       <div 
         onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
         className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
@@ -458,9 +458,9 @@ export default function SolarApp() {
         )}
       </Helmet>
       {/* Global Background Layer */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900" />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 will-change-transform" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 will-change-transform">
         <Nav />
 
         <AnimatePresence mode="wait">
@@ -473,30 +473,36 @@ export default function SolarApp() {
             {/* Hero */}
             <header className="relative w-full min-h-[85vh] flex items-center overflow-hidden">
               {/* Professional Aerial Background Video */}
-              <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  preload="auto"
-                  poster="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=1920"
-                  className="w-full h-full object-cover opacity-[0.5] blur-[2px] scale-105"
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
                 >
-                  <source src="https://player.vimeo.com/external/370364955.sd.mp4?s=740611847c28373f1d00f796be4b459b794d2f09&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
-                </video>
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900" />
-                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900 to-transparent" />
-              </div>
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="auto"
+                    poster="https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=1920"
+                    className="w-full h-full object-cover opacity-[0.5] blur-[2px] scale-105 will-change-transform"
+                  >
+                    <source src="https://player.vimeo.com/external/370364955.sd.mp4?s=740611847c28373f1d00f796be4b459b794d2f09&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
+                  </video>
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900" />
+                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900 to-transparent" />
+                </motion.div>
 
               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
 
               <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-24 mt-12">
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8 backdrop-blur-md"
-                >
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8 backdrop-blur-md"
+                  >
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
                 </motion.div>
@@ -549,6 +555,9 @@ export default function SolarApp() {
             <section id="features" className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
                 <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
                   whileHover={{ y: -8 }}
                   className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
                 >
@@ -562,6 +571,10 @@ export default function SolarApp() {
                 </motion.div>
                 
                 <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.1 }}
                   whileHover={{ y: -8 }}
                   className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
                 >
@@ -575,6 +588,10 @@ export default function SolarApp() {
                 </motion.div>
 
                 <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
                   whileHover={{ y: -8 }}
                   className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
                 >
@@ -589,7 +606,7 @@ export default function SolarApp() {
               </div>
 
               {/* Enterprise Section */}
-              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-12 sm:p-20 text-center relative overflow-hidden mb-24 backdrop-blur-xl shadow-2xl shadow-black/50">
+              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-12 sm:p-20 text-center relative overflow-hidden mb-24 backdrop-blur-xl shadow-2xl shadow-black/50 will-change-transform">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] -mr-48 -mt-48 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/5 blur-[120px] -ml-48 -mb-48 pointer-events-none"></div>
                 
@@ -597,6 +614,7 @@ export default function SolarApp() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
                     className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8"
                   >
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mt-0.5 block">Premium Platform for EPCs</span>
@@ -641,13 +659,13 @@ export default function SolarApp() {
             </section>
 
             {/* Bottom Background Image Section */}
-            <div className="relative overflow-hidden">
+            <div className="relative overflow-hidden will-change-transform">
                {/* Professional Aerial Solar Plant Background */}
                <div className="absolute inset-0 z-0 pointer-events-none">
                  <img 
                    src="https://images.unsplash.com/photo-1542332213-31f87348057f?auto=format&fit=crop&q=80&w=1920" 
                    alt="Aerial view solar power plant"
-                   className="w-full h-full object-cover opacity-[0.04] blur-[3px] scale-110"
+                   className="w-full h-full object-cover opacity-[0.04] blur-[3px] scale-110 will-change-transform"
                    referrerPolicy="no-referrer"
                  />
                  <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-900/40 to-slate-900" />

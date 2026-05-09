@@ -12,6 +12,12 @@
 @layer base {
   body {
     @apply antialiased text-gray-300 bg-slate-950 font-sans;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img {
+    content-visibility: auto;
   }
   
   h1, h2, h3, h4, h5, h6 {
