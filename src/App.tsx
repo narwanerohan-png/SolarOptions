@@ -50,6 +50,16 @@ export default function SolarApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // derivation of currentPage from location for backward compatibility in some logic
   const currentPage = useMemo(() => {
     const path = location.pathname;
@@ -362,69 +372,76 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between border-b border-white/5 bg-slate-900/40 backdrop-blur-xl shadow-2xl">
-      <div 
-        onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
-        className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
-        aria-label="SolarOptions Home"
-      >
-        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-          <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-slate-900" />
-        </div>
-        <span className="text-lg sm:text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
-      </div>
-      
-      <div className="flex items-center gap-3 sm:gap-6">
-        <button 
-          onClick={() => { window.scrollTo(0, 0); navigate('/solar-rooftop-calculator'); }} 
-          className={cn(
-            "hidden sm:block text-xs sm:text-sm font-bold transition-colors cursor-pointer",
-            location.pathname === '/solar-rooftop-calculator' ? "text-emerald-400" : "text-gray-400 hover:text-white"
-          )}
-          aria-label="Solar Calculator"
+    <nav className={cn(
+      "fixed top-0 left-0 w-full z-[100] px-4 md:px-12 transition-all duration-500 ease-in-out border-b backdrop-blur-md",
+      scrolled 
+        ? "py-3 bg-slate-900/90 border-white/10 shadow-2xl shadow-black/50" 
+        : "py-5 bg-slate-900/40 border-white/5 shadow-none"
+    )}>
+      <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+        <div 
+          onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
+          className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
+          aria-label="SolarOptions Home"
         >
-          Calculator
-        </button>
-        <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
-        {isLoggedIn ? (
-          <>
-            <button 
-              onClick={() => { window.scrollTo(0, 0); navigate('/factory-data-insights'); }} 
-              className={cn(
-                "text-xs sm:text-sm font-bold transition-colors cursor-pointer",
-                (location.pathname === '/factory-data-insights' || location.pathname === '/3d-layout-designer') ? "text-emerald-400" : "text-gray-400 hover:text-white"
-              )}
-              aria-label="Access Dashboard"
-            >
-              Dashboard
-            </button>
-            <button 
-              onClick={() => { 
-                setIsLoggedIn(false); 
-                localStorage.removeItem('solar_options_isLoggedIn');
-                navigate('/'); 
-              }} 
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <button 
-              onClick={() => setShowLoginModal(true)} 
-              className="text-xs sm:text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Login
-            </button>
-            <button 
-              onClick={() => setShowAccessForm(true)}
-              className="px-4 pr-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
-            >
-              Get Access
-            </button>
-          </>
-        )}
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-all duration-300">
+            <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-slate-900" />
+          </div>
+          <span className="text-lg sm:text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
+        </div>
+        
+        <div className="flex items-center gap-3 sm:gap-6">
+          <button 
+            onClick={() => { window.scrollTo(0, 0); navigate('/solar-rooftop-calculator'); }} 
+            className={cn(
+              "hidden sm:block text-xs sm:text-sm font-bold transition-colors cursor-pointer",
+              location.pathname === '/solar-rooftop-calculator' ? "text-emerald-400" : "text-gray-400 hover:text-white"
+            )}
+            aria-label="Solar Calculator"
+          >
+            Calculator
+          </button>
+          <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
+          {isLoggedIn ? (
+            <>
+              <button 
+                onClick={() => { window.scrollTo(0, 0); navigate('/factory-data-insights'); }} 
+                className={cn(
+                  "text-xs sm:text-sm font-bold transition-colors cursor-pointer",
+                  (location.pathname === '/factory-data-insights' || location.pathname === '/3d-layout-designer') ? "text-emerald-400" : "text-gray-400 hover:text-white"
+                )}
+                aria-label="Access Dashboard"
+              >
+                Dashboard
+              </button>
+              <button 
+                onClick={() => { 
+                  setIsLoggedIn(false); 
+                  localStorage.removeItem('solar_options_isLoggedIn');
+                  navigate('/'); 
+                }} 
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setShowLoginModal(true)} 
+                className="text-xs sm:text-sm font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Login
+              </button>
+              <button 
+                onClick={() => setShowAccessForm(true)}
+                className="px-4 pr-5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-full shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
+              >
+                Get Access
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );
@@ -460,7 +477,7 @@ export default function SolarApp() {
       {/* Global Background Layer */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 will-change-transform" />
       
-      <div className="relative z-10 will-change-transform">
+      <div className="relative z-10">
         <Nav />
 
         <AnimatePresence mode="wait">
