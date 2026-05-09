@@ -155,20 +155,22 @@ export default function SolarApp() {
 
   useEffect(() => {
     if (isLoggedIn && epcView === 'inbox') {
-      fetch('/api/admin/inbox')
+      fetch('/api/leads') // We can use the same leads endpoint or a specific inbox one if defined
         .then(res => res.json())
         .then(data => setInboxData(data))
         .catch(err => console.error('Failed to fetch inbox:', err));
     }
   }, [isLoggedIn, epcView]);
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbycpu9irUypX9jXEGKgx-tbKW41dbQE_zTJHuhlf1TiT2a_ImksFFrVH3fCDtp523o8EQ/exec";
-
   // --- ACTIONS ---
   const fetchLiveLeads = async () => {
     setIsLoadingLeads(true);
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch('/api/leads', {
+        headers: {
+          'X-Requested-With': 'SolarOptionsApp'
+        }
+      });
       const data = await response.json();
       if (data && Array.isArray(data)) {
         const mapped = data.map((row) => ({
@@ -258,10 +260,9 @@ export default function SolarApp() {
           setPaymentLoadingMessage('');
 
           // 3. BACKGROUND SYNC TO GOOGLE SHEETS
-          fetch(API_URL, {
+          fetch('/api/register', {
             method: 'POST',
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'text/plain' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...accessForm,
               username: accessForm.email, // Explicitly map email to username for the script
@@ -329,9 +330,12 @@ export default function SolarApp() {
     if (!loginForm.username || !loginForm.password) return;
     setIsSubmitting(true);
     try {
-      const resp = await fetch(API_URL, {
+      const resp = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'SolarOptionsApp'
+        },
         body: JSON.stringify({
           action: 'login',
           username: loginForm.username,
