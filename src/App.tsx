@@ -50,16 +50,6 @@ export default function SolarApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   // derivation of currentPage from location for backward compatibility in some logic
   const currentPage = useMemo(() => {
     const path = location.pathname;
@@ -372,12 +362,7 @@ export default function SolarApp() {
   // --- RENDERING ---
 
   const Nav = () => (
-    <nav className={cn(
-      "fixed top-0 left-0 w-full z-[100] px-4 md:px-12 transition-all duration-500 ease-in-out border-b backdrop-blur-md",
-      scrolled 
-        ? "py-3 bg-slate-900/90 border-white/10 shadow-2xl shadow-black/50" 
-        : "py-5 bg-slate-900/40 border-white/5 shadow-none"
-    )}>
+    <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 bg-slate-900/40 backdrop-blur-xl border-b border-white/5 shadow-2xl">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
         <div 
           onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
@@ -435,7 +420,7 @@ export default function SolarApp() {
               </button>
               <button 
                 onClick={() => setShowAccessForm(true)}
-                className="px-4 pr-5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-full shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
+                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
               >
                 Get Access
               </button>
