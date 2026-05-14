@@ -52,18 +52,27 @@ export default function SolarApp() {
 
   // derivation of currentPage from location for backward compatibility in some logic
   const currentPage = useMemo(() => {
-    const path = location.pathname;
+    // Normalize path by removing trailing slash (except for /)
+    const rawPath = location.pathname;
+    const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
+    
+    console.log(`[Router] Path: ${rawPath} -> Mapped to: ${path}`);
+    
     if (path === '/solar-rooftop-calculator') return 'consumer';
     if (path === '/3d-layout-designer' || path === '/factory-data-insights') return 'epc';
     if (path === '/privacy') return 'privacy';
     if (path === '/terms') return 'terms';
+    if (path === '/leads-inbox') return 'epc'; // Added support for leads-inbox path directly
     return 'landing';
   }, [location.pathname]);
 
   // derivation of epcView from location
   const epcView = useMemo(() => {
-    if (location.pathname === '/3d-layout-designer') return 'design';
-    if (location.pathname === '/leads-inbox') return 'inbox';
+    const rawPath = location.pathname;
+    const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
+
+    if (path === '/3d-layout-designer') return 'design';
+    if (path === '/leads-inbox') return 'inbox';
     return 'search'; 
   }, [location.pathname]) as 'search' | 'design' | 'inbox';
 

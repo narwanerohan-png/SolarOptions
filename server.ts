@@ -31,8 +31,13 @@ async function startServer() {
   });
 
   // Health check
-  app.get(["/api/health", "/api/status"], (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV,
+      proxy: req.headers["x-forwarded-for"] || req.ip
+    });
   });
 
   // Proxy: Get Leads
@@ -152,6 +157,34 @@ async function startServer() {
     }
   });
 
+  // Proxy: Feedback/Quotes
+  app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
+    console.log(`[Feedback] Received POST request to /api/feedback`);
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "User-Agent": "SolarOptions/1.0"
+        },
+        body: JSON.stringify({
+          action: req.body.type === 'quote' ? 'quote' : 'feedback',
+          ...req.body
+        }),
+      });
+      const text = await response.text();
+      try {
+        const json = JSON.parse(text);
+        res.json(json);
+      } catch {
+        res.json({ success: true, message: "Feedback received" });
+      }
+    } catch (error: any) {
+      console.error("[Proxy] Feedback error:", error.message);
+      res.status(500).json({ error: "Feedback service unavailable" });
+    }
+  });
+
   // API: Stripe Checkout Session
   app.post("/api/create-checkout-session", async (req, res) => {
     if (!stripe) {
@@ -196,17 +229,42 @@ async function startServer() {
     });
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  const isProduction = process.env.NODE_ENV === "production" || process.env.VITE_PROD === "true";
+  console.log(`[Server] Environment: ${isProduction ? 'production' : 'development'}`);
+
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    // Serve static files in production
+    // When bundled as CJS in dist/server.cjs, __dirname will be the dist folder
+    const distPath = __dirname;
+    const indexPath = path.resolve(distPath, "index.html");
+    
+    console.log(`[Server] Serving static files from: ${distPath}`);
+    console.log(`[Server] Index path: ${indexPath}`);
+    
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.resolve(distPath, "index.html"));
+      // Check if it's an API route that somehow fell through (e.g. wrong method or typo)
+      if (req.url.startsWith("/api/")) {
+        console.warn(`[Server] API route fall-through to static handler: ${req.method} ${req.url}`);
+        return res.status(404).json({ 
+          error: "API endpoint not found", 
+          method: req.method,
+          path: req.url 
+        });
+      }
+      
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error(`[Server] Error sending index.html from ${indexPath}: ${err.message}`);
+          res.status(404).send("Application shell not found. Please ensure the build process completed successfully.");
+        }
+      });
     });
   }
 
@@ -215,4 +273,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error("Critical: Failed to start server:", error);
+  process.exit(1);
+});
