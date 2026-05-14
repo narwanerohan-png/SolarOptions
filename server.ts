@@ -109,6 +109,12 @@ async function startServer() {
     }
   });
 
+  // Explicitly handle any other /api routes with a 404
+  app.all("/api/*", (req, res) => {
+    console.log(`[Server] 404 API Route: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
+
   // API: Stripe Checkout Session for worldwide payments
   app.post("/api/create-checkout-session", async (req, res) => {
     if (!stripe) {
