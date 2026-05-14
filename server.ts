@@ -15,103 +15,136 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Trust the AI Studio / Nginx proxy
+  app.set("trust proxy", true);
+
   // Middleware
   app.use(cors());
   app.use(express.json());
 
   // Request logger
   app.use((req, res, next) => {
-    console.log(`[Server] ${req.method} ${req.url}`);
+    if (req.url.startsWith("/api") || !req.url.includes(".")) {
+      console.log(`[Server] ${req.method} ${req.url}`);
+    }
     next();
   });
 
-  // Debug route
-  app.get("/api/status", (req, res) => {
-    res.json({ status: "running", timestamp: new Date().toISOString() });
+  // Health check
+  app.get(["/api/health", "/api/status"], (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Proxy: Get Leads (Server-side fetch to hide Script URL)
-  app.get("/api/leads", async (req, res) => {
-    // Simple integrity check to prevent direct browser URL access
-    if (req.headers["x-requested-with"] !== "SolarOptionsApp") {
-      return res.status(401).json({ error: "Direct access not allowed" });
+  // Proxy: Get Leads
+  app.get(["/api/leads", "/api/leads/"], async (req, res) => {
+    // Allow if it has our signature or is from our origin
+    const isInternal = req.headers["x-requested-with"] === "SolarOptionsApp";
+    if (!isInternal && process.env.NODE_ENV === 'production') {
+      return res.status(401).json({ error: "Unauthorized access" });
     }
 
     try {
-      console.log(`[Proxy] Fetching leads from: ${GOOGLE_SCRIPT_URL}`);
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          "User-Agent": "SolarOptions/1.0"
         }
       });
+      
+      if (response.status === 404) {
+        return res.status(404).json({ error: "Upstream service not found" });
+      }
+
       const text = await response.text();
       try {
         const data = JSON.parse(text);
         res.json(data);
       } catch (e) {
-        console.error("[Proxy] Leads response was not JSON:", text.substring(0, 200));
-        res.status(502).json({ error: "Invalid response format from upstream service" });
+        console.error("[Proxy] Leads response was not JSON:", text.substring(0, 100));
+        res.status(502).json({ error: "Upstream service returned invalid data" });
       }
     } catch (error: any) {
       console.error("[Proxy] Leads error:", error.message);
-      res.status(500).json({ error: "Failed to fetch leads from upstream" });
+      res.status(500).json({ error: "Failed to connect to upstream service" });
     }
   });
 
   // Proxy: Login
-  app.post("/api/login", async (req, res) => {
-    // Accept standard POST or preflight if needed (cors middleware handles preflight)
-    if (req.headers["x-requested-with"] !== "SolarOptionsApp") {
-      return res.status(401).json({ error: "Direct access not allowed" });
+  app.post(["/api/login", "/api/login/"], async (req, res) => {
+    console.log(`[Login] Received POST request to /api/login`);
+    
+    // Basic body validation
+    if (!req.body || !req.body.username || !req.body.password) {
+      console.warn(`[Login] Missing credentials in request body`);
+      return res.status(400).json({ error: "Username and password are required" });
     }
 
     try {
-      console.log(`[Proxy] Login attempt for: ${req.body.username}`);
+      console.log(`[Proxy] Attempting login proxy to: ${GOOGLE_SCRIPT_URL}`);
+      
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         headers: { 
-          "Content-Type": "text/plain;charset=utf-8",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          "Content-Type": "application/json",
+          "User-Agent": "SolarOptions/1.0"
         },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify({
+          action: 'login',
+          username: req.body.username,
+          password: req.body.password
+        }),
       });
       
+      const status = response.status;
+      console.log(`[Proxy] Upstream response status: ${status}`);
+      
       const text = await response.text();
+      
+      if (status >= 400) {
+        console.error(`[Proxy] Upstream login service error ${status}:`, text.substring(0, 200));
+        return res.status(status).json({ 
+          error: `Authentication Service Error (${status})`,
+          message: status === 404 ? "Internal configuration error: Upstream script not found." : "Service unavailable"
+        });
+      }
+
       try {
         const data = JSON.parse(text);
+        console.log(`[Proxy] Login successful for: ${req.body.username}`);
         res.json(data);
       } catch (e) {
-        console.error("[Proxy] Login response was not JSON:", text.substring(0, 200));
-        // If it's a 405 error from Google, it will be in the status
-        if (response.status === 405) {
-           return res.status(405).json({ error: "The upstream authentication service responded with 405 Method Not Allowed." });
-        }
-        res.status(502).json({ error: "Authentication service returned an unexpected response format" });
+        console.error("[Proxy] Login response was not valid JSON:", text.substring(0, 100));
+        res.status(502).json({ 
+          error: "Authentication service returned an invalid response format",
+          debug: text.substring(0, 50)
+        });
       }
     } catch (error: any) {
-      console.error("[Proxy] Login error:", error.message);
-      res.status(500).json({ error: "Authentication service unavailable" });
+      console.error("[Proxy] Login connection failed:", error.message);
+      res.status(500).json({ error: "Could not connect to authentication service" });
     }
   });
 
   // Proxy: Register/Payment Sync
-  app.post("/api/register", async (req, res) => {
+  app.post(["/api/register", "/api/register/"], async (req, res) => {
+    console.log(`[Register] Received POST request to /api/register`);
     try {
-      console.log(`[Proxy] Registration sync for: ${req.body.email}`);
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         headers: { 
-          "Content-Type": "text/plain;charset=utf-8",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          "Content-Type": "application/json",
+          "User-Agent": "SolarOptions/1.0"
         },
-        body: JSON.stringify(req.body),
+        body: JSON.stringify({
+          action: 'register',
+          ...req.body
+        }),
       });
       const text = await response.text();
       try {
         const json = JSON.parse(text);
         res.json(json);
       } catch {
-        res.json({ success: true, message: "Registered" });
+        res.json({ success: true, message: "Action recorded" });
       }
     } catch (error: any) {
       console.error("[Proxy] Register error:", error.message);
@@ -119,10 +152,10 @@ async function startServer() {
     }
   });
 
-  // API: Stripe Checkout Session for worldwide payments
+  // API: Stripe Checkout Session
   app.post("/api/create-checkout-session", async (req, res) => {
     if (!stripe) {
-      return res.status(500).json({ error: "Stripe is not configured" });
+      return res.status(500).json({ error: "Payments are not configured on the server" });
     }
 
     try {
@@ -136,7 +169,7 @@ async function startServer() {
                 name: "Solar Project Design Export",
                 description: "Full technical specifications and 3D design export",
               },
-              unit_amount: 5000, // $50.00
+              unit_amount: 5000,
             },
             quantity: 1,
           },
@@ -148,15 +181,19 @@ async function startServer() {
 
       res.json({ id: session.id });
     } catch (error: any) {
+      console.error("[Stripe] Session creation error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Explicitly handle any other /api routes with a 404
-  // IMPORTANT: Define this AFTER all other API routes
+  // API 404 Handler - Catch all other /api/* requests
   app.all("/api/*", (req, res) => {
-    console.log(`[Server] 404 API Route: ${req.method} ${req.url}`);
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+    console.warn(`[Server] Unhandled API route: ${req.method} ${req.url}`);
+    res.status(404).json({ 
+      error: "API endpoint not found",
+      method: req.method,
+      path: req.url 
+    });
   });
 
   if (process.env.NODE_ENV !== "production") {
