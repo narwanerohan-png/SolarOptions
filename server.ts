@@ -3,16 +3,20 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbycpu9irUypX9jXEGKgx-tbKW41dbQE_zTJHuhlf1TiT2a_ImksFFrVH3fCDtp523o8EQ/exec";
+console.log(`[Server] Using Google Script URL from ${process.env.GOOGLE_SCRIPT_URL ? 'environment variable' : 'default value'}: ${GOOGLE_SCRIPT_URL.substring(0, 30)}...`);
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Middleware
+  app.use(cors());
   app.use(express.json());
 
   // Request logger
@@ -56,6 +60,7 @@ async function startServer() {
 
   // Proxy: Login
   app.post("/api/login", async (req, res) => {
+    // Accept standard POST or preflight if needed (cors middleware handles preflight)
     if (req.headers["x-requested-with"] !== "SolarOptionsApp") {
       return res.status(401).json({ error: "Direct access not allowed" });
     }
@@ -70,12 +75,17 @@ async function startServer() {
         },
         body: JSON.stringify(req.body),
       });
+      
       const text = await response.text();
       try {
         const data = JSON.parse(text);
         res.json(data);
       } catch (e) {
         console.error("[Proxy] Login response was not JSON:", text.substring(0, 200));
+        // If it's a 405 error from Google, it will be in the status
+        if (response.status === 405) {
+           return res.status(405).json({ error: "The upstream authentication service responded with 405 Method Not Allowed." });
+        }
         res.status(502).json({ error: "Authentication service returned an unexpected response format" });
       }
     } catch (error: any) {
@@ -109,12 +119,6 @@ async function startServer() {
     }
   });
 
-  // Explicitly handle any other /api routes with a 404
-  app.all("/api/*", (req, res) => {
-    console.log(`[Server] 404 API Route: ${req.method} ${req.url}`);
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
-  });
-
   // API: Stripe Checkout Session for worldwide payments
   app.post("/api/create-checkout-session", async (req, res) => {
     if (!stripe) {
@@ -146,6 +150,13 @@ async function startServer() {
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Explicitly handle any other /api routes with a 404
+  // IMPORTANT: Define this AFTER all other API routes
+  app.all("/api/*", (req, res) => {
+    console.log(`[Server] 404 API Route: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   });
 
   if (process.env.NODE_ENV !== "production") {
