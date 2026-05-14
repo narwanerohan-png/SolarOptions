@@ -23,10 +23,22 @@ async function startServer() {
     }
 
     try {
-      const response = await fetch(GOOGLE_SCRIPT_URL);
-      const data = await response.json();
-      res.json(data);
+      console.log(`[Proxy] Fetching leads from: ${GOOGLE_SCRIPT_URL}`);
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+      });
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        res.json(data);
+      } catch (e) {
+        console.error("[Proxy] Leads response was not JSON:", text.substring(0, 200));
+        res.status(502).json({ error: "Invalid response format from upstream service" });
+      }
     } catch (error: any) {
+      console.error("[Proxy] Leads error:", error.message);
       res.status(500).json({ error: "Failed to fetch leads from upstream" });
     }
   });
@@ -38,14 +50,25 @@ async function startServer() {
     }
 
     try {
+      console.log(`[Proxy] Login attempt for: ${req.body.username}`);
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: { 
+          "Content-Type": "text/plain;charset=utf-8",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
         body: JSON.stringify(req.body),
       });
-      const data = await response.json();
-      res.json(data);
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        res.json(data);
+      } catch (e) {
+        console.error("[Proxy] Login response was not JSON:", text.substring(0, 200));
+        res.status(502).json({ error: "Authentication service returned an unexpected response format" });
+      }
     } catch (error: any) {
+      console.error("[Proxy] Login error:", error.message);
       res.status(500).json({ error: "Authentication service unavailable" });
     }
   });
@@ -53,13 +76,15 @@ async function startServer() {
   // Proxy: Register/Payment Sync
   app.post("/api/register", async (req, res) => {
     try {
+      console.log(`[Proxy] Registration sync for: ${req.body.email}`);
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: { 
+          "Content-Type": "text/plain;charset=utf-8",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
         body: JSON.stringify(req.body),
       });
-      // Google Script with mode: 'no-cors' POST often doesn't return body if using redirect
-      // but if we fetch from server we can see results
       const text = await response.text();
       try {
         const json = JSON.parse(text);
@@ -68,6 +93,7 @@ async function startServer() {
         res.json({ success: true, message: "Registered" });
       }
     } catch (error: any) {
+      console.error("[Proxy] Register error:", error.message);
       res.status(500).json({ error: "Registration service unavailable" });
     }
   });

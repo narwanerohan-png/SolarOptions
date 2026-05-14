@@ -342,6 +342,10 @@ export default function SolarApp() {
           password: loginForm.password
         })
       });
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status ${resp.status}`);
+      }
       const data = await resp.json();
       if (data.success) {
         setIsLoggedIn(true);
@@ -352,8 +356,9 @@ export default function SolarApp() {
       } else {
         alert(data.message || "Invalid credentials");
       }
-    } catch (e) {
-      alert("Login service unavailable. Please check back later.");
+    } catch (e: any) {
+      console.error("Login Error:", e);
+      alert(e.message || "Login service unavailable. Please check back later.");
     } finally {
       setIsSubmitting(false);
     }
