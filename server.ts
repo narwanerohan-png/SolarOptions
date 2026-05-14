@@ -15,6 +15,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Request logger
+  app.use((req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Debug route
+  app.get("/api/status", (req, res) => {
+    res.json({ status: "running", timestamp: new Date().toISOString() });
+  });
+
   // Proxy: Get Leads (Server-side fetch to hide Script URL)
   app.get("/api/leads", async (req, res) => {
     // Simple integrity check to prevent direct browser URL access
