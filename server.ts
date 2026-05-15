@@ -289,12 +289,15 @@ async function startServer() {
     });
   }
 
+  if (process.env.NODE_ENV === "test") return app;
+
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running at http://localhost:${PORT}`);
   });
+  
+  return app;
 }
 
-startServer().catch((error) => {
-  console.error("Critical: Failed to start server:", error);
-  process.exit(1);
-});
+// Export app for Vercel
+const appPromise = startServer();
+export default appPromise;
