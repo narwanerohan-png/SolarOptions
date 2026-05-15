@@ -19,285 +19,220 @@ if (GOOGLE_SCRIPT_URL.includes("docs.google.com/spreadsheets/d/")) {
 
 console.log(`[Server] Using Google Script URL from ${process.env.GOOGLE_SCRIPT_URL ? 'environment variable' : 'default value'}: ${GOOGLE_SCRIPT_URL.substring(0, 30)}...`);
 
+const app = express();
+const PORT = 3000;
+
+// Trust the AI Studio / Nginx proxy
+app.set("trust proxy", true);
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Request logger
+app.use((req, res, next) => {
+  const isApi = req.url.startsWith("/api");
+  const isAsset = req.url.includes(".");
+  
+  if (isApi || !isAsset) {
+    console.log(`[Server] ${req.method} ${req.url} (IP: ${req.ip})`);
+  }
+  next();
+});
+
+// Health check
+app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+    is_production: process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true',
+    script_url_set: !!process.env.GOOGLE_SCRIPT_URL,
+    proxy: req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip
+  });
+});
+
+// Proxy: Get Leads
+app.get(["/api/leads", "/api/leads/"], async (req, res) => {
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      headers: {
+        "User-Agent": "SolarOptions/1.0"
+      }
+    });
+    
+    if (response.status === 404) {
+      return res.status(404).json({ 
+        error: "Upstream Script Not Found (404)",
+        suggestion: "The Google Apps Script ID might be wrong, or it is not deployed as a 'Web App'.",
+        debug_link: GOOGLE_SCRIPT_URL
+      });
+    }
+
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch (e) {
+      res.status(502).json({ error: "Upstream service returned invalid data" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to connect to upstream service" });
+  }
+});
+
+// Proxy: Login
+app.post(["/api/login", "/api/login/"], async (req, res) => {
+  if (!req.body || !req.body.username || !req.body.password) {
+    return res.status(400).json({ error: "Username and password are required" });
+  }
+
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "User-Agent": "SolarOptions/1.0"
+      },
+      body: JSON.stringify({
+        action: 'login',
+        username: req.body.username,
+        password: req.body.password
+      }),
+    });
+    
+    const status = response.status;
+    const text = await response.text();
+    
+    if (status >= 400) {
+      return res.status(status).json({ 
+        error: status === 404 ? "Backend Script Not Found (404)" : `Authentication Service Error (${status})`,
+        upstream_status: status
+      });
+    }
+
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch (e) {
+      res.status(502).json({ error: "Authentication service returned an invalid response" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Could not connect to authentication service" });
+  }
+});
+
+// Proxy: Register/Payment Sync
+app.post(["/api/register", "/api/register/"], async (req, res) => {
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "User-Agent": "SolarOptions/1.0"
+      },
+      body: JSON.stringify({
+        action: 'register',
+        ...req.body
+      }),
+    });
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      res.json(json);
+    } catch {
+      res.json({ success: true });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Registration service unavailable" });
+  }
+});
+
+// Proxy: Feedback/Quotes
+app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "User-Agent": "SolarOptions/1.0"
+      },
+      body: JSON.stringify({
+        action: req.body.type === 'quote' ? 'quote' : 'feedback',
+        ...req.body
+      }),
+    });
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      res.json(json);
+    } catch {
+      res.json({ success: true });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Feedback service unavailable" });
+  }
+});
+
+// API: Stripe Checkout Session
+app.post("/api/create-checkout-session", async (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({ error: "Payments are not configured" });
+  }
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: "Solar Project Export" },
+          unit_amount: 5000,
+        },
+        quantity: 1,
+      }],
+      mode: "payment",
+      success_url: `${req.headers.origin}/?payment=success`,
+      cancel_url: `${req.headers.origin}/?payment=cancel`,
+    });
+    res.json({ id: session.id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API 404 Handler
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: "API endpoint not found", method: req.method, path: req.url });
+});
+
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
-  // Trust the AI Studio / Nginx proxy
-  app.set("trust proxy", true);
-
-  // Middleware
-  app.use(cors());
-  app.use(express.json());
-
-  // Request logger
-  app.use((req, res, next) => {
-    const isApi = req.url.startsWith("/api");
-    const isAsset = req.url.includes(".");
-    
-    if (isApi || !isAsset) {
-      console.log(`[Server] ${req.method} ${req.url} (IP: ${req.ip})`);
-    }
-    next();
-  });
-
-  // Health check
-  app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
-    res.json({ 
-      status: "ok", 
-      timestamp: new Date().toISOString(),
-      env: process.env.NODE_ENV,
-      node_version: process.version,
-      is_production: process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true',
-      cwd: process.cwd(),
-      dirname: __dirname,
-      script_url_set: !!process.env.GOOGLE_SCRIPT_URL,
-      script_url_preview: GOOGLE_SCRIPT_URL ? `${GOOGLE_SCRIPT_URL.substring(0, 30)}...` : 'none',
-      proxy: req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip
-    });
-  });
-
-  // Proxy: Get Leads
-  app.get(["/api/leads", "/api/leads/"], async (req, res) => {
-    try {
-      console.log(`[Proxy] GET leads from: ${GOOGLE_SCRIPT_URL.substring(0, 40)}...`);
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        headers: {
-          "User-Agent": "SolarOptions/1.0"
-        }
-      });
-      
-      if (response.status === 404) {
-        console.error(`[Proxy] Upstream 404 at ${GOOGLE_SCRIPT_URL}`);
-        return res.status(404).json({ 
-          error: "Upstream Script Not Found (404)",
-          suggestion: "The Google Apps Script ID might be wrong, or it is not deployed as a 'Web App'. Ensure your URL ends with /exec.",
-          debug_link: GOOGLE_SCRIPT_URL
-        });
-      }
-
-      const text = await response.text();
-      try {
-        const data = JSON.parse(text);
-        res.json(data);
-      } catch (e) {
-        console.error("[Proxy] Leads response was not JSON:", text.substring(0, 100));
-        res.status(502).json({ error: "Upstream service returned invalid data" });
-      }
-    } catch (error: any) {
-      console.error("[Proxy] Leads error:", error.message);
-      res.status(500).json({ error: "Failed to connect to upstream service" });
-    }
-  });
-
-  // Proxy: Login
-  app.post(["/api/login", "/api/login/"], async (req, res) => {
-    console.log(`[Login] Received POST request to /api/login`);
-    
-    // Basic body validation
-    if (!req.body || !req.body.username || !req.body.password) {
-      console.warn(`[Login] Missing credentials in request body`);
-      return res.status(400).json({ error: "Username and password are required" });
-    }
-
-    try {
-      console.log(`[Proxy] Attempting login proxy to: ${GOOGLE_SCRIPT_URL}`);
-      
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "User-Agent": "SolarOptions/1.0"
-        },
-        body: JSON.stringify({
-          action: 'login',
-          username: req.body.username,
-          password: req.body.password
-        }),
-      });
-      
-      const status = response.status;
-      const text = await response.text();
-      
-      console.log(`[Proxy] Login upstream status: ${status}, Body length: ${text.length}`);
-      
-      if (status >= 400) {
-        console.error(`[Proxy] Upstream login service error ${status}:`, text.substring(0, 200));
-        return res.status(status).json({ 
-          error: status === 404 ? "Backend Script Not Found (404)" : `Authentication Service Error (${status})`,
-          message: status === 404 
-            ? "The Google App Script Web App URL returned a 404. Make sure it is deployed as a Web App with 'Anyone' access and the URL ends with /exec." 
-            : `The upstream service responded with a ${status} error.`,
-          upstream_status: status,
-          debug_url: GOOGLE_SCRIPT_URL.substring(0, 45) + "..."
-        });
-      }
-
-      try {
-        const data = JSON.parse(text);
-        console.log(`[Proxy] Login successful for: ${req.body.username}`);
-        res.json(data);
-      } catch (e) {
-        console.error("[Proxy] Login response was not valid JSON:", text.substring(0, 100));
-        res.status(502).json({ 
-          error: "Authentication service returned an invalid response format",
-          debug: text.substring(0, 50)
-        });
-      }
-    } catch (error: any) {
-      console.error("[Proxy] Login connection failed:", error.message);
-      res.status(500).json({ error: "Could not connect to authentication service" });
-    }
-  });
-
-  // Proxy: Register/Payment Sync
-  app.post(["/api/register", "/api/register/"], async (req, res) => {
-    console.log(`[Register] Received POST request to /api/register`);
-    try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "User-Agent": "SolarOptions/1.0"
-        },
-        body: JSON.stringify({
-          action: 'register',
-          ...req.body
-        }),
-      });
-      const text = await response.text();
-      try {
-        const json = JSON.parse(text);
-        res.json(json);
-      } catch {
-        res.json({ success: true, message: "Action recorded" });
-      }
-    } catch (error: any) {
-      console.error("[Proxy] Register error:", error.message);
-      res.status(500).json({ error: "Registration service unavailable" });
-    }
-  });
-
-  // Proxy: Feedback/Quotes
-  app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
-    console.log(`[Feedback] Received POST request to /api/feedback`);
-    try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "User-Agent": "SolarOptions/1.0"
-        },
-        body: JSON.stringify({
-          action: req.body.type === 'quote' ? 'quote' : 'feedback',
-          ...req.body
-        }),
-      });
-      const text = await response.text();
-      try {
-        const json = JSON.parse(text);
-        res.json(json);
-      } catch {
-        res.json({ success: true, message: "Feedback received" });
-      }
-    } catch (error: any) {
-      console.error("[Proxy] Feedback error:", error.message);
-      res.status(500).json({ error: "Feedback service unavailable" });
-    }
-  });
-
-  // API: Stripe Checkout Session
-  app.post("/api/create-checkout-session", async (req, res) => {
-    if (!stripe) {
-      return res.status(500).json({ error: "Payments are not configured on the server" });
-    }
-
-    try {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "Solar Project Design Export",
-                description: "Full technical specifications and 3D design export",
-              },
-              unit_amount: 5000,
-            },
-            quantity: 1,
-          },
-        ],
-        mode: "payment",
-        success_url: `${req.headers.origin}/?payment=success`,
-        cancel_url: `${req.headers.origin}/?payment=cancel`,
-      });
-
-      res.json({ id: session.id });
-    } catch (error: any) {
-      console.error("[Stripe] Session creation error:", error.message);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // API 404 Handler - Catch all other /api/* requests
-  app.all("/api/*", (req, res) => {
-    console.warn(`[Server] Unhandled API route: ${req.method} ${req.url}`);
-    res.status(404).json({ 
-      error: "API endpoint not found",
-      method: req.method,
-      path: req.url 
-    });
-  });
-
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VITE_PROD === "true";
-  console.log(`[Server] Environment: ${isProduction ? 'production' : 'development'}`);
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
 
   if (!isProduction) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    // Serve static files in production
-    // When bundled as CJS in dist/server.cjs, __dirname will be the dist folder
-    const distPath = __dirname;
-    const indexPath = path.resolve(distPath, "index.html");
-    
-    console.log(`[Server] Serving static files from: ${distPath}`);
-    console.log(`[Server] Index path: ${indexPath}`);
-    
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      // Check if it's an API route that somehow fell through (e.g. wrong method or typo)
-      if (req.url.startsWith("/api/")) {
-        console.warn(`[Server] API route fall-through to static handler: ${req.method} ${req.url}`);
-        return res.status(404).json({ 
-          error: "API endpoint not found", 
-          method: req.method,
-          path: req.url 
-        });
-      }
-      
-      res.sendFile(indexPath, (err) => {
-        if (err) {
-          console.error(`[Server] Error sending index.html from ${indexPath}: ${err.message}`);
-          res.status(404).send("Application shell not found. Please ensure the build process completed successfully.");
-        }
-      });
+      if (req.url.startsWith("/api/")) return;
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  if (process.env.NODE_ENV === "test") return app;
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-  });
-  
-  return app;
+  // Only listen if not handled by Vercel
+  if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  }
 }
 
-// Export app for Vercel
-const appPromise = startServer();
-export default appPromise;
+startServer().catch(err => console.error("Server start error:", err));
+
+export default app;
+
