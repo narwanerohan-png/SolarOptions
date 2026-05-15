@@ -60,21 +60,35 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
     if (onUpdate) onUpdate(allPlacements.length);
   }, [allPlacements.length, onUpdate]);
 
+  const panelGeometry = useMemo(() => new THREE.BoxGeometry(panelConfig.width * 0.96, panelConfig.height * 0.96, 0.06), [panelConfig.width, panelConfig.height]);
+  
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useEffect(() => {
+    if (!meshRef.current) return;
+    
+    allPlacements.forEach((pos, i) => {
+      dummy.position.set(pos.x, pos.y, 0);
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [allPlacements, dummy]);
+
+  if (allPlacements.length === 0) return null;
+
   return (
     <group rotation={[-Math.PI / 2, 0, 0]} position={[0, buildingHeight + 0.08, 0]}>
-      {allPlacements.map((pos, i) => (
-        <mesh key={i} position={[pos.x, pos.y, 0]} castShadow>
-          <boxGeometry args={[panelConfig.width * 0.96, panelConfig.height * 0.96, 0.06]} />
-          <meshStandardMaterial 
-            color="#080c14" 
-            roughness={0.1} 
-            metalness={0.9}
-            emissive="#1e3a8a"
-            emissiveIntensity={0.1}
-          />
-          <Edges color="#334155" threshold={10} />
-        </mesh>
-      ))}
+      <instancedMesh ref={meshRef} args={[panelGeometry, undefined, allPlacements.length]} castShadow receiveShadow>
+        <meshStandardMaterial 
+          color="#080c14" 
+          roughness={0.1} 
+          metalness={0.9}
+          emissive="#1e3a8a"
+          emissiveIntensity={0.1}
+        />
+      </instancedMesh>
     </group>
   );
 }
@@ -88,10 +102,13 @@ export default function ThreeScene({ buildings, panelZones, buildingHeight, pane
     <div className="w-full h-full bg-[#f8fafc]">
       <Canvas 
         shadows 
+        dpr={[1, 2]}
+        performance={{ min: 0.5 }}
         gl={{ 
           antialias: true, 
           alpha: true,
-          preserveDrawingBuffer: true 
+          preserveDrawingBuffer: true,
+          powerPreference: "high-performance"
         }} 
         onCreated={({ gl }) => {
           gl.shadowMap.type = THREE.PCFShadowMap;
@@ -117,7 +134,7 @@ export default function ThreeScene({ buildings, panelZones, buildingHeight, pane
           penumbra={1} 
           intensity={2.5} 
           castShadow 
-          shadow-mapSize={[4096, 4096]}
+          shadow-mapSize={[1024, 1024]}
           shadow-bias={-0.0001}
         />
         <pointLight position={[-20, 50, -20]} intensity={1} color="#3b82f6" />
@@ -133,7 +150,7 @@ export default function ThreeScene({ buildings, panelZones, buildingHeight, pane
         </Center>
 
         <ContactShadows 
-          resolution={2048} 
+          resolution={512} 
           scale={180} 
           blur={2} 
           opacity={0.35} 

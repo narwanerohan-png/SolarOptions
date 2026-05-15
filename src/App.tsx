@@ -47,6 +47,39 @@ const sampleLeadsData: Lead[] = [
 ];
 
 export default function SolarApp() {
+  useEffect(() => {
+    // Handle Vite preload errors (chunk loading failures)
+    // This happens when the browser tries to load an old chunk after a new deployment
+    const handlePreloadError = (event: ErrorEvent) => {
+      console.log('[App] Error detected:', event.message);
+      if (event.message?.includes('Failed to fetch dynamically imported module') || 
+          event.message?.includes('Importing a discontinued module')) {
+        console.warn('[Vite] Preload error detected, reloading page...');
+        window.location.reload();
+      }
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.log('[App] Promise rejection detected:', event.reason);
+      const message = event.reason?.message || '';
+      if (message.includes('Failed to fetch dynamically imported module') || 
+          message.includes('Importing a discontinued module')) {
+        console.warn('[Vite] Dynamic import rejection detected, reloading page...');
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('error', handlePreloadError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    console.log('[App] Initialized correctly');
+    
+    return () => {
+      window.removeEventListener('error', handlePreloadError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -339,11 +372,11 @@ export default function SolarApp() {
     if (!loginForm.username || !loginForm.password) return;
     setIsSubmitting(true);
     try {
+      console.log("[Login] Sending credentials to /api/login...");
       const resp = await fetch('/api/login', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'SolarOptionsApp'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           action: 'login',
@@ -351,10 +384,22 @@ export default function SolarApp() {
           password: loginForm.password
         })
       });
+      
       if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with status ${resp.status}`);
+        let errorMessage = `Server responded with status ${resp.status}`;
+        try {
+          const errorData = await resp.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.debug) console.log("[Login Debug]", errorData.debug);
+        } catch (e) {
+          // Response was not JSON
+          const text = await resp.text().catch(() => "");
+          console.error("[Login] Non-JSON error response:", text.substring(0, 200));
+        }
+        alert(`Login Error: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
+      
       const data = await resp.json();
       if (data.success) {
         setIsLoggedIn(true);

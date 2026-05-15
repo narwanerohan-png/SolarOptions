@@ -8,7 +8,15 @@ import cors from "cors";
 dotenv.config();
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbycpu9irUypX9jXEGKgx-tbKW41dbQE_zTJHuhlf1TiT2a_ImksFFrVH3fCDtp523o8EQ/exec";
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
+
+// Validate URL format
+if (GOOGLE_SCRIPT_URL.includes("docs.google.com/spreadsheets/d/")) {
+  console.error("CRITICAL CONFIG ERROR: GOOGLE_SCRIPT_URL is a Google Spreadsheet URL. It MUST be a Google Apps Script WEB APP URL (ending in /exec).");
+} else if (!GOOGLE_SCRIPT_URL.endsWith("/exec") && !GOOGLE_SCRIPT_URL.includes("/exec?")) {
+  console.warn("[Server] Warning: GOOGLE_SCRIPT_URL might be invalid - it usually ends with '/exec'. Current: " + GOOGLE_SCRIPT_URL);
+}
+
 console.log(`[Server] Using Google Script URL from ${process.env.GOOGLE_SCRIPT_URL ? 'environment variable' : 'default value'}: ${GOOGLE_SCRIPT_URL.substring(0, 30)}...`);
 
 async function startServer() {
@@ -24,8 +32,11 @@ async function startServer() {
 
   // Request logger
   app.use((req, res, next) => {
-    if (req.url.startsWith("/api") || !req.url.includes(".")) {
-      console.log(`[Server] ${req.method} ${req.url}`);
+    const isApi = req.url.startsWith("/api");
+    const isAsset = req.url.includes(".");
+    
+    if (isApi || !isAsset) {
+      console.log(`[Server] ${req.method} ${req.url} (IP: ${req.ip})`);
     }
     next();
   });
@@ -36,19 +47,20 @@ async function startServer() {
       status: "ok", 
       timestamp: new Date().toISOString(),
       env: process.env.NODE_ENV,
-      proxy: req.headers["x-forwarded-for"] || req.ip
+      node_version: process.version,
+      is_production: process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true',
+      cwd: process.cwd(),
+      dirname: __dirname,
+      script_url_set: !!process.env.GOOGLE_SCRIPT_URL,
+      script_url_preview: GOOGLE_SCRIPT_URL ? `${GOOGLE_SCRIPT_URL.substring(0, 30)}...` : 'none',
+      proxy: req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip
     });
   });
 
   // Proxy: Get Leads
   app.get(["/api/leads", "/api/leads/"], async (req, res) => {
-    // Allow if it has our signature or is from our origin
-    const isInternal = req.headers["x-requested-with"] === "SolarOptionsApp";
-    if (!isInternal && process.env.NODE_ENV === 'production') {
-      return res.status(401).json({ error: "Unauthorized access" });
-    }
-
     try {
+      console.log(`[Proxy] GET leads from: ${GOOGLE_SCRIPT_URL.substring(0, 40)}...`);
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         headers: {
           "User-Agent": "SolarOptions/1.0"
@@ -56,7 +68,12 @@ async function startServer() {
       });
       
       if (response.status === 404) {
-        return res.status(404).json({ error: "Upstream service not found" });
+        console.error(`[Proxy] Upstream 404 at ${GOOGLE_SCRIPT_URL}`);
+        return res.status(404).json({ 
+          error: "Upstream Script Not Found (404)",
+          suggestion: "The Google Apps Script ID might be wrong, or it is not deployed as a 'Web App'. Ensure your URL ends with /exec.",
+          debug_link: GOOGLE_SCRIPT_URL
+        });
       }
 
       const text = await response.text();
@@ -100,15 +117,19 @@ async function startServer() {
       });
       
       const status = response.status;
-      console.log(`[Proxy] Upstream response status: ${status}`);
-      
       const text = await response.text();
+      
+      console.log(`[Proxy] Login upstream status: ${status}, Body length: ${text.length}`);
       
       if (status >= 400) {
         console.error(`[Proxy] Upstream login service error ${status}:`, text.substring(0, 200));
         return res.status(status).json({ 
-          error: `Authentication Service Error (${status})`,
-          message: status === 404 ? "Internal configuration error: Upstream script not found." : "Service unavailable"
+          error: status === 404 ? "Backend Script Not Found (404)" : `Authentication Service Error (${status})`,
+          message: status === 404 
+            ? "The Google App Script Web App URL returned a 404. Make sure it is deployed as a Web App with 'Anyone' access and the URL ends with /exec." 
+            : `The upstream service responded with a ${status} error.`,
+          upstream_status: status,
+          debug_url: GOOGLE_SCRIPT_URL.substring(0, 45) + "..."
         });
       }
 
