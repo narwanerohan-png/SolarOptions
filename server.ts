@@ -12,15 +12,23 @@ if (!process.env.VERCEL) {
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.trim().length > 10) 
   ? process.env.GOOGLE_SCRIPT_URL.trim() 
-  : "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
+  : "https://script.google.com/macros/s/AKfycbwyJZNzqLT3m_fBgCiyzb_42pw7rf8RtqSQ3WX39Sxu/exec";
 
 const AXIOS_CONFIG = {
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/json",
+    "Content-Type": "application/json"
   },
-  timeout: 45000, 
+  timeout: 45000,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
 };
+
+// Log warning if URL is suspicious
+if (GOOGLE_SCRIPT_URL.includes("/dev")) {
+  console.warn("⚠️ WARNING: Your GOOGLE_SCRIPT_URL ends in /dev. This will FAIL on Vercel. Use an /exec URL from a 'New Deployment'.");
+}
 
 // Validate URL format
 if (GOOGLE_SCRIPT_URL.includes("docs.google.com/spreadsheets/d/")) {
@@ -93,14 +101,34 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
       password: req.body.password
     }, AXIOS_CONFIG);
     
+    // Google Scripts often return a 200 even for errors in the payload
+    if (response.data && typeof response.data === 'string' && response.data.includes("Google Drive - Page Not Found")) {
+       return res.status(404).json({ 
+         success: false, 
+         message: "Google Script not found or not published as 'Anyone'. Check your URL and deployment settings.",
+         details: "The URL returned a Google 404 page instead of JSON." 
+       });
+    }
+
     res.json(response.data);
   } catch (error: any) {
-    console.error("[Login Error]", error.message);
+    console.error("[Login Error Details]", {
+      message: error.message,
+      url: GOOGLE_SCRIPT_URL.substring(0, 40) + "...",
+      isDevUrl: GOOGLE_SCRIPT_URL.includes("/dev"),
+      status: error.response?.status
+    });
+
     const status = error.response?.status || 500;
+    const isDevUrlError = GOOGLE_SCRIPT_URL.includes("/dev");
+
     res.status(status).json({ 
-      error: "Authentication service failed", 
-      details: error.message,
-      upstream_status: status
+      error: "Authentication service connection failed", 
+      message: isDevUrlError 
+        ? "Your URL ends in /dev. Go to 'Deploy > New Deployment' in Google Sheets and use the /exec URL instead." 
+        : error.message,
+      upstream_status: status,
+      url_type: isDevUrlError ? "dev (invalid for web)" : "standard"
     });
   }
 });
@@ -157,6 +185,20 @@ app.post("/api/create-checkout-session", async (req, res) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Debug Endpoint
+app.get("/api/debug-config", (req, res) => {
+  res.json({
+    has_env_var: !!process.env.GOOGLE_SCRIPT_URL,
+    url_preview: GOOGLE_SCRIPT_URL.substring(0, 40) + "...",
+    is_dev_url: GOOGLE_SCRIPT_URL.includes("/dev"),
+    is_exec_url: GOOGLE_SCRIPT_URL.includes("/exec"),
+    node_env: process.env.NODE_ENV,
+    advice: GOOGLE_SCRIPT_URL.includes("/dev") 
+      ? "CHANGE YOUR URL: It ends in /dev. Deploy as a 'Web App' for 'Anyone' to get an /exec URL." 
+      : "URL format looks okay. Make sure 'Who has access' is set to 'Anyone'."
+  });
 });
 
 // API 404 Handler
