@@ -7,8 +7,8 @@ import cors from "cors";
 dotenv.config();
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.length > 10) 
-  ? process.env.GOOGLE_SCRIPT_URL 
+const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.trim().length > 10) 
+  ? process.env.GOOGLE_SCRIPT_URL.trim() 
   : "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
 
 const FETCH_HEADERS = {
@@ -82,7 +82,8 @@ app.get(["/api/leads", "/api/leads/"], async (req, res) => {
       res.status(502).json({ error: "Upstream service returned invalid data" });
     }
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to connect to upstream service" });
+    console.error("[Leads Error]", error);
+    res.status(500).json({ error: "Failed to connect to upstream service", details: error.message });
   }
 });
 
@@ -124,7 +125,8 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
       res.status(502).json({ error: "Authentication service returned an invalid response" });
     }
   } catch (error: any) {
-    res.status(500).json({ error: "Could not connect to authentication service" });
+    console.error("[Login Error]", error);
+    res.status(500).json({ error: "Could not connect to authentication service", details: error.message });
   }
 });
 
@@ -151,7 +153,8 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
       res.json({ success: true });
     }
   } catch (error: any) {
-    res.status(500).json({ error: "Registration service unavailable" });
+    console.error("[Register Error]", error);
+    res.status(500).json({ error: "Registration service unavailable", details: error.message });
   }
 });
 
@@ -178,7 +181,8 @@ app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
       res.json({ success: true });
     }
   } catch (error: any) {
-    res.status(500).json({ error: "Feedback service unavailable" });
+    console.error("[Feedback Error]", error);
+    res.status(500).json({ error: "Feedback service unavailable", details: error.message });
   }
 });
 
@@ -240,7 +244,10 @@ async function startServer() {
   }
 }
 
-startServer().catch(err => console.error("Server start error:", err));
+// Only call startServer if we're not in a Vercel environment
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
+  startServer().catch(err => console.error("Server start error:", err));
+}
 
 export default app;
 
