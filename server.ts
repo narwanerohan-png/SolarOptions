@@ -3,17 +3,23 @@ import path from "path";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import cors from "cors";
+import axios from "axios";
 
-dotenv.config();
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.trim().length > 10) 
   ? process.env.GOOGLE_SCRIPT_URL.trim() 
   : "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
 
-const FETCH_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Accept": "application/json",
+const AXIOS_CONFIG = {
+  headers: {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+  },
+  timeout: 45000, 
 };
 
 // Validate URL format
@@ -61,29 +67,16 @@ app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
 // Proxy: Get Leads
 app.get(["/api/leads", "/api/leads/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      headers: FETCH_HEADERS,
-      redirect: 'follow'
-    } as any);
-    
-    if (response.status === 404) {
-      return res.status(404).json({ 
-        error: "Upstream Script Not Found (404)",
-        suggestion: "The Google Apps Script ID might be wrong, or it is not deployed as a 'Web App'.",
-        debug_link: GOOGLE_SCRIPT_URL
-      });
-    }
-
-    const text = await response.text();
-    try {
-      const data = JSON.parse(text);
-      res.json(data);
-    } catch (e) {
-      res.status(502).json({ error: "Upstream service returned invalid data" });
-    }
+    const response = await axios.get(GOOGLE_SCRIPT_URL, AXIOS_CONFIG);
+    res.json(response.data);
   } catch (error: any) {
-    console.error("[Leads Error]", error);
-    res.status(500).json({ error: "Failed to connect to upstream service", details: error.message });
+    console.error("[Leads Error]", error.message);
+    const status = error.response?.status || 500;
+    res.status(status).json({ 
+      error: "Failed to connect to backend", 
+      details: error.message,
+      upstream_status: status
+    });
   }
 });
 
@@ -94,66 +87,34 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
   }
 
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { 
-        ...FETCH_HEADERS,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action: 'login',
-        username: req.body.username,
-        password: req.body.password
-      }),
-      redirect: 'follow'
-    } as any);
+    const response = await axios.post(GOOGLE_SCRIPT_URL, {
+      action: 'login',
+      username: req.body.username,
+      password: req.body.password
+    }, AXIOS_CONFIG);
     
-    const status = response.status;
-    const text = await response.text();
-    
-    if (status >= 400) {
-      return res.status(status).json({ 
-        error: status === 404 ? "Backend Script Not Found (404)" : `Authentication Service Error (${status})`,
-        upstream_status: status
-      });
-    }
-
-    try {
-      const data = JSON.parse(text);
-      res.json(data);
-    } catch (e) {
-      res.status(502).json({ error: "Authentication service returned an invalid response" });
-    }
+    res.json(response.data);
   } catch (error: any) {
-    console.error("[Login Error]", error);
-    res.status(500).json({ error: "Could not connect to authentication service", details: error.message });
+    console.error("[Login Error]", error.message);
+    const status = error.response?.status || 500;
+    res.status(status).json({ 
+      error: "Authentication service failed", 
+      details: error.message,
+      upstream_status: status
+    });
   }
 });
 
 // Proxy: Register/Payment Sync
 app.post(["/api/register", "/api/register/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { 
-        ...FETCH_HEADERS,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action: 'register',
-        ...req.body
-      }),
-      redirect: 'follow'
-    } as any);
-    const text = await response.text();
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch {
-      res.json({ success: true });
-    }
+    const response = await axios.post(GOOGLE_SCRIPT_URL, {
+      action: 'register',
+      ...req.body
+    }, AXIOS_CONFIG);
+    res.json(response.data);
   } catch (error: any) {
-    console.error("[Register Error]", error);
+    console.error("[Register Error]", error.message);
     res.status(500).json({ error: "Registration service unavailable", details: error.message });
   }
 });
@@ -161,27 +122,13 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
 // Proxy: Feedback/Quotes
 app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { 
-        ...FETCH_HEADERS,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action: req.body.type === 'quote' ? 'quote' : 'feedback',
-        ...req.body
-      }),
-      redirect: 'follow'
-    } as any);
-    const text = await response.text();
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch {
-      res.json({ success: true });
-    }
+    const response = await axios.post(GOOGLE_SCRIPT_URL, {
+      action: req.body.type === 'quote' ? 'quote' : 'feedback',
+      ...req.body
+    }, AXIOS_CONFIG);
+    res.json(response.data);
   } catch (error: any) {
-    console.error("[Feedback Error]", error);
+    console.error("[Feedback Error]", error.message);
     res.status(500).json({ error: "Feedback service unavailable", details: error.message });
   }
 });
