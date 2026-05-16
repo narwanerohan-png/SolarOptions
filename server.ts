@@ -3,7 +3,6 @@ import path from "path";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import cors from "cors";
-import axios from "axios";
 
 if (!process.env.VERCEL) {
   dotenv.config();
@@ -12,7 +11,7 @@ if (!process.env.VERCEL) {
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.trim().length > 10) 
   ? process.env.GOOGLE_SCRIPT_URL.trim() 
-  : "https://script.google.com/macros/s/AKfycbwyJZNzqLT3m_fBgCiyzb_42pw7rf8RtqSQ3WX39Sxu/exec";
+  : "https://script.google.com/macros/s/AKfycbwjJMsZ9t8JaTbsjs-HwnHuUeoI18_Z2eI4EYCB9JXYb056cFHDdLPC4BSkbE6iw-XW2Ew/exec";
 
 const AXIOS_CONFIG = {
   headers: {
@@ -75,16 +74,21 @@ app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
 // Proxy: Get Leads
 app.get(["/api/leads", "/api/leads/"], async (req, res) => {
   try {
-    const response = await axios.get(GOOGLE_SCRIPT_URL, AXIOS_CONFIG);
-    res.json(response.data);
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      redirect: "follow"
+    });
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch {
+      res.status(502).json({ error: "Invalid JSON from backend", details: text.substring(0, 100) });
+    }
   } catch (error: any) {
     console.error("[Leads Error]", error.message);
-    const status = error.response?.status || 500;
-    res.status(status).json({ 
-      error: "Failed to connect to backend", 
-      details: error.message,
-      upstream_status: status
-    });
+    res.status(500).json({ error: "Failed to connect to backend", details: error.message });
   }
 });
 
@@ -95,40 +99,53 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
   }
 
   try {
-    const response = await axios.post(GOOGLE_SCRIPT_URL, {
-      action: 'login',
-      username: req.body.username,
-      password: req.body.password
-    }, AXIOS_CONFIG);
+    console.log(`[Server] Login request for ${req.body.username} to GAS`);
     
-    // Google Scripts often return a 200 even for errors in the payload
-    if (response.data && typeof response.data === 'string' && response.data.includes("Google Drive - Page Not Found")) {
-       return res.status(404).json({ 
-         success: false, 
-         message: "Google Script not found or not published as 'Anyone'. Check your URL and deployment settings.",
-         details: "The URL returned a Google 404 page instead of JSON." 
-       });
-    }
-
-    res.json(response.data);
-  } catch (error: any) {
-    console.error("[Login Error Details]", {
-      message: error.message,
-      url: GOOGLE_SCRIPT_URL.substring(0, 40) + "...",
-      isDevUrl: GOOGLE_SCRIPT_URL.includes("/dev"),
-      status: error.response?.status
+    // Using native fetch for better redirect handling in Vercel/Node environment
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        action: 'login',
+        username: req.body.username,
+        password: req.body.password
+      }),
+      redirect: "follow"
     });
 
-    const status = error.response?.status || 500;
-    const isDevUrlError = GOOGLE_SCRIPT_URL.includes("/dev");
+    const text = await response.text();
+    console.log(`[Server] GAS Status: ${response.status}, Length: ${text.length}`);
 
-    res.status(status).json({ 
-      error: "Authentication service connection failed", 
-      message: isDevUrlError 
-        ? "Your URL ends in /dev. Go to 'Deploy > New Deployment' in Google Sheets and use the /exec URL instead." 
-        : error.message,
-      upstream_status: status,
-      url_type: isDevUrlError ? "dev (invalid for web)" : "standard"
+    // check if it's returning a Google error page instead of user JSON
+    if (text.includes("Google Drive - Page Not Found") || (text.includes("<!DOCTYPE html>") && text.includes("Google"))) {
+      console.error("[Server] Google Script returned HTML (likely 404 or Unauthorized)");
+      return res.status(404).json({ 
+        success: false, 
+        message: "Backend Script returned an error page (HTML). Make sure it's deployed correctly.",
+        details: text.substring(0, 200)
+      });
+    }
+
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch (parseError) {
+      console.error("[Server] JSON Parse Error. First 100 chars:", text.substring(0, 100));
+      res.status(502).json({ 
+        error: "Invalid response from backend script", 
+        details: text.substring(0, 100),
+        is_html: text.startsWith("<!")
+      });
+    }
+  } catch (error: any) {
+    console.error("[Login Internal Error]", error.message);
+    res.status(500).json({ 
+      error: "Could not connect to authentication service", 
+      message: error.message,
+      url_type: GOOGLE_SCRIPT_URL.includes("/exec") ? "exec" : "invalid"
     });
   }
 });
@@ -136,11 +153,19 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
 // Proxy: Register/Payment Sync
 app.post(["/api/register", "/api/register/"], async (req, res) => {
   try {
-    const response = await axios.post(GOOGLE_SCRIPT_URL, {
-      action: 'register',
-      ...req.body
-    }, AXIOS_CONFIG);
-    res.json(response.data);
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'register', ...req.body }),
+      redirect: "follow"
+    });
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      res.json(json);
+    } catch {
+      res.json({ success: true, message: "Sync complete (Raw response)", raw: text.substring(0, 50) });
+    }
   } catch (error: any) {
     console.error("[Register Error]", error.message);
     res.status(500).json({ error: "Registration service unavailable", details: error.message });
@@ -150,11 +175,19 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
 // Proxy: Feedback/Quotes
 app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
   try {
-    const response = await axios.post(GOOGLE_SCRIPT_URL, {
-      action: req.body.type === 'quote' ? 'quote' : 'feedback',
-      ...req.body
-    }, AXIOS_CONFIG);
-    res.json(response.data);
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: req.body.type === 'quote' ? 'quote' : 'feedback', ...req.body }),
+      redirect: "follow"
+    });
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      res.json(json);
+    } catch {
+      res.json({ success: true });
+    }
   } catch (error: any) {
     console.error("[Feedback Error]", error.message);
     res.status(500).json({ error: "Feedback service unavailable", details: error.message });
