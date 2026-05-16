@@ -3,6 +3,7 @@ import path from "path";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import cors from "cors";
+import axios from "axios";
 
 if (!process.env.VERCEL) {
   dotenv.config();
@@ -74,78 +75,99 @@ app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
 // Proxy: Get Leads
 app.get(["/api/leads", "/api/leads/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "GET",
-      headers: { "Accept": "application/json" },
-      redirect: "follow"
+    const response = await axios.get(GOOGLE_SCRIPT_URL, {
+      ...AXIOS_CONFIG,
+      maxRedirects: 10
     });
-    const text = await response.text();
-    try {
-      const data = JSON.parse(text);
-      res.json(data);
-    } catch {
-      res.status(502).json({ error: "Invalid JSON from backend", details: text.substring(0, 100) });
-    }
+    res.json(response.data);
   } catch (error: any) {
-    console.error("[Leads Error]", error.message);
-    res.status(500).json({ error: "Failed to connect to backend", details: error.message });
+    const errorBody = error.response?.data;
+    console.error("[Leads Error]", error.message, typeof errorBody === 'string' ? errorBody.substring(0, 100) : "No body");
+    res.status(500).json({ 
+      error: "Failed to connect to backend", 
+      details: error.message,
+      upstream_error: typeof errorBody === 'string' ? "Received HTML/Text instead of JSON" : "Unknown"
+    });
   }
 });
 
 // Proxy: Login
 app.post(["/api/login", "/api/login/"], async (req, res) => {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[Login][${requestId}] Starting attempt for: ${req.body?.username}`);
+
   if (!req.body || !req.body.username || !req.body.password) {
+    console.warn(`[Login][${requestId}] Missing credentials in request body`);
     return res.status(400).json({ error: "Username and password are required" });
   }
 
+  // Double check URL
+  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.length < 20) {
+    console.error(`[Login][${requestId}] Invalid GOOGLE_SCRIPT_URL configuration`);
+    return res.status(500).json({ error: "Server configuration error: Google Script URL is missing" });
+  }
+
   try {
-    console.log(`[Server] Login request for ${req.body.username} to GAS`);
+    const payload = {
+      action: 'login',
+      username: req.body.username,
+      password: req.body.password
+    };
+
+    console.log(`[Login][${requestId}] Proxying to GAS: ${GOOGLE_SCRIPT_URL.substring(0, 45)}...`);
     
-    // Using native fetch for better redirect handling in Vercel/Node environment
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-        action: 'login',
-        username: req.body.username,
-        password: req.body.password
-      }),
-      redirect: "follow"
+    // Use the global config but ensure we follow redirects and handle timeouts
+    const response = await axios.post(GOOGLE_SCRIPT_URL, payload, {
+      ...AXIOS_CONFIG,
+      maxRedirects: 10,
+      timeout: 30000, // 30 seconds
+      validateStatus: (status) => status >= 200 && status < 500
     });
 
-    const text = await response.text();
-    console.log(`[Server] GAS Status: ${response.status}, Length: ${text.length}`);
+    console.log(`[Login][${requestId}] GAS Response Status: ${response.status} (${response.statusText})`);
+    
+    let data = response.data;
 
-    // check if it's returning a Google error page instead of user JSON
-    if (text.includes("Google Drive - Page Not Found") || (text.includes("<!DOCTYPE html>") && text.includes("Google"))) {
-      console.error("[Server] Google Script returned HTML (likely 404 or Unauthorized)");
-      return res.status(404).json({ 
-        success: false, 
-        message: "Backend Script returned an error page (HTML). Make sure it's deployed correctly.",
-        details: text.substring(0, 200)
+    // Detection for common Google error pages or login screens
+    if (typeof data === 'string' && (data.includes("<!DOCTYPE") || data.includes("<html") || data.includes("Google Drive - Page Not Found"))) {
+      console.error(`[Login][${requestId}] Received HTML instead of JSON. Check GAS 'Who has access' (Anyone).`);
+      return res.status(502).json({
+        success: false,
+        error: "Backend returned HTML page",
+        message: "The backend returned a web page instead of technical data. This usually means permissions are missing or the URL is wrong.",
+        requestId
       });
     }
 
-    try {
-      const data = JSON.parse(text);
-      res.json(data);
-    } catch (parseError) {
-      console.error("[Server] JSON Parse Error. First 100 chars:", text.substring(0, 100));
-      res.status(502).json({ 
-        error: "Invalid response from backend script", 
-        details: text.substring(0, 100),
-        is_html: text.startsWith("<!")
-      });
+    // Sometimes axios parses it as an object already, sometimes it's a string
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+        console.log(`[Login][${requestId}] Parsed string body as JSON`);
+      } catch (e) {
+        console.warn(`[Login][${requestId}] Body is non-JSON string: ${data.substring(0, 50)}...`);
+      }
     }
+
+    console.log(`[Login][${requestId}] Final Data Structure:`, typeof data);
+    res.json(data);
+
   } catch (error: any) {
-    console.error("[Login Internal Error]", error.message);
-    res.status(500).json({ 
-      error: "Could not connect to authentication service", 
+    const status = error.response?.status || 500;
+    const body = error.response?.data;
+    
+    console.error(`[Login][${requestId}] Proxy Failure:`, {
       message: error.message,
-      url_type: GOOGLE_SCRIPT_URL.includes("/exec") ? "exec" : "invalid"
+      status: status,
+      hasResponse: !!error.response,
+      url: GOOGLE_SCRIPT_URL.substring(0, 40) + "..."
+    });
+
+    res.status(status).json({ 
+      error: "Authentication service unavailable", 
+      message: error.message,
+      code: error.code || "UNKNOWN_ERROR",
+      requestId 
     });
   }
 });
@@ -153,19 +175,14 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
 // Proxy: Register/Payment Sync
 app.post(["/api/register", "/api/register/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: 'register', ...req.body }),
-      redirect: "follow"
+    const response = await axios.post(GOOGLE_SCRIPT_URL, {
+      action: 'register',
+      ...req.body
+    }, {
+      ...AXIOS_CONFIG,
+      maxRedirects: 10
     });
-    const text = await response.text();
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch {
-      res.json({ success: true, message: "Sync complete (Raw response)", raw: text.substring(0, 50) });
-    }
+    res.json(response.data);
   } catch (error: any) {
     console.error("[Register Error]", error.message);
     res.status(500).json({ error: "Registration service unavailable", details: error.message });
@@ -175,19 +192,14 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
 // Proxy: Feedback/Quotes
 app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: req.body.type === 'quote' ? 'quote' : 'feedback', ...req.body }),
-      redirect: "follow"
+    const response = await axios.post(GOOGLE_SCRIPT_URL, {
+      action: req.body.type === 'quote' ? 'quote' : 'feedback',
+      ...req.body
+    }, {
+      ...AXIOS_CONFIG,
+      maxRedirects: 10
     });
-    const text = await response.text();
-    try {
-      const json = JSON.parse(text);
-      res.json(json);
-    } catch {
-      res.json({ success: true });
-    }
+    res.json(response.data);
   } catch (error: any) {
     console.error("[Feedback Error]", error.message);
     res.status(500).json({ error: "Feedback service unavailable", details: error.message });
