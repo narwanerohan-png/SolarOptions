@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
 import dotenv from "dotenv";
@@ -8,7 +7,14 @@ import cors from "cors";
 dotenv.config();
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
+const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_URL.length > 10) 
+  ? process.env.GOOGLE_SCRIPT_URL 
+  : "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
+
+const FETCH_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "application/json",
+};
 
 // Validate URL format
 if (GOOGLE_SCRIPT_URL.includes("docs.google.com/spreadsheets/d/")) {
@@ -56,10 +62,9 @@ app.get(["/api/health", "/api/status", "/api/ping"], (req, res) => {
 app.get(["/api/leads", "/api/leads/"], async (req, res) => {
   try {
     const response = await fetch(GOOGLE_SCRIPT_URL, {
-      headers: {
-        "User-Agent": "SolarOptions/1.0"
-      }
-    });
+      headers: FETCH_HEADERS,
+      redirect: 'follow'
+    } as any);
     
     if (response.status === 404) {
       return res.status(404).json({ 
@@ -91,15 +96,16 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       headers: { 
-        "Content-Type": "application/json",
-        "User-Agent": "SolarOptions/1.0"
+        ...FETCH_HEADERS,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         action: 'login',
         username: req.body.username,
         password: req.body.password
       }),
-    });
+      redirect: 'follow'
+    } as any);
     
     const status = response.status;
     const text = await response.text();
@@ -128,14 +134,15 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       headers: { 
-        "Content-Type": "application/json",
-        "User-Agent": "SolarOptions/1.0"
+        ...FETCH_HEADERS,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         action: 'register',
         ...req.body
       }),
-    });
+      redirect: 'follow'
+    } as any);
     const text = await response.text();
     try {
       const json = JSON.parse(text);
@@ -154,14 +161,15 @@ app.post(["/api/feedback", "/api/feedback/"], async (req, res) => {
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       headers: { 
-        "Content-Type": "application/json",
-        "User-Agent": "SolarOptions/1.0"
+        ...FETCH_HEADERS,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         action: req.body.type === 'quote' ? 'quote' : 'feedback',
         ...req.body
       }),
-    });
+      redirect: 'follow'
+    } as any);
     const text = await response.text();
     try {
       const json = JSON.parse(text);
@@ -215,7 +223,7 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {

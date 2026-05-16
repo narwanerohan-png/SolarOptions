@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { Point, getPolygonArea } from '../utils/geometry';
 import { cn } from '../lib/utils';
 
@@ -8,7 +8,7 @@ interface SketchBoardProps {
   activeMode: 'rooftops' | 'panels';
 }
 
-export default function SketchBoard({ onComplete, targetArea, activeMode }: SketchBoardProps) {
+function SketchBoardBase({ onComplete, targetArea, activeMode }: SketchBoardProps) {
   const [buildings, setBuildings] = useState<Point[][]>([]);
   const [panelZones, setPanelZones] = useState<Point[][]>([]);
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
@@ -180,3 +180,6 @@ export default function SketchBoard({ onComplete, targetArea, activeMode }: Sket
     </div>
   );
 }
+
+const SketchBoard = memo(SketchBoardBase);
+export default SketchBoard;

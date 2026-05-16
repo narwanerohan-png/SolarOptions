@@ -6,6 +6,11 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import * as THREE from 'three';
 import SketchBoard from './components/SketchBoard';
 import ThreeScene from './components/ThreeScene';
+import { LoginModal } from './components/modals/LoginModal';
+import { FeedbackModal } from './components/modals/FeedbackModal';
+import { AccessFormModal } from './components/modals/AccessFormModal';
+import { ForgotPasswordModal } from './components/modals/ForgotPasswordModal';
+import { CredentialsModal } from './components/modals/CredentialsModal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 
@@ -128,29 +133,20 @@ export default function SolarApp() {
   const [showCredentials, setShowCredentials] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [feedbackText, setFeedbackText] = useState('');
   const [quoteData, setQuoteData] = useState({ factory: '', location: '', units: '', contact: '' });
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = React.useTransition();
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
   const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
-  
-  // Form State
-  const [accessForm, setAccessForm] = useState({
-    companyName: '',
-    contact: '',
-    email: '',
-    location: '',
-    companyType: '',
-  });
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   
   // Portal State
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [rooftopSearch, setRooftopSearch] = useState('');
+  const [deferredSearch, setDeferredSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
   const [inboxData, setInboxData] = useState<any[]>([]);
 
@@ -258,8 +254,8 @@ export default function SolarApp() {
     return { plantSize, yearlyGeneration, yearlySavings, projectCost, payback };
   }, [monthlyBill, rooftopSpace, electricityRate]);
 
-  const handlePayment = async () => {
-    if (!accessForm.email.includes('@') || accessForm.contact.length !== 10) {
+  const handlePayment = async (formData: any) => {
+    if (!formData.email.includes('@') || formData.contact.length !== 10) {
       alert("Please enter valid contact details.");
       return;
     }
@@ -289,7 +285,7 @@ export default function SolarApp() {
           const expiryStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
           
           const newCreds = { 
-            username: accessForm.email, 
+            username: formData.email, 
             password: genPwd,
             expiry: expiryStr 
           };
@@ -306,8 +302,8 @@ export default function SolarApp() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              ...accessForm,
-              username: accessForm.email, // Explicitly map email to username for the script
+              ...formData,
+              username: formData.email, // Explicitly map email to username for the script
               password: genPwd,           // Explicitly send the generated code
               paymentId: response.razorpay_payment_id,
               action: 'register',
@@ -329,9 +325,9 @@ export default function SolarApp() {
           }
         },
         prefill: {
-          name: accessForm.companyName,
-          email: accessForm.email,
-          contact: accessForm.contact,
+          name: formData.companyName,
+          email: formData.email,
+          contact: formData.contact,
         },
         theme: { color: '#10b981' },
       };
@@ -368,8 +364,8 @@ export default function SolarApp() {
     console.log("Legacy savePayment called (should be handled in handler):", paymentId);
   };
 
-  const handleLogin = async () => {
-    if (!loginForm.username || !loginForm.password) return;
+  const handleLogin = async (formData: any) => {
+    if (!formData.username || !formData.password) return;
     setIsSubmitting(true);
     try {
       console.log("[Login] Sending credentials to /api/login...");
@@ -380,8 +376,8 @@ export default function SolarApp() {
         },
         body: JSON.stringify({
           action: 'login',
-          username: loginForm.username,
-          password: loginForm.password
+          username: formData.username,
+          password: formData.password
         })
       });
       
@@ -418,25 +414,26 @@ export default function SolarApp() {
     }
   };
 
-  const filteredLeads = liveLeads.filter(l => {
-    if (regionFilter !== 'all' && l.region !== regionFilter) return false;
-    
-    const search = rooftopSearch.trim();
-    if (!search) return true;
-    
-    // Clean rooftop space for exact matching
-    const leadRooftopStr = String(l.rooftop).replace(/,/g, '');
-    const searchClean = search.replace(/,/g, '');
+  const filteredLeads = useMemo(() => {
+    return liveLeads.filter(l => {
+      if (regionFilter !== 'all' && l.region !== regionFilter) return false;
+      
+      const search = deferredSearch.trim();
+      if (!search) return true;
+      
+      const leadRooftopStr = String(l.rooftop).replace(/,/g, '');
+      const searchClean = search.replace(/,/g, '');
 
-    return leadRooftopStr === searchClean;
-  });
+      return leadRooftopStr === searchClean;
+    });
+  }, [liveLeads, regionFilter, deferredSearch]);
 
   const cardsPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / cardsPerPage));
 
   // --- RENDERING ---
 
-  const Nav = () => (
+  const Nav = React.memo(() => (
     <nav className="fixed top-0 left-0 w-full z-[100] px-4 md:px-12 py-4 bg-slate-900/40 backdrop-blur-xl border-b border-white/5 shadow-2xl no-print">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
         <div 
@@ -504,7 +501,7 @@ export default function SolarApp() {
         </div>
       </div>
     </nav>
-  );
+  ));
 
   return (
     <div className="min-h-screen bg-slate-900 text-white selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden relative">
@@ -1243,7 +1240,14 @@ export default function SolarApp() {
                           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-emerald-400 transition-colors" />
                           <input 
                             value={rooftopSearch} 
-                            onChange={(e) => { setRooftopSearch(e.target.value); setCurrentPageIndex(1); }}
+                            onChange={(e) => { 
+                              const val = e.target.value;
+                              setRooftopSearch(val); 
+                              startTransition(() => {
+                                setDeferredSearch(val);
+                                setCurrentPageIndex(1); 
+                              });
+                            }}
                             placeholder="Search rooftop size (exact e.g. 6000)" 
                             className="w-full pl-11 pr-4 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-500 transition-all font-medium"
                           />
@@ -1815,200 +1819,42 @@ export default function SolarApp() {
         )}
       </AnimatePresence>
 
-      {/* --- MODALS --- */}
+         {/* Modals */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)}
+        onLogin={handleLogin}
+        onShowForgotPassword={() => setShowForgotPasswordModal(true)}
+        onShowAccessForm={() => setShowAccessForm(true)}
+        isSubmitting={isSubmitting}
+      />
 
-      {/* Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[250] p-4 backdrop-blur-xl" onClick={() => setShowLoginModal(false)}>
-           <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-slate-900/80 backdrop-blur-2xl text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-white/10 shadow-emerald-500/5" 
-            onClick={e => e.stopPropagation()}
-           >
-              <div className="absolute top-0 right-0 p-6">
-                <button onClick={() => setShowLoginModal(false)} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      <CredentialsModal 
+        isOpen={showCredentials}
+        credentials={credentials}
+        onClose={() => setShowCredentials(false)}
+        onContinue={() => { setShowCredentials(false); setShowLoginModal(true); }}
+      />
 
-              <div className="space-y-10">
-                 <div className="space-y-4">
-                   <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
-                     <Sun className="w-8 h-8 text-slate-900" />
-                   </div>
-                   <h2 className="text-4xl font-black tracking-tight leading-tight">Secure <br/><span className="text-emerald-400 italic">Access.</span></h2>
-                   <p className="text-gray-400 font-medium leading-relaxed">Enterprise solar intelligence dashboard for approved partners.</p>
-                 </div>
+      <ForgotPasswordModal 
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
 
-              <div className="space-y-6">
-                <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Username</label>
-                  <input 
-                    placeholder="Enter Username" 
-                    className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
-                    onChange={e => setLoginForm({...loginForm, username: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-2 text-left">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Password</label>
-                    <button 
-                      onClick={() => setShowForgotPasswordModal(true)}
-                      className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest hover:underline"
-                    >
-                      Forgot?
-                    </button>
-                  </div>
-                  <input 
-                    type="password" 
-                    placeholder="Enter Password" 
-                    className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
-                    onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
-                  />
-                </div>
-                
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => setShowLoginModal(false)}
-                    className="flex-1 py-4 bg-slate-800 text-slate-400 font-bold rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleLogin} 
-                    className="flex-[2] py-4 bg-emerald-500 text-slate-900 font-black text-lg rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Verifying...' : 'Login Now'}
-                  </button>
-                </div>
-                
-                <div className="pt-6 border-t border-slate-800">
-                  <button 
-                    onClick={() => { setShowLoginModal(false); setShowAccessForm(true); }}
-                    className="w-full py-4 text-slate-500 text-sm font-medium hover:text-emerald-400 transition-colors"
-                  >
-                    Don't have access? <span className="font-bold underline">Register Here</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-           </motion.div>
-        </div>
-      )}
+      <FeedbackModal 
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={(msg) => {
+          console.log('Sending feedback:', msg);
+          // Actual implementation would involve an API call
+        }}
+      />
 
-      {/* Credentials Modal */}
-      {showCredentials && (
-        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl">
-           <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-slate-800" 
-           >
-              <div className="mb-10 text-center">
-                <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20 mx-auto">
-                  <ShieldCheck className="w-8 h-8 text-slate-900" />
-                </div>
-                <h3 className="text-3xl font-black mb-2 uppercase tracking-tight">Dashboard <span className="text-emerald-400 italic">Unlocked.</span></h3>
-                <p className="text-gray-400 text-sm font-medium">Enterprise credentials initialized. Save securely.</p>
-              </div>
-
-              <div className="space-y-4 mb-10">
-                <div className="bg-slate-950/50 p-6 rounded-3xl text-left border border-slate-800 group relative">
-                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Username</p>
-                   <p className="font-mono font-bold text-lg select-all text-white">{credentials.username}</p>
-                   <button 
-                    onClick={() => { navigator.clipboard.writeText(credentials.username); }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-slate-800 rounded-xl hover:bg-emerald-500 hover:text-slate-900 transition-all text-gray-400 border border-slate-700"
-                   >
-                     <Copy className="w-4 h-4" />
-                   </button>
-                </div>
-                <div className="bg-slate-950/50 p-6 rounded-3xl text-left border border-slate-800 group relative">
-                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Secure Token</p>
-                   <p className="font-mono font-bold text-lg select-all text-emerald-400">{credentials.password}</p>
-                   <button 
-                    onClick={() => { navigator.clipboard.writeText(credentials.password); }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-slate-800 rounded-xl hover:bg-emerald-500 hover:text-slate-900 transition-all text-gray-400 border border-slate-700"
-                   >
-                     <Copy className="w-4 h-4" />
-                   </button>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => { setShowCredentials(false); setShowLoginModal(true); }}
-                className="w-full py-5 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                Continue to Terminal <ArrowRight className="w-5 h-5" />
-              </button>
-           </motion.div>
-        </div>
-      )}
-
-      {/* Forgot Password Modal */}
-      {showForgotPasswordModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[500] p-4 backdrop-blur-sm" onClick={() => setShowForgotPasswordModal(false)}>
-           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 text-white p-8 sm:p-12 rounded-[40px] w-full max-w-sm border border-slate-800" 
-            onClick={e => e.stopPropagation()}
-           >
-              <h3 className="text-2xl font-black mb-4">Reset Access</h3>
-              <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-                If you have forgotten your credentials, please check your payment confirmation email or contact our support team.
-              </p>
-              <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Support Email</p>
-                <p className="font-bold text-emerald-600">admin@solaroptions.in</p>
-              </div>
-              <button 
-                onClick={() => setShowForgotPasswordModal(false)}
-                className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all"
-              >
-                Close
-              </button>
-           </motion.div>
-        </div>
-      )}
-
-      {/* Feedback Modal */}
-      {showFeedbackModal && (
-        <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[300] p-4 backdrop-blur-xl" onClick={() => setShowFeedbackModal(false)}>
-           <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative border border-white/5" 
-            onClick={e => e.stopPropagation()}
-           >
-              <div className="mb-10 text-left">
-                <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
-                  <MessageSquare className="w-7 h-7 text-slate-900" />
-                </div>
-                <h3 className="text-3xl font-black mb-2 uppercase tracking-tight">System <span className="text-emerald-400 italic">Feedback.</span></h3>
-                <p className="text-gray-400 font-medium leading-relaxed">Help us calibrate our industrial solar intelligence engine.</p>
-              </div>
-              
-              <div className="space-y-8">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Message Protocol</label>
-                  <textarea 
-                    rows={4}
-                    placeholder="Describe data inconsistencies or system suggestions..." 
-                    className="w-full px-6 py-5 bg-slate-900/50 border border-white/5 rounded-3xl outline-none focus:border-emerald-500/50 text-white transition-all font-medium resize-none placeholder:text-gray-700"
-                  />
-                </div>
-                <div className="flex gap-4 pt-4">
-                   <button onClick={() => setShowFeedbackModal(false)} className="flex-1 py-5 bg-slate-800 text-gray-400 font-bold rounded-2xl hover:bg-slate-700 transition-all">Dismiss</button>
-                   <button 
-                    onClick={() => { setShowFeedbackModal(false); }}
-                    className="flex-[2] py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all uppercase text-xs tracking-widest"
-                   >
-                     Submit Signal
-                   </button>
-                </div>
-              </div>
-           </motion.div>
-        </div>
-      )}
+      <AccessFormModal 
+        isOpen={showAccessForm}
+        onClose={() => setShowAccessForm(false)}
+        onSubmit={handlePayment}
+      />
 
       {/* Floating Action Buttons */}
       <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-40">
@@ -2020,72 +1866,6 @@ export default function SolarApp() {
            <MessageSquare className="w-6 h-6" />
          </motion.button>
       </div>
-
-      {/* Access/Payment Modal */}
-      {showAccessForm && (
-        <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[200] p-4 backdrop-blur-xl" onClick={() => setShowAccessForm(false)}>
-           <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide" 
-            onClick={e => e.stopPropagation()}
-           >
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-10">
-                 <div className="space-y-2">
-                    <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
-                    <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
-                 </div>
-                 <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹7800 Enterprise</div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Company Entity</label>
-                  <input placeholder="Legal Entity Name" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, companyName: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Mobile (Direct)</label>
-                  <input placeholder="Direct Line" maxLength={10} className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, contact: e.target.value.replace(/\D/g, '')})} />
-                </div>
-                <div className="col-span-full space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Corporate Email</label>
-                  <input placeholder="work@company.com" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, email: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Industrial Zone</label>
-                  <input placeholder="e.g. MIDC Chakan" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, location: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Business Authority</label>
-                  <input placeholder="Owner / EPC / Consultant" className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" onChange={e => setAccessForm({...accessForm, companyType: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="bg-slate-900/50 p-8 rounded-[40px] border border-white/5 mb-12 flex flex-col sm:flex-row items-center gap-6 group">
-                 <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center border border-white/10 group-hover:bg-emerald-500 transition-all duration-500">
-                   <Shield className="w-8 h-8 text-emerald-500 group-hover:text-slate-900" />
-                 </div>
-                 <p className="text-xs text-gray-400 leading-relaxed font-medium">
-                   Secure gateway validation via Razorpay. Credentials will be <span className="text-white font-bold italic underline decoration-emerald-500/50">deployed instantly</span> after payment reconciliation.
-                 </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6">
-                <button 
-                  onClick={() => setShowAccessForm(false)}
-                  className="flex-1 py-6 bg-slate-800 text-gray-400 font-black text-xs uppercase tracking-widest rounded-3xl hover:bg-slate-700 transition-all border border-white/5"
-                >
-                  Dismiss
-                </button>
-                <div className="flex-[4] flex flex-col sm:flex-row gap-4">
-                  <button onClick={handlePayment} className="flex-1 py-6 bg-emerald-500 text-slate-900 font-black text-xs uppercase tracking-widest rounded-3xl shadow-3xl hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 w-full">
-                    {isSubmitting ? (paymentLoadingMessage || 'Initializing...') : 'Domestic (INR)'}
-                    <Zap className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              </div>
-           </motion.div>
-        </div>
-      )}
 
       {/* Quote Request Modal */}
       <AnimatePresence>
@@ -2201,85 +1981,6 @@ export default function SolarApp() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Feedback Modal */}
-      <AnimatePresence>
-        {showFeedbackModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center px-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowFeedbackModal(false)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-slate-900 rounded-[40px] w-full max-w-md p-10 relative z-10 shadow-2xl overflow-hidden border border-slate-800"
-            >
-              <div className="absolute top-0 right-0 p-6">
-                <button 
-                  onClick={() => setShowFeedbackModal(false)}
-                  className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all border border-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-8">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-400 mb-6 font-black text-2xl italic border border-emerald-500/20">
-                  SO
-                </div>
-                <h3 className="text-2xl font-black text-white mb-2">Share Feedback</h3>
-                <p className="text-gray-400 font-medium">Your insights help us improve the platform for everyone.</p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-slate-950/50 p-8 rounded-[40px] border border-slate-800 text-center space-y-4">
-                  <div className="w-14 h-14 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl flex items-center justify-center mx-auto text-emerald-400">
-                    <Mail className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Direct Signal</p>
-                    <p className="text-xl font-black text-white select-all">info@solaroptions.in</p>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <p className="text-sm text-gray-400 font-medium leading-relaxed px-4 text-center">
-                    Technical support, data resolution, or enterprise inquiries are processed within 24 hours.
-                  </p>
-                  
-                  <button 
-                    onClick={() => window.location.href = 'mailto:info@solaroptions.in?subject=SolarOptions Feedback'}
-                    className="w-full py-6 bg-emerald-500 text-slate-900 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center justify-center gap-4 shadow-xl shadow-emerald-500/10"
-                  >
-                    Transmit Email <ArrowRight className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest mt-4">
-                  SolarOptions.in • solar rooftop calculator
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* WhatsApp Feedback Button */}
-      <motion.button
-        onClick={() => setShowFeedbackModal(true)}
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1 }}
-        className="fixed bottom-8 right-8 z-[200] bg-emerald-500 text-slate-900 p-4 rounded-full shadow-2xl flex items-center justify-center group"
-      >
-        <MessageSquare className="w-6 h-6" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold text-xs uppercase px-0 group-hover:px-2 whitespace-nowrap">Feedback</span>
-      </motion.button>
 
       {/* BG Effects */}
       <div className="fixed top-0 left-0 w-full h-[800px] bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none -z-10" />
@@ -2461,7 +2162,7 @@ export default function SolarApp() {
           </div>
         )}
       </AnimatePresence>
-      </div>
+    </div>
 
       {/* A4 Print Layout Overlay */}
       <div id="print-proposal" className="hidden print:block fixed inset-0 bg-white z-[9999] p-0">

@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, memo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -93,7 +93,7 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
   );
 }
 
-export default function ThreeScene({ buildings, panelZones, buildingHeight, panelConfig, onPlacementsUpdate, glRef }: ThreeSceneProps & { glRef?: React.MutableRefObject<THREE.WebGLRenderer | null> }) {
+function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, onPlacementsUpdate, glRef }: ThreeSceneProps & { glRef?: React.MutableRefObject<THREE.WebGLRenderer | null> }) {
   const activePanelPolygons = useMemo(() => {
     return panelZones.length > 0 ? panelZones : buildings;
   }, [panelZones, buildings]);
@@ -176,3 +176,6 @@ export default function ThreeScene({ buildings, panelZones, buildingHeight, pane
     </div>
   );
 }
+
+const ThreeScene = memo(ThreeSceneBase);
+export default ThreeScene;
