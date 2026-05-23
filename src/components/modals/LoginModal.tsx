@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sun, X, LogIn } from 'lucide-react';
+import { Sun, X, LogIn, Eye, EyeOff } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -20,6 +20,7 @@ export const LoginModal = React.memo(({
   isSubmitting 
 }: LoginModalProps) => {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!isOpen) return null;
 
@@ -66,13 +67,24 @@ export const LoginModal = React.memo(({
                   Forgot?
                 </button>
               </div>
-              <input 
-                type="password" 
-                placeholder="Enter Password" 
-                className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
-                value={loginForm.password}
-                onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="Enter Password" 
+                  className="w-full pl-6 pr-14 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600 animate-none" 
+                  value={loginForm.password}
+                  onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
+                />
+                <button
+                  type="button"
+                  id="toggle-password-visibility"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-emerald-400 transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             
             <div className="flex gap-4">

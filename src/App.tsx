@@ -193,7 +193,9 @@ export default function SolarApp() {
 
   useEffect(() => {
     if (isLoggedIn && epcView === 'inbox') {
-      fetch('/api/leads') // We can use the same leads endpoint or a specific inbox one if defined
+      // Use adblocker-safe alias path with leads fallback
+      fetch('/api/facilities')
+        .then(res => res.ok ? res : fetch('/api/leads'))
         .then(res => res.json())
         .then(data => setInboxData(data))
         .catch(err => console.error('Failed to fetch inbox:', err));
@@ -204,11 +206,19 @@ export default function SolarApp() {
   const fetchLiveLeads = async () => {
     setIsLoadingLeads(true);
     try {
-      const response = await fetch('/api/leads', {
-        headers: {
-          'X-Requested-With': 'SolarOptionsApp'
-        }
-      });
+      // Use adblocker-safe primary path /api/facilities to bypass uBlock/Brave Shields, fallback to leads
+      let response;
+      try {
+        response = await fetch('/api/facilities');
+        if (!response.ok) throw new Error('Server returned status: ' + response.status);
+      } catch (err) {
+        console.warn('Primary facilities fetch bypassed or failed, falling back to leads...', err);
+        response = await fetch('/api/leads', {
+          headers: {
+            'X-Requested-With': 'SolarOptionsApp'
+          }
+        });
+      }
       const data = await response.json();
       if (data && Array.isArray(data)) {
         const mapped = data.map((row) => ({
@@ -1364,33 +1374,33 @@ export default function SolarApp() {
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch mb-12">
                       {/* STEP 1: Identity Card (3 columns) */}
-                      <div className="xl:col-span-4 bg-white p-12 rounded-[56px] border border-slate-100 flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-full min-h-[600px]">
+                      <div className="xl:col-span-4 bg-white p-5 sm:p-12 rounded-3xl sm:rounded-[56px] border border-slate-100 flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-full min-h-[460px] sm:min-h-[600px]">
                         <div>
-                          <div className="flex items-center gap-4 mb-12">
+                          <div className="flex items-center gap-4 mb-6 sm:mb-12">
                             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                               <Target size={20} />
                             </div>
-                            <h3 className="text-3xl font-black text-slate-800 tracking-tight uppercase">1. Project Identity</h3>
+                            <h3 className="text-xl sm:text-3xl font-black text-slate-800 tracking-tight uppercase">1. Project Identity</h3>
                           </div>
                           
-                          <div className="space-y-12">
-                            <div className="space-y-4">
+                          <div className="space-y-6 sm:space-y-12">
+                            <div className="space-y-3 sm:space-y-4">
                               <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] block ml-1">Building Name</label>
                               <input 
                                 type="text" 
                                 value={designFactoryName || ''} 
                                 onChange={e => setDesignFactoryName(e.target.value)}
                                 placeholder="Enter industrial site name..."
-                                className="w-full bg-[#F8FAFC] border border-slate-100 rounded-[24px] p-6 text-slate-800 font-bold focus:border-emerald-500/30 transition-all outline-none placeholder:text-slate-300 text-lg"
+                                className="w-full bg-[#F8FAFC] border border-slate-100 rounded-xl sm:rounded-[24px] p-4 sm:p-6 text-slate-800 font-bold focus:border-emerald-500/30 transition-all outline-none placeholder:text-slate-300 text-base sm:text-lg"
                               />
                             </div>
                             
-                            <div className="space-y-6">
+                            <div className="space-y-4 sm:space-y-6">
                               <div className="flex justify-between items-end">
                                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1">Target Area</label>
                                 <div className="flex items-baseline gap-2">
-                                  <span className="text-4xl font-black text-slate-800 tracking-tight">{designTargetArea.toLocaleString()}</span>
-                                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">SQFT</span>
+                                  <span className="text-2xl sm:text-4xl font-black text-slate-800 tracking-tight">{designTargetArea.toLocaleString()}</span>
+                                  <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest">SQFT</span>
                                 </div>
                               </div>
                               <input 
@@ -1403,19 +1413,19 @@ export default function SolarApp() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pt-12">
-                           <div className="bg-[#F8FAFC] p-8 rounded-[32px] border border-slate-50">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Project Potential</p>
-                              <p className="text-3xl font-black text-slate-800">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-8 sm:pt-12">
+                           <div className="bg-[#F8FAFC] p-4 sm:p-8 rounded-2xl sm:rounded-[32px] border border-slate-50">
+                              <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 sm:mb-3">Project Potential</p>
+                              <p className="text-xl sm:text-3xl font-black text-slate-800">
                                 {designPanelCount > 0 
                                   ? (designPanelCount * 0.55).toFixed(1) 
                                   : (designTargetArea / 65).toFixed(1)} 
                                 <span className="text-xs font-bold text-slate-400 ml-1">kW</span>
                               </p>
                            </div>
-                           <div className="bg-[#F8FAFC] p-8 rounded-[32px] border border-slate-50">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Est. Modules</p>
-                              <p className="text-3xl font-black text-slate-800">
+                           <div className="bg-[#F8FAFC] p-4 sm:p-8 rounded-2xl sm:rounded-[32px] border border-slate-50">
+                              <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 sm:mb-3">Est. Modules</p>
+                              <p className="text-xl sm:text-3xl font-black text-slate-800">
                                 {designPanelCount > 0 
                                   ? designPanelCount 
                                   : Math.floor((designTargetArea / 75) / 0.55)} 
@@ -1426,16 +1436,16 @@ export default function SolarApp() {
                       </div>
 
                       {/* STEP 2: Design Canvas Card (8 columns) */}
-                      <div className="xl:col-span-8 bg-white rounded-[56px] border border-slate-100 flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.03)] min-h-[700px]">
-                        <header className="px-10 py-8 flex justify-between items-center border-b border-slate-50 bg-white z-10">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-800 rounded-2xl flex items-center justify-center text-white shadow-xl">
-                              <PenTool size={20} />
+                      <div className="xl:col-span-8 bg-white rounded-3xl sm:rounded-[56px] border border-slate-100 flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-[550px] sm:min-h-[700px]">
+                        <header className="px-4 py-4 sm:px-10 sm:py-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-50 bg-white z-10">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl">
+                              <PenTool size={16} className="sm:w-5 sm:h-5" />
                             </div>
-                            <h3 className="text-3xl font-black text-slate-800 tracking-tight uppercase">2. SKETCH BOUNDARIES</h3>
+                            <h3 className="text-xl sm:text-3xl font-black text-slate-800 tracking-tight uppercase">2. SKETCH BOUNDARIES</h3>
                           </div>
                           
-                          <div className="flex bg-[#F8FAFC] p-1.5 rounded-[20px] border border-slate-100 shadow-inner">
+                          <div className="flex bg-[#F8FAFC] p-1 rounded-[16px] sm:rounded-[20px] border border-slate-100 shadow-inner w-full sm:w-auto">
                              {[
                                { id: 'rooftops', label: 'ROOF' },
                                { id: 'panels', label: 'PANELS' }
@@ -1445,7 +1455,7 @@ export default function SolarApp() {
                                  onClick={() => setDesignPhase(phase.id as any)}
                                  disabled={phase.id === 'panels' && designBuildings.length === 0}
                                  className={cn(
-                                   "px-10 py-3 rounded-[14px] text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                                   "flex-1 sm:flex-initial px-4 sm:px-10 py-2 sm:py-3 rounded-[10px] sm:rounded-[14px] text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all",
                                    designPhase === phase.id ? "bg-white text-emerald-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600",
                                    phase.id === 'panels' && designBuildings.length === 0 && "opacity-30 cursor-not-allowed"
                                  )}
@@ -1493,7 +1503,7 @@ export default function SolarApp() {
 
                        {showDesign3D && designBuildings.length > 0 && (
                          <div className="w-full space-y-8 animate-in fade-in zoom-in-95 duration-700">
-                           <div className="h-[600px] bg-slate-900 rounded-[3.5rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+                           <div className="h-[380px] sm:h-[600px] bg-slate-900 rounded-[2rem] sm:rounded-[3.5rem] overflow-hidden border border-white/10 shadow-2xl relative group">
                               <ThreeScene 
                                 buildings={designBuildings}
                                 panelZones={designPanelZones}
@@ -1501,23 +1511,23 @@ export default function SolarApp() {
                                 panelConfig={designPanelConfig}
                                 onPlacementsUpdate={setDesignPanelCount}
                               />
-                              <div className="absolute top-8 left-8 flex flex-col gap-2">
-                                <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-3">
-                                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                   <span className="text-[10px] font-black text-white uppercase tracking-widest">3D Precision Simulation</span>
+                              <div className="absolute top-4 left-4 sm:top-8 sm:left-8 flex flex-col gap-2">
+                                <div className="bg-slate-900/80 backdrop-blur-md px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border border-white/10 flex items-center gap-2 sm:gap-3">
+                                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                   <span className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-widest">3D Precision Simulation</span>
                                 </div>
                               </div>
 
-                              <div className="absolute bottom-8 right-8 pointer-events-none">
-                                <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 space-y-4">
-                                  <div className="grid grid-cols-2 gap-8">
+                              <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:bottom-8 sm:right-8 pointer-events-none">
+                                <div className="bg-slate-950/85 sm:bg-white/10 backdrop-blur-xl p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-white/10 space-y-2 sm:space-y-4">
+                                  <div className="grid grid-cols-2 gap-4 sm:gap-8">
                                     <div className="space-y-1">
-                                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Actual Peak</p>
-                                      <p className="text-2xl font-black text-white font-mono leading-none">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
+                                      <p className="text-[8px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-widest">Actual Peak</p>
+                                      <p className="text-xl sm:text-2xl font-black text-white font-mono leading-none">{(designPanelCount * 0.55).toFixed(1)} <span className="text-xs">kWp</span></p>
                                     </div>
                                     <div className="space-y-1">
-                                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Payback</p>
-                                      <p className="text-2xl font-black text-white font-mono leading-none">{(3.1).toFixed(1)} <span className="text-xs">Yrs</span></p>
+                                      <p className="text-[8px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-widest">Payback</p>
+                                      <p className="text-xl sm:text-2xl font-black text-white font-mono leading-none">{(3.1).toFixed(1)} <span className="text-xs">Yrs</span></p>
                                     </div>
                                   </div>
                                 </div>
@@ -1844,9 +1854,18 @@ export default function SolarApp() {
       <FeedbackModal 
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
-        onSubmit={(msg) => {
-          console.log('Sending feedback:', msg);
-          // Actual implementation would involve an API call
+        onSubmit={async (msg) => {
+          if (!msg || msg.trim().length === 0) return;
+          try {
+            await fetch('/api/feedback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'feedback', feedback: msg, timestamp: new Date().toISOString() }),
+            });
+            console.log('Feedback submitted successfully');
+          } catch (error) {
+            console.error('Failed to submit feedback:', error);
+          }
         }}
       />
 
