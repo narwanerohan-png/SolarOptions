@@ -32,7 +32,7 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
             <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
             <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
           </div>
-          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹7800 Enterprise</div>
+          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹1 Enterprise</div>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">

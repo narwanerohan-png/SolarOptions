@@ -276,7 +276,7 @@ export default function SolarApp() {
     const openRazorpay = () => {
       const options = {
         key: 'rzp_live_SYVCbNHoPZBoWv',
-        amount: 780000, // ₹7800 per month
+        amount: 100, // ₹1 per month
         currency: 'INR',
         name: 'Solar Options Pro Access',
         description: '30 Days Premium Leads Access',
