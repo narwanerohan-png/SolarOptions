@@ -390,7 +390,7 @@ export default function SolarApp() {
     console.log("Legacy savePayment called (should be handled in handler):", paymentId);
   };
 
-  const handleFreeTrial = async (formData: any) => {
+  const handleFreeTrial = async (formData: any, forceBypass = false) => {
     setTrialError(null);
     if (!formData.email.includes('@') || formData.contact.length !== 10) {
       setTrialError("Please enter valid direct contact details. Your email must contain '@' and your mobile number must be exactly 10 digits.");
@@ -433,21 +433,27 @@ export default function SolarApp() {
         throw new Error(checkData.message);
       }
 
-      // 1.5 Verify email ownership using Google popup before generating credentials
-      setPaymentLoadingMessage('Verifying ownership via Google Account. Please complete the login popup...');
-      const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
-      const userCredential = await signInWithPopup(auth, googleProvider);
-      const googleUser = userCredential.user;
+      let verifiedEmail = formData.email.trim().toLowerCase();
 
-      if (!googleUser || !googleUser.email) {
-        throw new Error("Unable to retrieve verified email from Google Sign-In.");
-      }
+      if (!forceBypass) {
+        // 1.5 Verify email ownership using Google popup before generating credentials
+        setPaymentLoadingMessage('Verifying ownership via Google Account. Please complete the login popup...');
+        const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
+        const userCredential = await signInWithPopup(auth, googleProvider);
+        const googleUser = userCredential.user;
 
-      const verifiedEmail = googleUser.email.trim().toLowerCase();
-      const typedEmail = formData.email.trim().toLowerCase();
+        if (!googleUser || !googleUser.email) {
+          throw new Error("Unable to retrieve verified email from Google Sign-In.");
+        }
 
-      if (verifiedEmail !== typedEmail) {
-        throw new Error(`Email verification failed. The typed email (${typedEmail}) does not match your signed-in Google account (${verifiedEmail}). Please ensure you sign into the matching Google account to verify your identity.`);
+        verifiedEmail = googleUser.email.trim().toLowerCase();
+        const typedEmail = formData.email.trim().toLowerCase();
+
+        if (verifiedEmail !== typedEmail) {
+          throw new Error(`Email verification failed. The typed email (${typedEmail}) does not match your signed-in Google account (${verifiedEmail}). Please ensure you sign into the matching Google account to verify your identity.`);
+        }
+      } else {
+        console.log("[Developer Mode] Bypassing Google OAuth Popup sign-in step for sandbox testing.");
       }
 
       // 2. Generate custom 1-day credentials
