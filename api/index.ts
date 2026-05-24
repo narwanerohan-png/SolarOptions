@@ -180,6 +180,9 @@ interface LocalUser {
   contact?: string;
   paymentId?: string;
   validUntil?: string;
+  isTrial?: boolean;
+  fingerprint?: string;
+  expiryDate?: string;
   timestamp: string;
 }
 
@@ -193,6 +196,128 @@ const localUsers: LocalUser[] = [
     timestamp: new Date().toISOString()
   }
 ];
+
+async function fetchSheet2Users(): Promise<any[]> {
+  try {
+    const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
+    const sheet2Url = `${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet2&sheetName=Sheet2&action=read`;
+    const sheetData = await getGoogleScriptData(sheet2Url);
+    
+    let parsedData = sheetData;
+    if (typeof parsedData === 'string') {
+      if (parsedData.includes("<!DOCTYPE") || parsedData.includes("<html") || parsedData.includes("Google Drive - Page Not Found")) {
+        console.warn("[fetchSheet2Users] Custom warning: Returned HTML page instead of JSON string");
+        return [];
+      }
+      try {
+        parsedData = JSON.parse(parsedData);
+      } catch (parseErr) {
+        console.warn("[fetchSheet2Users] JSON.parse failed on string payload:", parseErr);
+        return [];
+      }
+    }
+
+    let usersList: any[] = [];
+    if (Array.isArray(parsedData)) {
+      usersList = parsedData;
+    } else if (parsedData && typeof parsedData === 'object') {
+      if (Array.isArray(parsedData.data)) {
+        usersList = parsedData.data;
+      } else if (parsedData.users && Array.isArray(parsedData.users)) {
+        usersList = parsedData.users;
+      } else if (parsedData.rows && Array.isArray(parsedData.rows)) {
+        usersList = parsedData.rows;
+      }
+    }
+    return usersList;
+  } catch (err: any) {
+    console.error("[fetchSheet2Users] Error fetching Sheet2 users:", err.message);
+    return [];
+  }
+}
+
+function isUserAlreadyPresent(inputEmail: string, inputContact: string, sheetUsers: any[], localUsersList: LocalUser[]): { exists: boolean; reason: string } {
+  const cleanEmail = String(inputEmail || "").trim().toLowerCase();
+  
+  const cleanNumber = (numStr: string) => {
+    const clean = String(numStr || "").replace(/\D/g, ''); // keep only digits
+    return clean.length >= 10 ? clean.slice(-10) : clean;
+  };
+
+  const cleanContact = cleanNumber(inputContact);
+
+  const getRowValue = (val: any): string => {
+    if (val === undefined || val === null) return "";
+    return String(val).trim();
+  };
+
+  const findValueByKeyPatterns = (row: any, patterns: string[]): string => {
+    if (!row || typeof row !== 'object') return "";
+    const keys = Object.keys(row);
+    for (const key of keys) {
+      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const pattern of patterns) {
+        const normalizedPattern = pattern.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normalizedKey === normalizedPattern || normalizedKey.includes(normalizedPattern) || normalizedPattern.includes(normalizedKey)) {
+          return getRowValue(row[key]);
+        }
+      }
+    }
+    return "";
+  };
+
+  // 1. Search in Local Users Cache
+  for (const u of localUsersList) {
+    const uEmail = getRowValue(u.username || u.email).toLowerCase();
+    const uContact = cleanNumber(u.contact || "");
+
+    if (cleanEmail && uEmail === cleanEmail) {
+      return { exists: true, reason: "User already exists and has already used the free trial." };
+    }
+    if (cleanContact && uContact === cleanContact) {
+      return { exists: true, reason: "User already exists and has already used the free trial." };
+    }
+  }
+
+  // 2. Search in Sheet2 Users
+  for (const row of sheetUsers) {
+    if (!row || typeof row !== 'object') continue;
+
+    const rowEmail = (
+      getRowValue(row.username) || getRowValue(row.Username) || 
+      getRowValue(row.email) || getRowValue(row.Email) || 
+      getRowValue(row['Email ID']) || getRowValue(row['EmailId']) || 
+      getRowValue(row['email_id']) || getRowValue(row['Email id']) || 
+      getRowValue(row.user) || getRowValue(row.User) || 
+      findValueByKeyPatterns(row, ['username', 'email', 'emailid', 'user'])
+    ).toLowerCase();
+
+    const rowContact = getRowValue(
+      row.contact || row.Contact || 
+      row.phone || row.Phone || 
+      row.mobile || row.Mobile || 
+      row['Mobile Number'] || row['MobileNumber'] || 
+      row['mobile_number'] || row['Mobile number'] || 
+      row['Phone Number'] || row['PhoneNumber'] || 
+      row['phone_number'] || row['Phone number'] || 
+      row['Contact Number'] || row['ContactNumber'] || 
+      row['contact_number'] || row['Contact number'] || 
+      row['direct contact'] || row['Direct Contact'] || 
+      findValueByKeyPatterns(row, ['contact', 'phone', 'mobile', 'cell', 'mobilenumber', 'phonenumber', 'contactnumber', 'directcontact'])
+    );
+
+    const rowContactClean = cleanNumber(rowContact);
+
+    if (cleanEmail && rowEmail === cleanEmail) {
+      return { exists: true, reason: "User already exists and has already used the free trial." };
+    }
+    if (cleanContact && rowContactClean && rowContactClean === cleanContact) {
+      return { exists: true, reason: "User already exists and has already used the free trial." };
+    }
+  }
+
+  return { exists: false, reason: "" };
+}
 
 // Proxy: Get Leads (with alias /api/facilities to bypass adblockers)
 app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], async (req, res) => {
@@ -334,6 +459,20 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
         const companyName = matchedUser['companyName'] || matchedUser['Company Name'] || matchedUser['Company'] || matchedUser['name'] || matchedUser['Name'] || "Client Org";
         let validUntil = matchedUser['validUntil'] || matchedUser['Valid Until'] || matchedUser['expiryDate'] || matchedUser['Expiry Date'] || matchedUser['expiry'] || matchedUser['Expiry'] || "30 Days";
         
+        // Expiry verification for 1-day trial limit
+        if (validUntil && !validUntil.toLowerCase().includes("30 days") && !validUntil.toLowerCase().includes("lifetime") && !isNaN(Date.parse(validUntil))) {
+          const expTime = new Date(validUntil).getTime();
+          if (expTime < Date.now()) {
+            console.warn(`[Login] Credentials expired for ${normalizedUsername}`);
+            return res.status(403).json({
+              success: false,
+              expired: true,
+              error: "Trial expired",
+              message: "Your 1-day free trial has expired. Please upgrade to a paid premium subscription to continue."
+            });
+          }
+        }
+
         if (validUntil && validUntil.includes('T')) {
           try {
             const date = new Date(validUntil);
@@ -367,6 +506,20 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
     });
 
     if (localMatchedUser) {
+      const expStr = localMatchedUser.expiryDate || localMatchedUser.validUntil;
+      if (expStr && !expStr.toLowerCase().includes("30 days") && !expStr.toLowerCase().includes("lifetime") && !isNaN(Date.parse(expStr))) {
+        const expTime = new Date(expStr).getTime();
+        if (expTime < Date.now()) {
+          console.warn(`[Login] Credentials expired for ${normalizedUsername}`);
+          return res.status(403).json({
+            success: false,
+            expired: true,
+            error: "Trial expired",
+            message: "Your 1-day free trial has expired. Please upgrade to a paid premium subscription to continue."
+          });
+        }
+      }
+
       console.log(`[Login][${requestId}] Success via local memory table alignment for: ${req.body.username}`);
       return res.json({
         success: true,
@@ -387,42 +540,329 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
   }
 });
 
-// Proxy: Register/Payment Sync
-app.post(["/api/register", "/api/register/"], async (req, res) => {
-  const userData: LocalUser = {
-    username: req.body.username || req.body.email,
-    password: req.body.password,
-    companyName: req.body.companyName,
-    email: req.body.email,
-    contact: req.body.contact,
-    paymentId: req.body.paymentId,
-    validUntil: req.body.validUntil,
-    timestamp: req.body.timestamp || new Date().toISOString()
-  };
-  
-  if (userData.username) {
-    const idx = localUsers.findIndex(u => u.username.toLowerCase() === userData.username.toLowerCase());
-    if (idx !== -1) {
-      localUsers[idx] = userData;
-    } else {
-      localUsers.push(userData);
-    }
+// Google Sign-In Verification and Trial Control
+app.post("/api/google-login", async (req, res) => {
+  const { email, fingerprint, companyName } = req.body;
+  const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
+  const timestamp = new Date().toISOString();
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const cleanFingerprint = String(fingerprint || "").trim();
+
+  // Load existing registrations from Sheet2 to prevent abuse after server restarts or multi-instance drift
+  let sheetUsers: any[] = [];
   try {
-    let responseData = await postGoogleScriptData(GOOGLE_SCRIPT_URL, {
-      action: 'register',
-      ...req.body
-    });
-    if (typeof responseData === 'string' && (responseData.includes("<!DOCTYPE") || responseData.includes("<html"))) {
-      return res.json({ success: true, message: "Saved locally (Google App Script returned HTML/permissions issue)", savedLocally: true });
+    console.log(`[Google Login] Pulling Sheet2 live registrations list for duplicate trial and subscription checks...`);
+    sheetUsers = await fetchSheet2Users();
+    console.log(`[Google Login] Live Sheet2 loaded with ${sheetUsers.length} entries.`);
+  } catch (sheetErr: any) {
+    console.warn(`[Google Login] Live Sheet2 fetch failed (${sheetErr.message}). Relying on local session cache.`);
+  }
+
+  // A. Check if user is already registered as a premium/paid user under this email (non-trial) or has non-trial access
+  const existingPaidUser = sheetUsers.find(row => {
+    if (!row || typeof row !== 'object') return false;
+    const rowEmail = String(row.username || row.email || row.Email || '').trim().toLowerCase();
+    const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial');
+    return rowEmail === normalizedEmail && !rowIsTrial;
+  });
+
+  if (existingPaidUser) {
+    const companyName = existingPaidUser.companyName || existingPaidUser['Company Name'] || "Premium Subscriber";
+    let validUntil = existingPaidUser.validUntil || existingPaidUser['Valid Until'] || existingPaidUser.expiryDate || "30 Days";
+    
+    // Check if subscription has expired
+    if (validUntil && !validUntil.toLowerCase().includes("30 days") && !validUntil.toLowerCase().includes("lifetime") && !isNaN(Date.parse(validUntil))) {
+      const expTime = new Date(validUntil).getTime();
+      if (expTime < Date.now()) {
+        console.warn(`[Google Login] Premium subscription expired for ${normalizedEmail}`);
+        return res.status(403).json({
+          success: false,
+          expired: true,
+          error: "Subscription expired",
+          message: "Your premium subscription has expired. Please upgrade or renew your subscription to reactivate access."
+        });
+      }
     }
     
-    res.json(responseData);
-  } catch (error: any) {
-    const statusInfo = error.response ? `HTTP ${error.response.status}` : error.message;
-    console.log(`[Backup Database] Google Sheets Sync offline (${statusInfo}). Registration successfully saved in-memory.`);
-    res.json({ success: true, message: "Registration saved locally on server fallback", savedLocally: true });
+    console.log(`[Google Login] Existing premium user login successful: ${normalizedEmail}`);
+    return res.json({
+      success: true,
+      user: {
+        username: normalizedEmail,
+        companyName,
+        validUntil: validUntil.includes('T') ? new Date(validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : validUntil,
+        isTrial: false
+      }
+    });
+  }
+
+  // B. Prevent same Google account or device fingerprint from claiming free trial multiple times
+  const wasTrialClaimedEmail = localUsers.some(u => String(u.username || '').toLowerCase() === normalizedEmail && u.isTrial) ||
+    sheetUsers.some(row => {
+      const rowEmail = String(row.username || row.email || row.Email || '').trim().toLowerCase();
+      const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial') || !row.paymentId;
+      return rowEmail === normalizedEmail && rowIsTrial;
+    });
+
+  const wasTrialClaimedFP = (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") && (
+    localUsers.some(u => u.fingerprint === cleanFingerprint && u.isTrial) ||
+    sheetUsers.some(row => {
+      const rowFP = String(row.fingerprint || row.Fingerprint || '').trim();
+      const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial') || !row.paymentId;
+      return rowFP === cleanFingerprint && rowIsTrial;
+    })
+  );
+
+  if (wasTrialClaimedEmail || wasTrialClaimedFP) {
+    // Check if the trial session is still within its 24-hour window
+    let expiryVal: string | null = null;
+    const cacheMatch = localUsers.find(u => String(u.username || '').toLowerCase() === normalizedEmail);
+    const sheetMatch = sheetUsers.find(row => String(row.username || row.email || row.Email || '').trim().toLowerCase() === normalizedEmail);
+    
+    if (cacheMatch) expiryVal = cacheMatch.expiryDate || cacheMatch.validUntil || null;
+    if (!expiryVal && sheetMatch) expiryVal = sheetMatch.expiryDate || sheetMatch.validUntil || sheetMatch['Valid Until'] || null;
+
+    if (expiryVal && !isNaN(Date.parse(expiryVal))) {
+      const expiryTime = new Date(expiryVal).getTime();
+      if (expiryTime > Date.now()) {
+        console.log(`[Google Login] Re-using active trial for ${normalizedEmail} (Expires: ${expiryVal})`);
+        return res.json({
+          success: true,
+          user: {
+            username: normalizedEmail,
+            companyName: (cacheMatch?.companyName || sheetMatch?.companyName || "Google Trial User"),
+            validUntil: new Date(expiryTime).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            isTrial: true
+          }
+        });
+      }
+    }
+
+    // Trial already claimed or expired - redirect to payment screen
+    console.warn(`[Google Login] Duplicate trial claim denied for: ${normalizedEmail}, Fingerprint: ${cleanFingerprint}`);
+    return res.status(403).json({
+      success: false,
+      trialUsed: true,
+      error: "Trial already claimed",
+      message: "Our security engine detected that a 1-day free trial has transitively already been claimed on this Google account or device browser. Please upgrade/unlock a professional (30 Days) premium account."
+    });
+  }
+
+  // C. Register a new 1-day free trial account
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + 1); // Exact 1-day restriction
+
+  const newTrialUser: LocalUser = {
+    username: normalizedEmail,
+    email: normalizedEmail,
+    companyName: companyName || "Google Trial User",
+    validUntil: expiry.toISOString(),
+    expiryDate: expiry.toISOString(),
+    isTrial: true,
+    fingerprint: cleanFingerprint,
+    timestamp: timestamp
+  };
+
+  localUsers.push(newTrialUser);
+  console.log(`[Google Login] Created new 1-day trial for ${normalizedEmail} (Fingerprint: ${cleanFingerprint}, IP: ${ipAddress})`);
+
+  // Sync back to Google sheet if active
+  try {
+    await postGoogleScriptData(GOOGLE_SCRIPT_URL, {
+      action: 'register',
+      username: normalizedEmail,
+      "Username": normalizedEmail,
+      email: normalizedEmail,
+      "Email": normalizedEmail,
+      companyName: companyName || "Google Trial User",
+      "Company Name": companyName || "Google Trial User",
+      validUntil: expiry.toISOString(),
+      "Valid Until": expiry.toISOString(),
+      "valid_until": expiry.toISOString(),
+      expiryDate: expiry.toISOString(),
+      "Expiry Date": expiry.toISOString(),
+      expiry: expiry.toISOString(),
+      "Expiry": expiry.toISOString(),
+      "Access Days": "1 Day",
+      "access_days": "1",
+      "accessDays": "1 Day",
+      "Days": "1",
+      "days": "1",
+      "Duration": "1 Day",
+      "duration": "1 Day",
+      "Plan": "1 Day Trial",
+      "plan": "1 Day Trial",
+      "Validity": "1 Day",
+      "validity": "1 Day",
+      isTrial: true,
+      "Is Trial": "true",
+      "is_trial": "true",
+      fingerprint: cleanFingerprint,
+      "Fingerprint": cleanFingerprint,
+      ipAddress: String(ipAddress),
+      timestamp: timestamp,
+      "Timestamp": timestamp,
+      sheet: 'Sheet2'
+    });
+  } catch (err: any) {
+    console.warn(`[Google Login GAS Sync] Fallback: ${err.message}`);
+  }
+
+  res.json({
+    success: true,
+    user: {
+      username: normalizedEmail,
+      companyName: companyName || "Google Trial User",
+      validUntil: expiry.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      isTrial: true
+    }
+  });
+});
+
+// Proxy: Register/Payment Sync
+app.post(["/api/register", "/api/register/"], async (req, res) => {
+  try {
+    const normalizedEmail = (req.body.username || req.body.email || "").trim().toLowerCase();
+    const cleanFingerprint = (req.body.fingerprint || "").trim();
+
+    // Prevent same Google account or device browser from repeatedly claiming free trials
+    if (req.body.isTrial) {
+      let sheetUsers: any[] = [];
+      try {
+        sheetUsers = await fetchSheet2Users();
+      } catch (e) {
+        console.warn("[Register Warning] Sheet pull during restriction validation failed:", e);
+      }
+
+      const checkResult = isUserAlreadyPresent(normalizedEmail, String(req.body.contact || ""), sheetUsers, localUsers);
+
+      const alreadyClaimedFP = (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") && (
+        localUsers.some(u => u.fingerprint === cleanFingerprint && u.isTrial) ||
+        sheetUsers.some(row => {
+          if (!row || typeof row !== 'object') return false;
+          const rowFP = String(row.fingerprint || row.Fingerprint || '').trim();
+          const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial') || !row.paymentId;
+          return rowFP === cleanFingerprint && rowIsTrial;
+        })
+      );
+
+      if (checkResult.exists || alreadyClaimedFP) {
+        console.warn(`[Register] Blocked trial abuse for ${normalizedEmail} (Fingerprint: ${cleanFingerprint}): ${checkResult.exists ? checkResult.reason : 'Device tracking match'}`);
+        return res.status(403).json({
+          success: false,
+          error: "Trial already claimed",
+          message: "User already exists and has already used the free trial."
+        });
+      }
+    }
+
+    const isTrial = req.body.isTrial === true || String(req.body.isTrial || '').toLowerCase() === 'true' || String(req.body.paymentId || '').includes('free-trial');
+    
+    // In force 1-day trial limit calculation
+    const trialExpiry = new Date();
+    trialExpiry.setDate(trialExpiry.getDate() + 1);
+
+    const determinedValidUntil = isTrial ? trialExpiry.toISOString() : (req.body.validUntil || req.body.expiryDate || "30 Days");
+    const determinedExpiryDate = isTrial ? trialExpiry.toISOString() : (req.body.expiryDate || req.body.validUntil || "");
+
+    const userData: LocalUser = {
+      username: req.body.username || req.body.email,
+      password: req.body.password,
+      companyName: req.body.companyName,
+      email: req.body.email,
+      contact: req.body.contact,
+      paymentId: req.body.paymentId,
+      validUntil: determinedValidUntil,
+      isTrial: isTrial,
+      fingerprint: cleanFingerprint,
+      expiryDate: determinedExpiryDate,
+      timestamp: req.body.timestamp || new Date().toISOString()
+    };
+    
+    if (userData.username) {
+      const idx = localUsers.findIndex(u => String(u.username || '').toLowerCase() === String(userData.username || '').toLowerCase());
+      if (idx !== -1) {
+        localUsers[idx] = userData;
+      } else {
+        localUsers.push(userData);
+      }
+    }
+
+    try {
+      // Build extremely robust payload to match exactly what Google App Script columns expect
+      const postPayload: any = {
+        action: 'register',
+        ...req.body,
+        isTrial: isTrial,
+        "Is Trial": isTrial ? "true" : "false",
+        "is_trial": isTrial ? "true" : "false",
+        validUntil: determinedValidUntil,
+        "Valid Until": determinedValidUntil,
+        "valid_until": determinedValidUntil,
+        expiryDate: determinedExpiryDate,
+        "Expiry Date": determinedExpiryDate,
+        expiry: determinedValidUntil,
+        "Expiry": determinedValidUntil,
+        "Access Days": isTrial ? "1 Day" : "30 Days",
+        "access_days": isTrial ? "1" : "30",
+        "accessDays": isTrial ? "1 Day" : "30 Days",
+        "Days": isTrial ? "1" : "30",
+        "days": isTrial ? "1" : "30",
+        "Duration": isTrial ? "1 Day" : "30 Days",
+        "duration": isTrial ? "1 Day" : "30 Days",
+        "Plan": isTrial ? "1 Day Trial" : "30 Days Premium",
+        "plan": isTrial ? "1 Day Trial" : "30 Days Premium",
+        "Validity": isTrial ? "1 Day" : "30 Days",
+        "validity": isTrial ? "1 Day" : "30 Days",
+        "Subscription": isTrial ? "Free Trial" : "Premium 30 Days",
+        username: req.body.username || req.body.email,
+        "Username": req.body.username || req.body.email,
+        email: req.body.email,
+        "Email": req.body.email,
+        password: req.body.password,
+        "Password": req.body.password,
+        companyName: req.body.companyName,
+        "Company Name": req.body.companyName,
+        contact: req.body.contact,
+        "Contact": req.body.contact,
+        paymentId: req.body.paymentId,
+        "Payment ID": req.body.paymentId,
+      };
+
+      let responseData = await postGoogleScriptData(GOOGLE_SCRIPT_URL, postPayload);
+      if (typeof responseData === 'string' && (responseData.includes("<!DOCTYPE") || responseData.includes("<html"))) {
+        return res.json({ success: true, message: "Saved locally (Google App Script returned HTML/permissions issue)", savedLocally: true });
+      }
+      
+      res.json(responseData);
+    } catch (error: any) {
+      const statusInfo = error.response ? `HTTP ${error.response.status}` : error.message;
+      console.log(`[Backup Database] Google Sheets Sync offline (${statusInfo}). Registration successfully saved in-memory.`);
+      res.json({ success: true, message: "Registration saved locally on server fallback", savedLocally: true });
+    }
+  } catch (globalErr: any) {
+    console.error("[Register Error]", globalErr);
+    return res.status(500).json({
+      success: false,
+      message: "An internal server error occurred while register processing. Your trial request could not be authenticated. " + globalErr.message
+    });
   }
 });
 
@@ -486,6 +926,39 @@ app.post("/api/create-checkout-session", async (req, res) => {
     res.json({ id: session.id });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// API: Check if email or contact has already claim or been registered
+app.post("/api/check-existence", async (req, res) => {
+  try {
+    const inputEmail = String(req.body.email || req.body.username || "").trim().toLowerCase();
+    const inputContact = String(req.body.contact || "").trim();
+
+    if (!inputEmail && !inputContact) {
+      return res.json({ exists: false });
+    }
+
+    // 1. Get sheet users
+    let sheetUsers: any[] = [];
+    try {
+      sheetUsers = await fetchSheet2Users();
+    } catch (e: any) {
+      console.warn("[Check Existence Warning] Sheet pull failed:", e.message);
+    }
+
+    const checkResult = isUserAlreadyPresent(inputEmail, inputContact, sheetUsers, localUsers);
+    if (checkResult.exists) {
+      return res.json({
+        exists: true,
+        message: checkResult.reason
+      });
+    }
+
+    return res.json({ exists: false });
+  } catch (error: any) {
+    console.error("[Check Existence Error] failure:", error);
+    return res.json({ exists: false });
   }
 });
 

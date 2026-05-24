@@ -6,6 +6,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (form: any) => void;
+  onGoogleLogin?: () => void;
   onShowForgotPassword: () => void;
   onShowAccessForm: () => void;
   isSubmitting: boolean;
@@ -15,6 +16,7 @@ export const LoginModal = React.memo(({
   isOpen, 
   onClose, 
   onLogin, 
+  onGoogleLogin,
   onShowForgotPassword, 
   onShowAccessForm,
   isSubmitting 
@@ -48,6 +50,24 @@ export const LoginModal = React.memo(({
           </div>
 
           <div className="space-y-6">
+            {/* Google Sign-In Button */}
+            {onGoogleLogin && (
+              <button
+                type="button"
+                onClick={onGoogleLogin}
+                className="w-full flex items-center justify-center gap-3 py-4 bg-white/10 hover:bg-white/15 active:scale-[0.98] border border-white/10 hover:border-white/20 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-lg cursor-pointer"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" referrerPolicy="no-referrer" />
+                Continue with Google
+              </button>
+            )}
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-slate-800"></div>
+              <span className="flex-shrink mx-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">or use credentials</span>
+              <div className="flex-grow border-t border-slate-800"></div>
+            </div>
+
             <div className="space-y-2 text-left">
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Username</label>
               <input 

@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "TrialClaim": {
+      "title": "Trial Claim",
+      "description": "Records representing a claim of free 1-day trial by email or device fingerprint",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The Google email of the trial user"
+        },
+        "fingerprint": {
+          "type": "string",
+          "description": "Visitor device fingerprint to prevent multiple accounts"
+        },
+        "ipAddress": {
+          "type": "string",
+          "description": "The IP address of the claiming client"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp of the trial"
+        },
+        "validUntil": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Expiration time of the trial (1 day later)"
+        }
+      },
+      "required": ["email", "fingerprint", "ipAddress", "createdAt", "validUntil"]
+    },
+    "UserSession": {
+      "title": "User Session",
+      "description": "Represents active user subscription or trial state and access expiry",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The email of the user"
+        },
+        "authType": {
+          "type": "string",
+          "enum": ["google", "credentials"]
+        },
+        "fingerprint": {
+          "type": "string",
+          "description": "Fingerprint used to log in"
+        },
+        "ipAddress": {
+          "type": "string",
+          "description": "IP address tracked"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp indicating when access expires"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Created time"
+        }
+      },
+      "required": ["email", "authType", "expiryDate", "createdAt"]
+    }
+  },
+  "firestore": {
+    "trials/{trialId}": {
+      "schema": "TrialClaim",
+      "description": "Collection tracking trial usages to block duplicates"
+    },
+    "sessions/{sessionId}": {
+      "schema": "UserSession",
+      "description": "Collection keeping track of active user access and expiry dates"
+    }
+  }
+}

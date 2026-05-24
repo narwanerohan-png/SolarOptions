@@ -5,9 +5,21 @@ interface AccessFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (form: any) => void;
+  onFreeTrial?: (form: any) => void;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
-export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: AccessFormModalProps) => {
+export const AccessFormModal = React.memo(({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  onFreeTrial,
+  isSubmitting = false,
+  errorMessage = null,
+  onClearError
+}: AccessFormModalProps) => {
   const [accessForm, setAccessForm] = useState({
     companyName: '',
     contact: '',
@@ -16,6 +28,13 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
     requirement: 'Solar Assets',
     gst: ''
   });
+
+  const handleInputChange = (field: string, value: string) => {
+    setAccessForm(prev => ({ ...prev, [field]: value }));
+    if (onClearError) {
+      onClearError();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -42,7 +61,7 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
               placeholder="Legal Entity Name" 
               className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" 
               value={accessForm.companyName}
-              onChange={e => setAccessForm({...accessForm, companyName: e.target.value})} 
+              onChange={e => handleInputChange('companyName', e.target.value)} 
             />
           </div>
           <div className="space-y-2">
@@ -52,7 +71,7 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
               maxLength={10} 
               className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" 
               value={accessForm.contact}
-              onChange={e => setAccessForm({...accessForm, contact: e.target.value.replace(/\D/g, '')})} 
+              onChange={e => handleInputChange('contact', e.target.value.replace(/\D/g, ''))} 
             />
           </div>
           <div className="col-span-full space-y-2">
@@ -62,7 +81,7 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
               placeholder="verified@company.com" 
               className="w-full px-8 py-5 bg-slate-900 text-white border border-white/5 rounded-2xl focus:border-emerald-500 transition-all font-black" 
               value={accessForm.email}
-              onChange={e => setAccessForm({...accessForm, email: e.target.value})} 
+              onChange={e => handleInputChange('email', e.target.value)} 
             />
           </div>
           <div className="space-y-2">
@@ -70,7 +89,7 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
             <select 
               className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold appearance-none"
               value={accessForm.industry}
-              onChange={e => setAccessForm({...accessForm, industry: e.target.value})}
+              onChange={e => handleInputChange('industry', e.target.value)}
             >
               <option value="Industrial">Manufacturing</option>
               <option value="Commercial">Commercial/Warehousing</option>
@@ -83,19 +102,58 @@ export const AccessFormModal = React.memo(({ isOpen, onClose, onSubmit }: Access
               placeholder="GSTIN Number" 
               className="w-full px-6 py-4 bg-slate-900/50 border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-white font-bold placeholder:text-gray-700" 
               value={accessForm.gst}
-              onChange={e => setAccessForm({...accessForm, gst: e.target.value})} 
+              onChange={e => handleInputChange('gst', e.target.value)} 
             />
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-6 pt-6 border-t border-white/5">
-           <button onClick={onClose} className="flex-1 py-5 bg-slate-800 text-gray-400 font-bold rounded-2xl hover:bg-slate-700 transition-all">Cancel Request</button>
-           <button 
-            onClick={() => onSubmit(accessForm)}
-            className="flex-[2] py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-2xl shadow-emerald-500/30 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase text-sm tracking-[0.2em]"
-           >
-             Initialize Secure Payment
-           </button>
+        {errorMessage && (
+          <div className="mb-8 p-6 bg-red-500/10 border border-red-500/25 text-red-400 rounded-3xl flex items-start gap-4 text-xs leading-relaxed animate-pulse">
+            <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0" />
+            <div className="flex-1 space-y-1">
+              <span className="font-extrabold uppercase [letter-spacing:0.08em] block text-red-500 text-[10px]">Verification Issue</span>
+              <p className="font-semibold text-gray-300">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
+        {isSubmitting && (
+          <div className="mb-8 p-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-3xl flex items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest">
+            <svg className="animate-spin h-5 w-5 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing Digital Request...
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4 pt-6 border-t border-white/5">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button 
+              type="button"
+              onClick={() => onFreeTrial && onFreeTrial(accessForm)}
+              disabled={isSubmitting}
+              className={`flex-1 py-5 bg-slate-800 text-emerald-400 border border-emerald-500/20 font-black rounded-2xl shadow-2xl transition-all uppercase text-[11px] tracking-wider ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'}`}
+            >
+              {isSubmitting ? 'Validating...' : 'Start Free 1-Day Trial'}
+            </button>
+            <button 
+              type="button"
+              onClick={() => onSubmit(accessForm)}
+              disabled={isSubmitting}
+              className={`flex-[1.5] py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-3xl shadow-emerald-500/20 transition-all uppercase text-[11px] tracking-widest ${isSubmitting ? 'opacity-40 cursor-not-allowed' : 'hover:bg-emerald-400 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'}`}
+            >
+              {isSubmitting ? 'Initializing...' : 'Premium Access (30 Days)'}
+            </button>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className={`w-full py-2 text-gray-500 rounded-xl transition-all text-[10px] font-bold uppercase tracking-widest ${isSubmitting ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/5 hover:text-white cursor-pointer'}`}
+          >
+            Cancel Request
+          </button>
         </div>
       </motion.div>
     </div>

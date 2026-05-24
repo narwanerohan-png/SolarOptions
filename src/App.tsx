@@ -139,6 +139,7 @@ export default function SolarApp() {
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [trialError, setTrialError] = useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
   const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
@@ -320,6 +321,21 @@ export default function SolarApp() {
               sheet: 'Sheet2',
               expiryDate: expiry.toISOString(),
               validUntil: expiryStr,
+              "Access Days": "30 Days",
+              "access_days": "30",
+              "accessDays": "30 Days",
+              "Days": "30",
+              "days": "30",
+              "Duration": "30 Days",
+              "duration": "30 Days",
+              "Plan": "30 Days Premium",
+              "plan": "30 Days Premium",
+              "Validity": "30 Days",
+              "validity": "30 Days",
+              "Subscription": "Premium 30 Days",
+              isTrial: false,
+              "Is Trial": "false",
+              "is_trial": "false",
               timestamp: new Date().toISOString()
             })
           }).then(() => {
@@ -374,6 +390,267 @@ export default function SolarApp() {
     console.log("Legacy savePayment called (should be handled in handler):", paymentId);
   };
 
+  const handleFreeTrial = async (formData: any) => {
+    setTrialError(null);
+    if (!formData.email.includes('@') || formData.contact.length !== 10) {
+      setTrialError("Please enter valid direct contact details. Your email must contain '@' and your mobile number must be exactly 10 digits.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setPaymentLoadingMessage('Initializing verification check...');
+
+    try {
+      // 1. Get browser fingerprint
+      let fingerprintVal = "unknown-device";
+      try {
+        const FP = await import('@fingerprintjs/fingerprintjs');
+        const fp = await FP.load();
+        const result = await fp.get();
+        fingerprintVal = result.visitorId;
+      } catch (fpErr) {
+        console.warn("FingerprintJS failed to acquire visitor id:", fpErr);
+      }
+
+      // 1.2 Pre-flight check: Verify if the input email or mobile number has already claimed a trial/access
+      setPaymentLoadingMessage('Checking eligibility status...');
+      const checkResponse = await fetch('/api/check-existence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          contact: formData.contact,
+          fingerprint: fingerprintVal
+        })
+      });
+
+      if (!checkResponse.ok) {
+        throw new Error(`Eligibility check failed with status ${checkResponse.status}`);
+      }
+
+      const checkData = await checkResponse.json();
+      if (checkData.exists) {
+        throw new Error(checkData.message);
+      }
+
+      // 1.5 Verify email ownership using Google popup before generating credentials
+      setPaymentLoadingMessage('Verifying ownership via Google Account. Please complete the login popup...');
+      const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const googleUser = userCredential.user;
+
+      if (!googleUser || !googleUser.email) {
+        throw new Error("Unable to retrieve verified email from Google Sign-In.");
+      }
+
+      const verifiedEmail = googleUser.email.trim().toLowerCase();
+      const typedEmail = formData.email.trim().toLowerCase();
+
+      if (verifiedEmail !== typedEmail) {
+        throw new Error(`Email verification failed. The typed email (${typedEmail}) does not match your signed-in Google account (${verifiedEmail}). Please ensure you sign into the matching Google account to verify your identity.`);
+      }
+
+      // 2. Generate custom 1-day credentials
+      setPaymentLoadingMessage('Activating your free trial...');
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let genPwd = '';
+      for (let i = 0; i < 8; i++) {
+        genPwd += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 1); // 1-Day Trial limit
+      const expiryStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      
+      const newCreds = { 
+        username: formData.email, 
+        password: genPwd,
+        expiry: "Free Trial (Expires: " + expiryStr + ")"
+      };
+
+      // 3. Post to server register endpoint as a trial account
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          username: formData.email, 
+          "Username": formData.email,
+          email: formData.email,
+          "Email": formData.email,
+          companyName: formData.companyName,
+          "Company Name": formData.companyName,
+          contact: formData.contact,
+          "Contact": formData.contact,
+          password: genPwd,
+          "Password": genPwd,
+          paymentId: "free-trial-" + Math.random().toString(36).substring(7),
+          "Payment ID": "free-trial-" + Math.random().toString(36).substring(7),
+          action: 'register',
+          sheet: 'Sheet2',
+          isTrial: true,
+          "Is Trial": "true",
+          "is_trial": "true",
+          "Access Days": "1 Day",
+          "access_days": "1",
+          "accessDays": "1 Day",
+          "Days": "1",
+          "days": "1",
+          "Duration": "1 Day",
+          "duration": "1 Day",
+          "Plan": "1 Day Trial",
+          "plan": "1 Day Trial",
+          "Validity": "1 Day",
+          "validity": "1 Day",
+          "Subscription": "Free Trial",
+          expiryDate: expiry.toISOString(),
+          "Expiry Date": expiry.toISOString(),
+          validUntil: expiry.toISOString(),
+          "Valid Until": expiry.toISOString(),
+          "valid_until": expiry.toISOString(),
+          expiry: expiry.toISOString(),
+          "Expiry": expiry.toISOString(),
+          fingerprint: fingerprintVal,
+          "Fingerprint": fingerprintVal,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (response.status === 403) {
+        let errMsg = "Our security engine detected that a 1-day free trial has transitively already been claimed on this email or device browser. Please select premium access (30 Days) to gain instant leads access.";
+        try {
+          const errData = await response.json();
+          errMsg = errData.message || errMsg;
+        } catch (jsonErr) {
+          // Safe fallback for non-JSON or HTML response formats
+        }
+        setTrialError(errMsg);
+        setIsSubmitting(false);
+        setPaymentLoadingMessage('');
+        return;
+      }
+
+      if (!response.ok) {
+        let errMsg = `Activation failed with status ${response.status}. Please try again or contact support.`;
+        try {
+          const errData = await response.json();
+          errMsg = errData.message || errMsg;
+        } catch (jsonErr) {
+          // Safe fallback for non-JSON or HTML response formats
+        }
+        throw new Error(errMsg);
+      }
+
+      // Force update credentials and show
+      setCredentials(newCreds);
+      setShowAccessForm(false);
+      setShowCredentials(true);
+    } catch (err: any) {
+      console.error("Free trial registration error:", err);
+      const errMsg = err.message || "";
+      const errCode = err.code || "";
+      
+      if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
+        setTrialError("Google verification was canceled because the popup window was closed. Please complete Google authentication to verify ownership of your email address.");
+      } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
+        setTrialError("Google Sign-In popup was blocked by your browser. Please allow popups in your browser settings for this site or click the 'Open in New Tab' button in the top-right corner to access the app fully and bypass sandboxed restrictions.");
+      } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
+        setTrialError("This preview domain is currently unauthorized for Google Sign-In. Please click the 'Open in New Tab' button in the top-right corner of the editor to launch the authorized application and sign in securely.");
+      } else {
+        // If it's a generic Firebase auth setup or network error, show a user-friendly message
+        if (errMsg.toLowerCase().includes("firebase") || errCode.startsWith("auth/")) {
+          setTrialError("Google Authentication encountered an error in this sandboxed preview iframe. Please click the 'Open in New Tab' button at the top-right corner of the screen to sign in seamlessly, or log in with an existing passcode if you have already claimed a free trial.");
+        } else {
+          setTrialError(errMsg || "Failed to create free trial session. Please try again.");
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsSubmitting(true);
+    setPaymentLoadingMessage('Connecting with Google...');
+    try {
+      // 1. Get browser fingerprint
+      let fingerprintVal = "unknown-device";
+      try {
+        const FP = await import('@fingerprintjs/fingerprintjs');
+        const fp = await FP.load();
+        const result = await fp.get();
+        fingerprintVal = result.visitorId;
+        console.log("[FingerprintJS] Visitor ID acquired:", fingerprintVal);
+      } catch (fpErr) {
+        console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
+      }
+
+      // 2. Firebase sign in with popup
+      const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const googleUser = userCredential.user;
+      
+      if (!googleUser || !googleUser.email) {
+        throw new Error("Unable to retrieve email from Google Account.");
+      }
+
+      // 3. Post to google login endpoint in backend
+      const resp = await fetch('/api/google-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: googleUser.email,
+          fingerprint: fingerprintVal,
+          companyName: googleUser.displayName || 'Google Trial User'
+        })
+      });
+
+      if (resp.status === 403) {
+        const errData = await resp.json();
+        // Redirect to payment/subscription via showAccessForm
+        alert(errData.message || "Trial already used. Please purchase premium access.");
+        setShowLoginModal(false);
+        setShowAccessForm(true);
+        return;
+      }
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.message || `Server login failed with status ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (data.success) {
+        setIsLoggedIn(true);
+        localStorage.setItem('solar_options_isLoggedIn', 'true');
+        setShowLoginModal(false);
+        navigate('/factory-data-insights');
+        window.scrollTo(0, 0);
+      } else {
+        alert(data.message || "Google Sign-In Authentication failed.");
+      }
+    } catch (e: any) {
+      console.error("Google Sign-In login error:", e);
+      const errMsg = e.message || "";
+      const errCode = e.code || "";
+      if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
+        alert("Google Login popup was closed before completion. Please try again.");
+      } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
+        alert("Google Sign-In popup was blocked by your browser. Please allow popups or click the 'Open in New Tab' button in the top-right corner to log in fully.");
+      } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
+        alert("This preview domain is currently unauthorized for Google Sign-In. Please click 'Open in New Tab' in the top-right corner to sign in securely and bypass iframe domain policies.");
+      } else {
+        alert(e.message || "Authentication through Google was unsuccessful.");
+      }
+    } finally {
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
+    }
+  };
+
   const handleLogin = async (formData: any) => {
     if (!formData.username || !formData.password) return;
     setIsSubmitting(true);
@@ -396,6 +673,13 @@ export default function SolarApp() {
         try {
           const errorData = await resp.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
+          if (resp.status === 403 || errorData.expired) {
+            // Trial expired - redirect to payment screen!
+            alert(errorMessage);
+            setShowLoginModal(false);
+            setShowAccessForm(true);
+            return;
+          }
           if (errorData.debug) console.log("[Login Debug]", errorData.debug);
         } catch (e) {
           // Response was not JSON
@@ -418,7 +702,10 @@ export default function SolarApp() {
       }
     } catch (e: any) {
       console.error("Login Error:", e);
-      alert(e.message || "Login service unavailable. Please check back later.");
+      // Don't alerts if we already handled/redirected the 403 above
+      if (e.message !== "Trial expired" && !e.message?.includes("Trial expired")) {
+        alert(e.message || "Login service unavailable. Please check back later.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1834,6 +2121,7 @@ export default function SolarApp() {
         isOpen={showLoginModal} 
         onClose={() => setShowLoginModal(false)}
         onLogin={handleLogin}
+        onGoogleLogin={handleGoogleLogin}
         onShowForgotPassword={() => setShowForgotPasswordModal(true)}
         onShowAccessForm={() => setShowAccessForm(true)}
         isSubmitting={isSubmitting}
@@ -1871,8 +2159,15 @@ export default function SolarApp() {
 
       <AccessFormModal 
         isOpen={showAccessForm}
-        onClose={() => setShowAccessForm(false)}
+        onClose={() => {
+          setShowAccessForm(false);
+          setTrialError(null);
+        }}
         onSubmit={handlePayment}
+        onFreeTrial={handleFreeTrial}
+        isSubmitting={isSubmitting}
+        errorMessage={trialError}
+        onClearError={() => setTrialError(null)}
       />
 
       {/* Floating Action Buttons */}
