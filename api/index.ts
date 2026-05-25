@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
+import https from "https";
 
 if (!process.env.VERCEL) {
   dotenv.config();
@@ -128,6 +129,37 @@ console.log(`[Server] Using Google Script URL from ${process.env.GOOGLE_SCRIPT_U
 
 const app = express();
 const PORT = 3000;
+
+// Streaming Reverse Proxy for Firebase Auth custom domain resolution
+app.all("/__/auth/*", (req, res) => {
+  const targetHost = "gen-lang-client-0873083077.firebaseapp.com";
+  const targetUrl = `https://${targetHost}${req.originalUrl || req.url}`;
+  console.log(`[Firebase Auth Proxy] Streaming request: ${req.method} ${req.url} -> ${targetUrl}`);
+
+  const options = {
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: targetHost, // Map host header to firebase original domain to satisfy CORS and secure routing constraints
+    }
+  };
+
+  // Strip origin/referer headers during proxy to prevent upstream Firebase CORS or domain policy checks from rejecting the cross-domain hop
+  delete options.headers.referer;
+  delete options.headers.origin;
+
+  const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error(`[Firebase Auth Proxy Error] Connection failed for ${req.url}:`, err.message);
+    res.status(500).send(`Auth proxy connection failed: ${err.message}`);
+  });
+
+  req.pipe(proxyReq);
+});
 
 // Trust the AI Studio / Nginx proxy
 app.set("trust proxy", true);
