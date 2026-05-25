@@ -26,21 +26,33 @@ const AXIOS_CONFIG = {
   maxBodyLength: Infinity,
 };
 
-// Resilient Google Apps Script Helper: GET
+// Resilient Google Apps Script Helper: GET with absolute safety timeouts (< 10 seconds total to fit on Vercel Hobby)
 async function getGoogleScriptData(url: string): Promise<any> {
   console.log(`[Google SDK] Fetching data via dual-engine: ${url.substring(0, 75)}...`);
   
+  const FETCH_TIMEOUT_MS = 4000; // 4 seconds timeout for Native fetch
+  const AXIOS_TIMEOUT_MS = 3000; // 3 seconds timeout for Axios fallback
+  
   // Method 1: Try native Node.js fetch (Node 18+ has built-in global fetch), which handles redirects flawlessly
   if (typeof fetch !== "undefined") {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn(`[Google SDK] Engine 1 (Native fetch) timed out after ${FETCH_TIMEOUT_MS}ms. Aborting...`);
+      controller.abort();
+    }, FETCH_TIMEOUT_MS);
+
     try {
-      console.log(`[Google SDK] Engine 1 (Native fetch) requesting list...`);
+      console.log(`[Google SDK] Engine 1 (Native fetch) requesting list with 4s timeout...`);
       const res = await fetch(url, {
         method: "GET",
         headers: {
           "Accept": "application/json"
         },
-        redirect: "follow"
+        redirect: "follow",
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const text = await res.text();
         console.log(`[Google SDK] Engine 1 success, payload length: ${text.length}`);
@@ -52,30 +64,40 @@ async function getGoogleScriptData(url: string): Promise<any> {
       }
       console.warn(`[Google SDK] Engine 1 responded with status: ${res.status}`);
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.warn(`[Google SDK] Engine 1 (Native fetch) did not complete: ${err.message}. Cascading to Engine 2.`);
     }
   }
 
   // Method 2: Fallback to Axios GET
-  console.log(`[Google SDK] Engine 2 (Axios GET) requesting list...`);
+  console.log(`[Google SDK] Engine 2 (Axios GET) requesting list with 3s timeout...`);
   const response = await axios.get(url, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
     },
-    timeout: 30000,
+    timeout: AXIOS_TIMEOUT_MS,
     maxRedirects: 15
   });
   return response.data;
 }
 
-// Resilient Google Apps Script Helper: POST
+// Resilient Google Apps Script Helper: POST with absolute safety timeouts
 async function postGoogleScriptData(url: string, payload: any): Promise<any> {
   console.log(`[Google SDK] Posting data via dual-engine: ${url.substring(0, 75)}...`);
   
+  const FETCH_TIMEOUT_MS = 4000; // 4 seconds timeout for Native fetch POST
+  const AXIOS_TIMEOUT_MS = 3000; // 3 seconds timeout for Axios fallback POST
+
   // Method 1: Try native Node.js fetch (Node 18+ has built-in global fetch), which handles redirects flawlessly
   if (typeof fetch !== "undefined") {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn(`[Google SDK] Engine 1 (Native fetch POST) timed out after ${FETCH_TIMEOUT_MS}ms. Aborting...`);
+      controller.abort();
+    }, FETCH_TIMEOUT_MS);
+
     try {
-      console.log(`[Google SDK] Engine 1 (Native fetch POST) sending payload...`);
+      console.log(`[Google SDK] Engine 1 (Native fetch POST) sending payload with 4s timeout...`);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -83,8 +105,11 @@ async function postGoogleScriptData(url: string, payload: any): Promise<any> {
           "Accept": "application/json"
         },
         body: JSON.stringify(payload),
-        redirect: "follow"
+        redirect: "follow",
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const text = await res.text();
         console.log(`[Google SDK] Engine 1 POST success, payload length: ${text.length}`);
@@ -96,18 +121,19 @@ async function postGoogleScriptData(url: string, payload: any): Promise<any> {
       }
       console.warn(`[Google SDK] Engine 1 POST responded with status: ${res.status}`);
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.warn(`[Google SDK] Engine 1 (Native fetch POST) did not complete: ${err.message}. Cascading to Engine 2.`);
     }
   }
 
   // Method 2: Fallback to Axios POST
-  console.log(`[Google SDK] Engine 2 (Axios POST) sending payload...`);
+  console.log(`[Google SDK] Engine 2 (Axios POST) sending payload with 3s timeout...`);
   const response = await axios.post(url, payload, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
       "Content-Type": "application/json"
     },
-    timeout: 30000,
+    timeout: AXIOS_TIMEOUT_MS,
     maxRedirects: 15
   });
   return response.data;
@@ -229,7 +255,17 @@ const localUsers: LocalUser[] = [
   }
 ];
 
+// Active in-memory cache to prevent multiple concurrent or rapid-successive Google App Script GET requests
+let sheetUsersCache: { data: any[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 25000; // 25 seconds TTL is highly effective and completely safe for caching registrations
+
 async function fetchSheet2Users(): Promise<any[]> {
+  const now = Date.now();
+  if (sheetUsersCache && (now - sheetUsersCache.timestamp < CACHE_TTL_MS)) {
+    console.log(`[Cache SDK] Serving ${sheetUsersCache.data.length} Sheet2 entries from in-memory cache (cache-age: ${now - sheetUsersCache.timestamp}ms)`);
+    return sheetUsersCache.data;
+  }
+
   try {
     const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
     const sheet2Url = `${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet2&sheetName=Sheet2&action=read`;
@@ -239,13 +275,13 @@ async function fetchSheet2Users(): Promise<any[]> {
     if (typeof parsedData === 'string') {
       if (parsedData.includes("<!DOCTYPE") || parsedData.includes("<html") || parsedData.includes("Google Drive - Page Not Found")) {
         console.warn("[fetchSheet2Users] Custom warning: Returned HTML page instead of JSON string");
-        return [];
+        return sheetUsersCache ? sheetUsersCache.data : [];
       }
       try {
         parsedData = JSON.parse(parsedData);
       } catch (parseErr) {
         console.warn("[fetchSheet2Users] JSON.parse failed on string payload:", parseErr);
-        return [];
+        return sheetUsersCache ? sheetUsersCache.data : [];
       }
     }
 
@@ -261,10 +297,12 @@ async function fetchSheet2Users(): Promise<any[]> {
         usersList = parsedData.rows;
       }
     }
+    
+    sheetUsersCache = { data: usersList, timestamp: now };
     return usersList;
   } catch (err: any) {
     console.error("[fetchSheet2Users] Error fetching Sheet2 users:", err.message);
-    return [];
+    return sheetUsersCache ? sheetUsersCache.data : [];
   }
 }
 
@@ -707,6 +745,7 @@ app.post("/api/google-login", async (req, res) => {
   };
 
   localUsers.push(newTrialUser);
+  sheetUsersCache = null; // Invalidate the in-memory cache to sync the newly registered user
   console.log(`[Google Login] Created new 1-day trial for ${normalizedEmail} (Fingerprint: ${cleanFingerprint}, IP: ${ipAddress})`);
 
   // Sync back to Google sheet if active
@@ -835,6 +874,7 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
       } else {
         localUsers.push(userData);
       }
+      sheetUsersCache = null; // Invalidate the in-memory cache to force a fresh fetch
     }
 
     try {
