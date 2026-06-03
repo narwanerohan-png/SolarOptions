@@ -27,19 +27,17 @@ const getDynamicFirebaseConfig = () => {
   });
 
   // 2. Intelligent Custom Domain detection:
-  // If the website runs on solaroptions.in or www.solaroptions.in, and the user hasn't explicitly
-  // overridden VITE_FIREBASE_AUTH_DOMAIN, set authDomain to the current custom domain.
-  // This allows Firebase Auth to securely load the auth handler widget from the custom domain,
-  // prompting the browser with "Continue to SolarOptions" rather than the fallback.
+  // Using custom host-based authDomains can lead to proxy issues, Vercel routing loops, and SSL/CORS rejections
+  // during signInWithPopup, which opens the homepage inside the popup and leaves the parent tab hanging.
+  // We prioritize the fully authorized firebaseapp.com domain unless VITE_FIREBASE_AUTH_DOMAIN is explicitly configured.
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname.toLowerCase();
-    const isSolaroptionsDomain = hostname === 'solaroptions.in' || hostname === 'www.solaroptions.in' || hostname.endsWith('.solaroptions.in');
-    
-    if (isSolaroptionsDomain) {
-      if (!(import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN) {
-        config.authDomain = hostname;
-        console.log(`[Firebase Custom Auth Domain] Detected SolarOptions domain: "${hostname}". Dynamically routing authorization through this custom domain.`);
-      }
+    const overrideAuthDomain = (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN;
+    if (overrideAuthDomain) {
+      config.authDomain = overrideAuthDomain;
+      console.log(`[Firebase Auth Domain] Overridden by environment variable: "${overrideAuthDomain}"`);
+    } else {
+      // Keep native dependable firebaseapp.com domain to ensure secure and seamless authorization
+      console.log(`[Firebase Auth Domain] Utilizing dependable default authorization domain: "${config.authDomain}"`);
     }
   }
 

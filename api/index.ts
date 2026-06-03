@@ -5,9 +5,28 @@ import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
 import https from "https";
+import fs from "fs";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, doc, runTransaction, setDoc, getDoc } from "firebase/firestore";
 
 if (!process.env.VERCEL) {
   dotenv.config();
+}
+
+// Server-side Firestore initialization for atomic distributed lock
+let serverDb: any = null;
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    serverDb = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+    console.log("[Firebase Server Engine] Distributed lock engine successfully initialized on server.");
+  } else {
+    console.warn("[Firebase Server Engine Warning] No firebase-applet-config.json found at path:", configPath);
+  }
+} catch (e: any) {
+  console.warn("[Firebase Server Engine Exception] Failed to initialize Firestore:", e.message);
 }
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -259,9 +278,9 @@ const localUsers: LocalUser[] = [
 let sheetUsersCache: { data: any[]; timestamp: number } | null = null;
 const CACHE_TTL_MS = 25000; // 25 seconds TTL is highly effective and completely safe for caching registrations
 
-async function fetchSheet2Users(): Promise<any[]> {
+async function fetchSheet2Users(bypassCache: boolean = false): Promise<any[]> {
   const now = Date.now();
-  if (sheetUsersCache && (now - sheetUsersCache.timestamp < CACHE_TTL_MS)) {
+  if (!bypassCache && sheetUsersCache && (now - sheetUsersCache.timestamp < CACHE_TTL_MS)) {
     console.log(`[Cache SDK] Serving ${sheetUsersCache.data.length} Sheet2 entries from in-memory cache (cache-age: ${now - sheetUsersCache.timestamp}ms)`);
     return sheetUsersCache.data;
   }
@@ -815,11 +834,69 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
 
     // Prevent same Google account or device browser from repeatedly claiming free trials
     if (req.body.isTrial) {
+      const cleanEmail = String(normalizedEmail).trim().toLowerCase();
+      const cleanNumber = (numStr: string) => {
+        const clean = String(numStr || "").replace(/\D/g, ''); // keep only digits
+        return clean.length >= 10 ? clean.slice(-10) : clean;
+      };
+      const cleanContact = cleanNumber(req.body.contact || "");
+
+      // A. Atomic Transaction level distributed lock in Firestore (Active across all parallel Vercel instances)
+      if (serverDb) {
+        try {
+          console.log(`[Distributed Lock] Querying atomic claims database for ${cleanEmail} & ${cleanContact}...`);
+          
+          await runTransaction(serverDb, async (transaction) => {
+            const emailDocRef = doc(serverDb, "trial_claims", `email_${cleanEmail}`);
+            const contactDocRef = cleanContact ? doc(serverDb, "trial_claims", `contact_${cleanContact}`) : null;
+
+            const emailSnap = await transaction.get(emailDocRef);
+            const contactSnap = contactDocRef ? await transaction.get(contactDocRef) : null;
+
+            if (emailSnap.exists()) {
+              throw new Error("Email duplicate claim locked.");
+            }
+            if (contactSnap && contactSnap.exists()) {
+              throw new Error("Contact duplicate claim locked.");
+            }
+
+            // Lock both keys atomically!
+            transaction.set(emailDocRef, {
+              email: cleanEmail,
+              contact: cleanContact,
+              claimedAt: new Date().toISOString()
+            });
+            
+            if (contactDocRef) {
+              transaction.set(contactDocRef, {
+                email: cleanEmail,
+                contact: cleanContact,
+                claimedAt: new Date().toISOString()
+              });
+            }
+          });
+          
+          console.log(`[Distributed Lock] Atomically reserved claim token. Proceeding to double-verification checks.`);
+        } catch (lockError: any) {
+          console.warn(`[Distributed Lock Block] Blocked concurrent/duplicate claim for ${cleanEmail}:`, lockError.message);
+          return res.status(403).json({
+            success: false,
+            error: "Trial already claimed",
+            message: "This email address or mobile number has already initiated or claimed a free trial."
+          });
+        }
+      }
+
+      // B. Live verification check against historical Google Sheets data (bypassing Express memory cache)
       let sheetUsers: any[] = [];
       try {
-        sheetUsers = await fetchSheet2Users();
-      } catch (e) {
-        console.warn("[Register Warning] Sheet pull during restriction validation failed:", e);
+        const fetchPromise = fetchSheet2Users(true); // STRICT ENFORCEMENT: Bypass cache to query live sheet data
+        const timeoutPromise = new Promise<any[]>((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout")), 3000)
+        );
+        sheetUsers = await Promise.race([fetchPromise, timeoutPromise]);
+      } catch (e: any) {
+        console.warn("[Register Warning] Sheet pull during restriction validation failed or timed out:", e.message);
       }
 
       const checkResult = isUserAlreadyPresent(normalizedEmail, String(req.body.contact || ""), sheetUsers, localUsers);
@@ -1011,12 +1088,16 @@ app.post("/api/check-existence", async (req, res) => {
       return res.json({ exists: false });
     }
 
-    // 1. Get sheet users
+    // 1. Get sheet users with strict 2.5s Promise.race timeout protection
     let sheetUsers: any[] = [];
     try {
-      sheetUsers = await fetchSheet2Users();
+      const fetchPromise = fetchSheet2Users(true);
+      const timeoutPromise = new Promise<any[]>((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout")), 2500)
+      );
+      sheetUsers = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (e: any) {
-      console.warn("[Check Existence Warning] Sheet pull failed:", e.message);
+      console.warn("[Check Existence Warning] Sheet pull failed or timed out:", e.message);
     }
 
     const checkResult = isUserAlreadyPresent(inputEmail, inputContact, sheetUsers, localUsers);
