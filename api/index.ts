@@ -34,6 +34,55 @@ const GOOGLE_SCRIPT_URL = (process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_S
   ? process.env.GOOGLE_SCRIPT_URL.trim() 
   : "https://script.google.com/macros/s/AKfycbyCo6CZ51CO8-fb8UupLEbU7GZ82Pb31dg8v8hMRK_bvd0FqoOVPnd2QSejiXfBZvGtWg/exec";
 
+// --- SERVER-SIDE MEMORY CACHE ---
+interface FacilitiesCache {
+  data: any[] | null;
+  lastUpdated: number;
+}
+const facilitiesCache: FacilitiesCache = {
+  data: null,
+  lastUpdated: 0,
+};
+const FACILITIES_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache expiration duration
+
+// Active Auto-Refresher background loop to seed or refresh the cache
+async function backgroundRefreshCache() {
+  try {
+    const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
+    const fetchUrl = `${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet1&sheetName=Sheet1`;
+    console.log(`[Cache Background Auto-Refresher] Querying Sheet1: ${fetchUrl.substring(0, 75)}...`);
+    const upstreamData = await getGoogleScriptData(fetchUrl);
+    
+    let parsed: any[] = [];
+    if (typeof upstreamData === 'string') {
+      if (!upstreamData.includes("<!DOCTYPE") && !upstreamData.includes("<html")) {
+        try {
+          parsed = JSON.parse(upstreamData);
+        } catch (e) {}
+      }
+    } else if (Array.isArray(upstreamData)) {
+      parsed = upstreamData;
+    }
+    
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      facilitiesCache.data = parsed;
+      facilitiesCache.lastUpdated = Date.now();
+      console.log(`[Cache Background Auto-Refresher] Successfully refreshed cache with ${parsed.length} facilities.`);
+    }
+  } catch (err: any) {
+    console.error(`[Cache Background Auto-Refresher] Failed:`, err.message);
+  }
+}
+
+// Automatically start background refresh loop and trigger every 10 minutes
+if (!process.env.VERCEL) {
+  setTimeout(() => {
+    backgroundRefreshCache();
+    // Refresh every 10 minutes (600,000 ms) automatically
+    setInterval(backgroundRefreshCache, FACILITIES_CACHE_TTL_MS);
+  }, 3000);
+}
+
 const AXIOS_CONFIG = {
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -413,27 +462,65 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], as
   try {
     const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
     
-    // Explicitly target Sheet1 for Leads to guarantee Sheet1 works perfectly
+    // Server-side cache check (Stale-While-Revalidate)
+    const now = Date.now();
+    const isExpired = now - facilitiesCache.lastUpdated > FACILITIES_CACHE_TTL_MS;
+    const cacheExists = facilitiesCache.data && facilitiesCache.data.length > 0;
+
     let upstreamData;
-    try {
-      upstreamData = await getGoogleScriptData(`${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet1&sheetName=Sheet1`);
-      console.log(`[Backup Database] Successfully pulled leads specifically from Sheet1.`);
-    } catch (e: any) {
-      console.warn(`[Backup Database] Querying sheet=Sheet1 failed (${e.message}), trying default GET request...`);
-      upstreamData = await getGoogleScriptData(GOOGLE_SCRIPT_URL);
-    }
-    if (typeof upstreamData === 'string' && (upstreamData.includes("<!DOCTYPE") || upstreamData.includes("<html") || upstreamData.includes("Google Drive - Page Not Found"))) {
-      throw new Error("Google Apps Script returned an HTML page (likely permissions issue).");
-    }
-    
-    if (typeof upstreamData === 'string') {
+
+    if (cacheExists) {
+      console.log(`[Cache Engine] Serving ${facilitiesCache.data!.length} units instantly from memory.`);
+      upstreamData = facilitiesCache.data;
+      
+      // If cache is expired, revalidate in background without blocking the current response
+      if (isExpired) {
+        console.log(`[Cache Engine] Cache is expired (stale-while-revalidate). Triggering non-blocking background refresh...`);
+        backgroundRefreshCache().catch(err => {
+          console.error(`[Cache Engine] Background revalidation failed:`, err.message);
+        });
+      }
+    } else {
+      // Cold Cache: Must pull synchronously for the very first request
+      console.log(`[Cache Engine] Cold Cache. Fetching synchronously from Google Sheets...`);
       try {
-        upstreamData = JSON.parse(upstreamData);
-      } catch (e) {
-        // non-JSON
+        const rawResult = await getGoogleScriptData(`${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet1&sheetName=Sheet1`);
+        let parsed = [];
+        if (typeof rawResult === 'string') {
+          if (!rawResult.includes("<!DOCTYPE") && !rawResult.includes("<html")) {
+            parsed = JSON.parse(rawResult);
+          }
+        } else if (Array.isArray(rawResult)) {
+          parsed = rawResult;
+        }
+        
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          facilitiesCache.data = parsed;
+          facilitiesCache.lastUpdated = now;
+          console.log(`[Cache Engine] Cache populated with ${parsed.length} units.`);
+          upstreamData = parsed;
+        } else {
+          throw new Error("Invalid or empty spreadsheet data received on cold fetch");
+        }
+      } catch (err: any) {
+        console.warn(`[Cache Engine] Synchronous fetch failed (${err.message}). Trying fallback request...`);
+        const rawFallback = await getGoogleScriptData(GOOGLE_SCRIPT_URL);
+        let parsedFallback = [];
+        if (typeof rawFallback === 'string') {
+          parsedFallback = JSON.parse(rawFallback);
+        } else if (Array.isArray(rawFallback)) {
+          parsedFallback = rawFallback;
+        }
+        if (Array.isArray(parsedFallback) && parsedFallback.length > 0) {
+          facilitiesCache.data = parsedFallback;
+          facilitiesCache.lastUpdated = now;
+          upstreamData = parsedFallback;
+        } else {
+          throw err; // Escalate error if fallback fails
+        }
       }
     }
-    
+
     if (Array.isArray(upstreamData)) {
       const mergedInbox = [...upstreamData];
       for (const localItem of localInbox) {
@@ -445,6 +532,60 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], as
           mergedInbox.unshift(localItem);
         }
       }
+
+      // Implement pagination, search, and region filters on the server side
+      const limitQuery = req.query.limit;
+      const offsetQuery = req.query.offset;
+      const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+      const region = typeof req.query.region === 'string' ? req.query.region.trim().toLowerCase() : 'all';
+
+      if (limitQuery || offsetQuery || (search && search !== '') || (region && region !== 'all')) {
+        let filtered = [...mergedInbox];
+
+        // 1. Filter by region
+        if (region && region !== 'all') {
+          filtered = filtered.filter(item => {
+            const itemRegion = String(item['Region'] || item['region'] || '').trim().toLowerCase();
+            return itemRegion === region;
+          });
+        }
+
+        // 2. Filter by search (exact matches on Rooftop Space OR substring match on Factory Name or Location or Owner Name or Email)
+        if (search) {
+          const searchClean = search.toLowerCase();
+          filtered = filtered.filter(item => {
+            const rooftop = String(item['Rooftop Space'] || item['rooftop'] || '').replace(/,/g, '');
+            const name = String(item['Factory Name'] || item['factory'] || '').toLowerCase();
+            const location = String(item['Location'] || item['location'] || '').toLowerCase();
+            const owner = String(item['Owner Name'] || item['owner'] || '').toLowerCase();
+            const email = String(item['Email'] || item['Email ID'] || item['email'] || '').toLowerCase();
+            
+            return rooftop === searchClean ||
+                   name.includes(searchClean) ||
+                   location.includes(searchClean) ||
+                   owner.includes(searchClean) ||
+                   email.includes(searchClean);
+          });
+        }
+
+        const totalMatchingCount = filtered.length;
+
+        // 3. Paginate / Slice
+        const limit = limitQuery ? parseInt(String(limitQuery), 10) : 100;
+        const offset = offsetQuery ? parseInt(String(offsetQuery), 10) : 0;
+        
+        const sliced = filtered.slice(offset, offset + limit);
+
+        return res.json({
+          success: true,
+          data: sliced,
+          totalCount: totalMatchingCount,
+          limit,
+          offset,
+          hasMore: offset + limit < totalMatchingCount
+        });
+      }
+      
       return res.json(mergedInbox);
     }
     

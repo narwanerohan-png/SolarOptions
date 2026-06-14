@@ -151,6 +151,11 @@ export default function SolarApp() {
   const [regionFilter, setRegionFilter] = useState('all');
   const [inboxData, setInboxData] = useState<any[]>([]);
 
+  // High-performance server-side pagination and lazy-loading states
+  const [loadedLeadsLimit, setLoadedLeadsLimit] = useState(100);
+  const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+  const [hasMoreLeads, setHasMoreLeads] = useState(false);
+
   // Design Tool State
   const [designBuildings, setDesignBuildings] = useState<Point[][]>([]);
   const [designPanelZones, setDesignPanelZones] = useState<Point[][]>([]);
@@ -204,25 +209,47 @@ export default function SolarApp() {
   }, [isLoggedIn, epcView]);
 
   // --- ACTIONS ---
-  const fetchLiveLeads = async () => {
+  const fetchLiveLeads = async (limit: number, searchVal: string, filterVal: string) => {
     setIsLoadingLeads(true);
     try {
+      const queryParams = new URLSearchParams({
+        limit: String(limit),
+        offset: '0',
+        search: searchVal,
+        region: filterVal
+      });
+
       // Use adblocker-safe primary path /api/facilities to bypass uBlock/Brave Shields, fallback to leads
       let response;
       try {
-        response = await fetch('/api/facilities');
+        response = await fetch(`/api/facilities?${queryParams.toString()}`);
         if (!response.ok) throw new Error('Server returned status: ' + response.status);
       } catch (err) {
         console.warn('Primary facilities fetch bypassed or failed, falling back to leads...', err);
-        response = await fetch('/api/leads', {
+        response = await fetch(`/api/leads?${queryParams.toString()}`, {
           headers: {
             'X-Requested-With': 'SolarOptionsApp'
           }
         });
       }
-      const data = await response.json();
-      if (data && Array.isArray(data)) {
-        const mapped = data.map((row) => ({
+      
+      const resData = await response.json();
+      
+      let rawLeads: any[] = [];
+      if (resData && typeof resData === 'object' && !Array.isArray(resData)) {
+        if (resData.success) {
+          rawLeads = resData.data || [];
+          setTotalLeadsCount(resData.totalCount ?? 0);
+          setHasMoreLeads(resData.hasMore ?? false);
+        }
+      } else if (Array.isArray(resData)) {
+        rawLeads = resData;
+        setTotalLeadsCount(resData.length);
+        setHasMoreLeads(false);
+      }
+
+      if (rawLeads.length > 0) {
+        const mapped = rawLeads.map((row) => ({
           region: (row['Region'] || 'NA').toLowerCase(),
           factory: row['Factory Name'] || 'NA',
           location: row['Location'] || 'NA',
@@ -234,19 +261,27 @@ export default function SolarApp() {
           monthlyBill: row['Monthly Bill'] || 'NA',
           monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
         }));
-        setLiveLeads(mapped.length ? mapped : sampleLeadsData);
+        setLiveLeads(mapped);
+      } else {
+        setLiveLeads([]);
+        setTotalLeadsCount(0);
+        setHasMoreLeads(false);
       }
     } catch (e) {
-      console.error("Fetch failed, using samples", e);
+      console.error("Fetch failed, using samples as fallback", e);
       setLiveLeads(sampleLeadsData);
+      setTotalLeadsCount(sampleLeadsData.length);
+      setHasMoreLeads(false);
     } finally {
       setIsLoadingLeads(false);
     }
   };
 
   useEffect(() => {
-    if (isLoggedIn) fetchLiveLeads();
-  }, [isLoggedIn]);
+    if (isLoggedIn) {
+      fetchLiveLeads(loadedLeadsLimit, deferredSearch, regionFilter);
+    }
+  }, [isLoggedIn, loadedLeadsLimit, deferredSearch, regionFilter]);
 
   const calculatorResult = useMemo(() => {
     const safeBill = Number(monthlyBill) || 0;
@@ -1547,6 +1582,7 @@ export default function SolarApp() {
                               const val = e.target.value;
                               setRooftopSearch(val); 
                               startTransition(() => {
+                                setLoadedLeadsLimit(100);
                                 setDeferredSearch(val);
                                 setCurrentPageIndex(1); 
                               });
@@ -1556,7 +1592,12 @@ export default function SolarApp() {
                           />
                       </div>
                       <select 
-                        value={regionFilter} onChange={(e) => { setRegionFilter(e.target.value); setCurrentPageIndex(1); }}
+                        value={regionFilter} 
+                        onChange={(e) => { 
+                          setLoadedLeadsLimit(100);
+                          setRegionFilter(e.target.value); 
+                          setCurrentPageIndex(1); 
+                        }}
                         className="px-6 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-400 font-bold"
                       >
                         <option value="all">All Regions</option>
@@ -1603,6 +1644,26 @@ export default function SolarApp() {
                           </button>
                         </motion.div>
                       ))}
+                    </div>
+
+                    {/* Progressive Data-Loading Controls */}
+                    <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-slate-800/40 p-5 rounded-2xl border border-white/5 gap-4 backdrop-blur-md">
+                      <div className="text-gray-400 text-xs font-bold uppercase tracking-wider text-center sm:text-left">
+                        Showing <span className="text-emerald-400 font-extrabold">{filteredLeads.length}</span> of <span className="text-white font-extrabold">{totalLeadsCount}</span> verified locations
+                      </div>
+                      {hasMoreLeads && (
+                        <button
+                          onClick={() => setLoadedLeadsLimit(prev => prev + 100)}
+                          className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xl cursor-pointer"
+                        >
+                          {isLoadingLeads ? (
+                            <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-slate-900 border-t-transparent" />
+                          ) : (
+                            <span className="w-1.5 h-1.5 bg-slate-900 rounded-full animate-ping" />
+                          )}
+                          Load 100 More Sites
+                        </button>
+                      )}
                     </div>
 
                     {/* Pagination Controls */}
