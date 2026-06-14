@@ -49,8 +49,8 @@ const AXIOS_CONFIG = {
 async function getGoogleScriptData(url: string): Promise<any> {
   console.log(`[Google SDK] Fetching data via dual-engine: ${url.substring(0, 75)}...`);
   
-  const FETCH_TIMEOUT_MS = 4000; // 4 seconds timeout for Native fetch
-  const AXIOS_TIMEOUT_MS = 3000; // 3 seconds timeout for Axios fallback
+  const FETCH_TIMEOUT_MS = 15000; // 15 seconds timeout for Native fetch
+  const AXIOS_TIMEOUT_MS = 15000; // 15 seconds timeout for Axios fallback
   
   // Method 1: Try native Node.js fetch (Node 18+ has built-in global fetch), which handles redirects flawlessly
   if (typeof fetch !== "undefined") {
@@ -61,7 +61,7 @@ async function getGoogleScriptData(url: string): Promise<any> {
     }, FETCH_TIMEOUT_MS);
 
     try {
-      console.log(`[Google SDK] Engine 1 (Native fetch) requesting list with 4s timeout...`);
+      console.log(`[Google SDK] Engine 1 (Native fetch) requesting list with 15s timeout...`);
       const res = await fetch(url, {
         method: "GET",
         headers: {
@@ -104,8 +104,8 @@ async function getGoogleScriptData(url: string): Promise<any> {
 async function postGoogleScriptData(url: string, payload: any): Promise<any> {
   console.log(`[Google SDK] Posting data via dual-engine: ${url.substring(0, 75)}...`);
   
-  const FETCH_TIMEOUT_MS = 4000; // 4 seconds timeout for Native fetch POST
-  const AXIOS_TIMEOUT_MS = 3000; // 3 seconds timeout for Axios fallback POST
+  const FETCH_TIMEOUT_MS = 15000; // 15 seconds timeout for Native fetch POST
+  const AXIOS_TIMEOUT_MS = 15000; // 15 seconds timeout for Axios fallback POST
 
   // Method 1: Try native Node.js fetch (Node 18+ has built-in global fetch), which handles redirects flawlessly
   if (typeof fetch !== "undefined") {
@@ -116,7 +116,7 @@ async function postGoogleScriptData(url: string, payload: any): Promise<any> {
     }, FETCH_TIMEOUT_MS);
 
     try {
-      console.log(`[Google SDK] Engine 1 (Native fetch POST) sending payload with 4s timeout...`);
+      console.log(`[Google SDK] Engine 1 (Native fetch POST) sending payload with 15s timeout...`);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -892,7 +892,7 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
       try {
         const fetchPromise = fetchSheet2Users(true); // STRICT ENFORCEMENT: Bypass cache to query live sheet data
         const timeoutPromise = new Promise<any[]>((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout")), 3000)
+          setTimeout(() => reject(new Error("Timeout")), 15000)
         );
         sheetUsers = await Promise.race([fetchPromise, timeoutPromise]);
       } catch (e: any) {
@@ -1088,12 +1088,12 @@ app.post("/api/check-existence", async (req, res) => {
       return res.json({ exists: false });
     }
 
-    // 1. Get sheet users with strict 2.5s Promise.race timeout protection
+    // 1. Get sheet users with strict 15s Promise.race timeout protection
     let sheetUsers: any[] = [];
     try {
       const fetchPromise = fetchSheet2Users(true);
       const timeoutPromise = new Promise<any[]>((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout")), 2500)
+        setTimeout(() => reject(new Error("Timeout")), 15000)
       );
       sheetUsers = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (e: any) {
