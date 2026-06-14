@@ -1270,6 +1270,189 @@ app.get("/api/debug-config", (req, res) => {
   });
 });
 
+// --- SEO PHASE 2 HELPER & ENDPOINTS ---
+function slugify(text: string): string {
+  return String(text)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')           // Replace spaces with -
+    .replace(/[^\w\-]+/g, '')       // Remove all non-word chars except -
+    .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+    .replace(/^-+/, '')             // Trim - from start
+    .replace(/-+$/, '');            // Trim - from end
+}
+
+async function getFacilitiesCachedList(): Promise<any[]> {
+  const now = Date.now();
+  if (facilitiesCache.data && facilitiesCache.data.length > 0 && (now - facilitiesCache.lastUpdated < FACILITIES_CACHE_TTL_MS)) {
+    return facilitiesCache.data;
+  }
+  
+  console.log(`[Cache Engine] Auto-fetching facilities in helper...`);
+  try {
+    const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
+    const rawResult = await getGoogleScriptData(`${GOOGLE_SCRIPT_URL}${separator}sheet=Sheet1&sheetName=Sheet1`);
+    let parsed = [];
+    if (typeof rawResult === 'string') {
+      if (!rawResult.includes("<!DOCTYPE") && !rawResult.includes("<html")) {
+        parsed = JSON.parse(rawResult);
+      }
+    } else if (Array.isArray(rawResult)) {
+      parsed = rawResult;
+    }
+    
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      facilitiesCache.data = parsed;
+      facilitiesCache.lastUpdated = now;
+      return parsed;
+    }
+  } catch (err: any) {
+    console.warn(`[Cache Engine] Helper fetch failed:`, err.message);
+  }
+  
+  return facilitiesCache.data || [];
+}
+
+// Sitemap generator endpoint
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const facilities = await getFacilitiesCachedList();
+    
+    const staticUrls = [
+      "https://solaroptions.in/",
+      "https://solaroptions.in/solar-rooftop-calculator",
+      "https://solaroptions.in/3d-layout-designer",
+      "https://solaroptions.in/factory-data-insights",
+      "https://solaroptions.in/leads-inbox",
+      "https://solaroptions.in/privacy",
+      "https://solaroptions.in/terms"
+    ];
+    
+    let urlBlocksStr = staticUrls.map(url => `  <url>\n    <loc>${url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`).join("\n");
+    
+    facilities.forEach(item => {
+      const name = item['Factory Name'] || item['factory'];
+      if (name) {
+        const slug = slugify(name);
+        urlBlocksStr += `\n  <url>\n    <loc>https://solaroptions.in/company/${slug}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>`;
+      }
+    });
+    
+    const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlBlocksStr}
+</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml");
+    return res.status(200).send(sitemapXml);
+  } catch (err: any) {
+    console.error("[Sitemap Error] Error generating sitemap:", err);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
+// Dynamic Company Intelligence Page route
+app.get("/company/:slug", async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const facilities = await getFacilitiesCachedList();
+    
+    const facility = facilities.find(f => {
+      const name = f['Factory Name'] || f['factory'] || '';
+      return slugify(name) === slug;
+    });
+    
+    const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist", "index.html")
+      : path.join(process.cwd(), "index.html");
+      
+    if (!facility) {
+      return res.sendFile(indexPath);
+    }
+    
+    const companyName = facility['Factory Name'] || facility['factory'] || 'NA';
+    const location = facility['Location'] || facility['location'] || 'NA';
+    
+    const title = `${companyName} Rooftop Area & Industrial Site Intelligence | SolarOptions`;
+    const description = `Explore industrial rooftop intelligence for ${companyName} in ${location}, including rooftop area insights and site information. Unlock additional solar opportunity intelligence with SolarOptions.`;
+    const canonicalUrl = `https://solaroptions.in/company/${slug}`;
+    
+    const breadcrumbSchema = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "SolarOptions",
+          "item": "https://solaroptions.in/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": companyName,
+          "item": canonicalUrl
+        }
+      ]
+    };
+
+    const webpageSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${canonicalUrl}#webpage`,
+      "url": canonicalUrl,
+      "name": title,
+      "description": description,
+      "breadcrumb": {
+        "@id": `${canonicalUrl}#breadcrumb`
+      },
+      "about": {
+        "@type": "Place",
+        "name": companyName,
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": location,
+          "addressCountry": "IN"
+        }
+      }
+    };
+    
+    let html = fs.readFileSync(indexPath, "utf8");
+    
+    // Inject dynamic tags by replacing existing key head meta tags if present
+    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`);
+    html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${description}" />`);
+    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${description}" />`);
+    html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${title}" />`);
+    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${title}" />`);
+    html = html.replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${canonicalUrl}" />`);
+    html = html.replace(/<meta property="og:url" content=".*?" \/>/, `<meta property="og:url" content="${canonicalUrl}" />`);
+    
+    const schemaBlock = `
+    <!-- Company Page Specific Structured Data -->
+    <script type="application/ld+json">
+    ${JSON.stringify(breadcrumbSchema, null, 2)}
+    </script>
+    <script type="application/ld+json">
+    ${JSON.stringify(webpageSchema, null, 2)}
+    </script>
+    `;
+    
+    html = html.replace("</head>", `${schemaBlock}\n</head>`);
+    
+    res.setHeader("Content-Type", "text/html");
+    return res.status(200).send(html);
+    
+  } catch (err: any) {
+    console.error("[Company Route Error] Error handling company route:", err);
+    const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist", "index.html")
+      : path.join(process.cwd(), "index.html");
+    return res.sendFile(indexPath);
+  }
+});
+
 // API 404 Handler
 app.all("/api/*", (req, res) => {
   res.status(404).json({ error: "API endpoint not found", method: req.method, path: req.url });

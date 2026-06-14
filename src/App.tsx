@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText } from "lucide-react";
+import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -15,6 +15,17 @@ import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 
 // --- HELPERS ---
+const slugify = (text: string): string => {
+  return String(text)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')           // Replace spaces with -
+    .replace(/[^\w\-]+/g, '')       // Remove all non-word chars except -
+    .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+    .replace(/^-+/, '')             // Trim - from start
+    .replace(/-+$/, '');            // Trim - from end
+};
+
 const formatIndianNumber = (value: string | number) => {
   const num = Number(value);
   return Number.isFinite(num) ? num.toLocaleString('en-IN') : value;
@@ -96,6 +107,7 @@ export default function SolarApp() {
     
     console.log(`[Router] Path: ${rawPath} -> Mapped to: ${path}`);
     
+    if (path.startsWith('/company/')) return 'company';
     if (path === '/solar-rooftop-calculator') return 'consumer';
     if (path === '/3d-layout-designer' || path === '/factory-data-insights') return 'epc';
     if (path === '/privacy') return 'privacy';
@@ -103,6 +115,18 @@ export default function SolarApp() {
     if (path === '/leads-inbox') return 'epc'; // Added support for leads-inbox path directly
     return 'landing';
   }, [location.pathname]);
+
+  const companySlug = useMemo(() => {
+    const rawPath = location.pathname;
+    const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
+    if (path.startsWith('/company/')) {
+      return path.substring('/company/'.length);
+    }
+    return null;
+  }, [location.pathname]);
+
+  const [companyLead, setCompanyLead] = useState<Lead | null>(null);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(false);
 
   // derivation of epcView from location
   const epcView = useMemo(() => {
@@ -207,6 +231,63 @@ export default function SolarApp() {
         .catch(err => console.error('Failed to fetch inbox:', err));
     }
   }, [isLoggedIn, epcView]);
+
+  useEffect(() => {
+    if (companySlug) {
+      setIsLoadingCompany(true);
+      
+      const fetchPath = '/api/facilities';
+      fetch(fetchPath)
+        .then(res => res.ok ? res : fetch('/api/leads'))
+        .then(res => res.json())
+        .then(resData => {
+          let rawLeads: any[] = [];
+          if (resData && typeof resData === 'object' && !Array.isArray(resData)) {
+            if (resData.success) {
+              rawLeads = resData.data || [];
+            }
+          } else if (Array.isArray(resData)) {
+            rawLeads = resData;
+          }
+          
+          if (rawLeads.length > 0) {
+            const mapped = rawLeads.map((row) => ({
+              region: (row['Region'] || 'NA').toLowerCase(),
+              factory: row['Factory Name'] || 'NA',
+              location: row['Location'] || 'NA',
+              rooftop: Number(row['Rooftop Space']) || 0,
+              kw: row['Potential kW'] || 0,
+              owner: row['Owner Name'] || 'NA',
+              contact: row['Contact Number'] || row['Contact'] || 'NA',
+              email: row['Email ID'] || row['Email'] || 'NA',
+              monthlyBill: row['Monthly Bill'] || 'NA',
+              monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
+            }));
+            
+            const matched = mapped.find(lead => slugify(lead.factory) === companySlug);
+            if (matched) {
+              setCompanyLead(matched);
+            } else {
+              const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
+              setCompanyLead(sampleMatched || null);
+            }
+          } else {
+            const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
+            setCompanyLead(sampleMatched || null);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load company detail page:", err);
+          const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
+          setCompanyLead(sampleMatched || null);
+        })
+        .finally(() => {
+          setIsLoadingCompany(false);
+        });
+    } else {
+      setCompanyLead(null);
+    }
+  }, [companySlug]);
 
   // --- ACTIONS ---
   const fetchLiveLeads = async (limit: number, searchVal: string, filterVal: string) => {
@@ -868,6 +949,13 @@ export default function SolarApp() {
             <meta name="description" content="Explore thousands of industrial factory rooftops with precision data. Generate leads and scale your EPC solar installation business." />
           </>
         )}
+        {currentPage === 'company' && companyLead && (
+          <>
+            <title>{`${companyLead.factory} Rooftop Area & Industrial Site Intelligence | SolarOptions`}</title>
+            <meta name="description" content={`Explore industrial rooftop intelligence for ${companyLead.factory} in ${companyLead.location}, including rooftop area insights and site information. Unlock additional solar opportunity intelligence with SolarOptions.`} />
+            <link rel="canonical" href={`https://solaroptions.in/company/${companySlug}`} />
+          </>
+        )}
       </Helmet>
       {/* Global Background Layer */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 will-change-transform" />
@@ -1149,6 +1237,258 @@ export default function SolarApp() {
             </footer>
                </div>
             </div>
+          </motion.div>
+        )}
+
+        {currentPage === 'company' && (
+          <motion.div 
+            key="company"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="max-w-4xl mx-auto px-6 py-24 min-h-[85vh] relative z-20"
+          >
+            <div className="mb-10 flex flex-wrap gap-4 items-center justify-between">
+              <button 
+                onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
+                className="flex items-center gap-2 text-xs font-black text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-[0.2em] bg-slate-800/40 px-5 py-2.5 rounded-xl border border-white/5 shadow-md hover:border-emerald-500/20 active:scale-95"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+              </button>
+              
+              <div className="flex items-center gap-2 bg-emerald-500/5 px-4 py-2 rounded-full border border-emerald-500/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Public Directory Index</span>
+              </div>
+            </div>
+
+            {isLoadingCompany ? (
+              <div className="flex flex-col items-center justify-center py-24 space-y-4">
+                <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">Hydrating Rooftop Intelligence...</p>
+              </div>
+            ) : companyLead ? (
+              <div className="space-y-12 animate-fade">
+                {/* Header section */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-900/45 to-slate-900 p-8 sm:p-12 rounded-[32px] border border-white/5 space-y-4 relative overflow-hidden shadow-2xl text-left">
+                  <div className="absolute -right-32 -bottom-32 w-96 h-96 bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                      <Sun className="w-7 h-7 text-slate-900" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block leading-none">Rooftop Area Intelligence</span>
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mt-1">Status: Indexed & Verified</span>
+                    </div>
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight uppercase tracking-tight max-w-2xl">{companyLead.factory}</h1>
+                  <div className="flex items-center gap-3 text-gray-400 font-medium pt-2">
+                    <MapPin className="w-5 h-5 text-emerald-500" /> <span className="text-sm sm:text-base">{companyLead.location}</span>
+                  </div>
+                </div>
+
+                {/* Sub title / SEO text banner */}
+                <div className="bg-slate-800/10 p-6 rounded-2xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">Industrial Site Protocol</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed max-w-xl">This commercial facility is indexed on SolarOptions. India's C&I (Commercial & Industrial) solar developers use these pre-calculated rooftop footprints to assess feasibility and schedule account planning.</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowAccessForm(true)}
+                    className="shrink-0 px-6 py-3 bg-slate-800 hover:bg-slate-700 hover:border-emerald-500/20 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all border border-white/5 active:scale-95"
+                  >
+                    Connect API
+                  </button>
+                </div>
+
+                {/* Main Full Specs layout based card design */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                  {/* Left Column: Physical Footprints */}
+                  <div className="space-y-6">
+                    {/* Primary Metric: Rooftop (PUBLICLY DISPAYED) */}
+                    <div className="bg-slate-800/40 p-8 rounded-[31px] border border-white/5 shadow-lg hover:border-emerald-500/10 transition-all cursor-default relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 h-full w-2 bg-gradient-to-b from-emerald-500 to-transparent opacity-40" />
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Available Rooftop Area</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-4xl font-black text-white tracking-tight">
+                          {formatIndianNumber(companyLead.rooftop)}
+                        </p>
+                        <span className="text-xs font-bold text-slate-400 uppercase">sq.ft</span>
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-4 leading-relaxed font-light">Verified via high-resolution satellite geometric estimation tools. Error margin is kept within small standards.</p>
+                    </div>
+
+                    {/* Secondary Metrics: Grid Layout (LOCKED VALUE) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Potential Capacity */}
+                      <div className="bg-slate-800/30 p-6 rounded-[31px] border border-white/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-slate-950/25 backdrop-blur-[2px] z-10" />
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3">Potential Capacity</p>
+                        <p className="text-xl font-black text-gray-400 leading-none">Locked</p>
+                        
+                        {/* Get Access overlay CTA inside card */}
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 text-center bg-slate-950/90 gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Lock className="w-4 h-4 text-emerald-400" />
+                          <button 
+                            onClick={() => setShowAccessForm(true)} 
+                            className="text-[10px] font-black text-emerald-400 hover:underline uppercase tracking-wider"
+                          >
+                            Get Access
+                          </button>
+                        </div>
+                        {/* Default static visual locks for Requirement 4 */}
+                        <div className="mt-3 flex items-center justify-between z-0">
+                          <span className="text-xs font-bold text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10">Get Access</span>
+                          <Lock className="w-3.5 h-3.5 text-gray-500" />
+                        </div>
+                      </div>
+
+                      {/* Monthly Savings */}
+                      <div className="bg-slate-800/30 p-6 rounded-[31px] border border-white/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-slate-950/25 backdrop-blur-[2px] z-10" />
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3">Monthly Saving</p>
+                        <p className="text-xl font-black text-gray-400 leading-none">Locked</p>
+                        
+                        {/* Get Access overlay CTA inside card */}
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 text-center bg-slate-955/90 gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Lock className="w-4 h-4 text-emerald-400" />
+                          <button 
+                            onClick={() => setShowAccessForm(true)} 
+                            className="text-[10px] font-black text-emerald-400 hover:underline uppercase tracking-wider"
+                          >
+                            Get Access
+                          </button>
+                        </div>
+                        {/* Default static visual locks for Requirement 4 */}
+                        <div className="mt-3 flex items-center justify-between z-0">
+                          <span className="text-xs font-bold text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10">Get Access</span>
+                          <Lock className="w-3.5 h-3.5 text-gray-500" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Protocol Analysis Status */}
+                    <div className="bg-slate-850 p-5 rounded-[24px] border border-white/5 flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Protocol Analysis</span>
+                      <div className="flex items-center gap-2 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/10">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-tight">Verified Zone</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Corporate Contacts / Decision Maker (LOCKED VALUES) */}
+                  <div className="bg-slate-950/40 p-10 rounded-[50px] border border-white/5 space-y-8 relative overflow-hidden group flex flex-col justify-center">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                      <Shield className="w-16 h-16 text-gray-500" />
+                    </div>
+                    
+                    {/* Locked value overlays on hover */}
+                    <div className="absolute inset-0 z-20 bg-slate-950/95 backdrop-blur-[1px] flex flex-col items-center justify-center p-8 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Lock className="w-8 h-8 text-emerald-400 mb-4" />
+                      <h4 className="text-sm font-black uppercase text-white tracking-widest">Locked Premium Intelligence</h4>
+                      <p className="text-xs text-gray-400 max-w-xs mt-2 mb-6">Decision-maker contact records, direct mobile lines, and verified professional emails are reserved for trial subscribers.</p>
+                      <button 
+                        onClick={() => setShowAccessForm(true)}
+                        className="px-6 py-3 bg-emerald-500 text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl hover:bg-emerald-400 transition-all active:scale-95 font-sans"
+                      >
+                        Start 1-Day Free Trial
+                      </button>
+                    </div>
+
+                    {/* Form Layout matching Requirement 4 (Using "Get Access") */}
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-1.5">
+                        Decision Authority <Lock className="w-2.5 h-2.5 text-gray-600" />
+                      </p>
+                      <p className="font-bold text-lg text-emerald-400">Get Access</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-1.5">
+                        Digital Contact <Lock className="w-2.5 h-2.5 text-gray-600" />
+                      </p>
+                      <p className="font-bold text-lg text-emerald-400">Get Access</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-1.5">
+                        System Email <Lock className="w-2.5 h-2.5 text-gray-600" />
+                      </p>
+                      <p className="font-bold text-lg text-emerald-400">Get Access</p>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Protected Data Guardrail Active</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Big trial activation CTA banner */}
+                <div className="bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-8 sm:p-12 rounded-[40px] border border-emerald-500/10 shadow-2xl relative overflow-hidden text-left">
+                  <div className="absolute right-0 top-0 p-12 opacity-5">
+                    <Sun className="w-48 h-48 text-emerald-500" />
+                  </div>
+                  <div className="space-y-6 max-w-xl">
+                    <div className="inline-flex items-center gap-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/10">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Instant Activation</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight uppercase tracking-tight">Looking for High-Potential Rooftops to Shorten Your Sales Funnel?</h2>
+                    <p className="text-gray-400 text-sm leading-relaxed font-light">Get instant access to this facility's technical layout modeling, estimated project savings, live contact coordinates, and over 1,500+ commercial rooftops across industrial areas in India.</p>
+                    <div className="flex flex-wrap gap-4 pt-2">
+                      <button 
+                        onClick={() => setShowAccessForm(true)}
+                        className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                      >
+                        Start 1-Day Trial For Free <ArrowRight className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => { window.scrollTo(0, 0); navigate('/'); }}
+                        className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl border border-white/5 transition-all"
+                      >
+                        Explore Directory
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-900 border border-white/5 p-12 rounded-[32px] text-center space-y-6">
+                <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-400 mx-auto">
+                  <X className="w-8 h-8" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black uppercase text-white tracking-tight">Rooftop Workspace Index Error</h3>
+                  <p className="text-gray-400 text-sm max-w-md mx-auto">The requested industrial facility path was not found in our public directories, or matches have been archived.</p>
+                </div>
+                <button 
+                  onClick={() => { window.scrollTo(0, 0); navigate('/'); }}
+                  className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            )}
+
+            {/* Branded Company Footer */}
+            <footer className="mt-24 pt-12 border-t border-white/5 text-left">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center text-left">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900 shadow-lg shadow-emerald-500/20">
+                      <Sun className="w-5 h-5" />
+                    </div>
+                    <span className="text-base font-black text-white tracking-tighter">SolarOptions.in</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">India's Industrial Rooftop Intelligence & Lead Generation Platform. Ranging across MIDC and core manufacturing corridors.</p>
+                </div>
+                <div className="flex flex-wrap justify-start md:justify-end gap-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  <button onClick={() => { window.scrollTo(0, 0); navigate('/privacy'); }} className="hover:text-emerald-400 transition-colors">Privacy</button>
+                  <button onClick={() => { window.scrollTo(0, 0); navigate('/terms'); }} className="hover:text-emerald-400 transition-colors">Terms</button>
+                  <button onClick={() => setShowAccessForm(true)} className="hover:text-emerald-400 transition-colors">Activate Portal</button>
+                </div>
+              </div>
+            </footer>
           </motion.div>
         )}
 

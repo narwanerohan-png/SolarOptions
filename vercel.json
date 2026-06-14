@@ -10,6 +10,14 @@
       "destination": "https://gen-lang-client-0873083077.firebaseapp.com/__/auth/:path*"
     },
     {
+      "source": "/company/:slug",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/index.ts"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
