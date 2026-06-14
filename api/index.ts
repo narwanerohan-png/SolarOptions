@@ -1271,6 +1271,15 @@ app.get("/api/debug-config", (req, res) => {
 });
 
 // --- SEO PHASE 2 HELPER & ENDPOINTS ---
+const BACKEND_SAMPLE_FACILITIES = [
+  { factory: 'Focus Controls Pvt. Ltd.', location: 'Shindewadi, Pune', rooftop: 5000, kw: 71.4, region: 'pune' },
+  { factory: 'Havmor Icecream Pvt Ltd', location: 'Talegaon, Pune', rooftop: 280000, kw: 4000, region: 'pune' },
+  { factory: 'Bericap India Pvt. Ltd.', location: 'Talegaon, Pune', rooftop: 100000, kw: 1428.6, region: 'pune' },
+  { factory: 'Infra Industries', location: 'Vasai, Maharashtra', rooftop: 75000, kw: 1071.4, region: 'mumbai' },
+  { factory: 'Safex Fire Services', location: 'Palghar, Maharashtra', rooftop: 42000, kw: 600, region: 'mumbai' },
+  { factory: 'RBSM Industrial Plant', location: 'Pune, Maharashtra', rooftop: 56000, kw: 800, region: 'pune' },
+];
+
 function slugify(text: string): string {
   return String(text)
     .toLowerCase()
@@ -1330,12 +1339,20 @@ app.get("/sitemap.xml", async (req, res) => {
     
     let urlBlocksStr = staticUrls.map(url => `  <url>\n    <loc>${url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`).join("\n");
     
+    // Deduping Set for all company page slugs
+    const uniqueSlugs = new Set<string>();
+
+    // Dynamically populated from Sheet1 (getFacilitiesCachedList)
     facilities.forEach(item => {
       const name = item['Factory Name'] || item['factory'];
       if (name) {
-        const slug = slugify(name);
-        urlBlocksStr += `\n  <url>\n    <loc>https://solaroptions.in/company/${slug}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>`;
+        uniqueSlugs.add(slugify(name));
       }
+    });
+
+    // Render URLs
+    uniqueSlugs.forEach(slug => {
+      urlBlocksStr += `\n  <url>\n    <loc>https://solaroptions.in/company/${slug}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`;
     });
     
     const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1357,10 +1374,19 @@ app.get("/company/:slug", async (req, res) => {
     const slug = req.params.slug;
     const facilities = await getFacilitiesCachedList();
     
-    const facility = facilities.find(f => {
+    // Search in live facilities, then localInbox, then backend static sample list
+    let facility = facilities.find(f => {
       const name = f['Factory Name'] || f['factory'] || '';
       return slugify(name) === slug;
     });
+
+    if (!facility) {
+      facility = localInbox.find(f => f.factory && slugify(f.factory) === slug);
+    }
+
+    if (!facility) {
+      facility = BACKEND_SAMPLE_FACILITIES.find(f => f.factory && slugify(f.factory) === slug);
+    }
     
     const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
       ? path.join(process.cwd(), "dist", "index.html")
