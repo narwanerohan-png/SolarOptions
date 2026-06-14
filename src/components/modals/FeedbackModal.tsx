@@ -18,7 +18,7 @@ export const FeedbackModal = React.memo(({ isOpen, onClose, onSubmit }: Feedback
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative border border-white/5" 
+        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative border border-white/5 text-left" 
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-10 text-left">

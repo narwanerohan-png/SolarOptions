@@ -750,7 +750,7 @@ export default function SolarApp() {
           <span className="text-lg sm:text-xl font-bold tracking-tight text-white">SolarOptions<span className="text-emerald-400"> . </span>in</span>
         </div>
         
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-6">
           <button 
             onClick={() => { window.scrollTo(0, 0); navigate('/solar-rooftop-calculator'); }} 
             className={cn(
@@ -795,7 +795,7 @@ export default function SolarApp() {
               </button>
               <button 
                 onClick={() => setShowAccessForm(true)}
-                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
+                className="px-3 sm:px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
               >
                 Get Access
               </button>
@@ -1344,8 +1344,8 @@ export default function SolarApp() {
               <p className="text-gray-500 max-w-xl mx-auto font-medium text-lg">Calculate precision commercial metrics for high-capacity industrial rooftop systems.</p>
             </div>
 
-            <div className="bg-slate-800/50 border border-white/10 rounded-[60px] p-8 sm:p-16 backdrop-blur-xl shadow-3xl">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+            <div className="bg-slate-800/50 border border-white/10 rounded-[32px] sm:rounded-[60px] p-5 sm:p-16 backdrop-blur-xl shadow-3xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-16">
                   <div className="space-y-12">
                     <div className="space-y-8">
                        <div className="space-y-2">
@@ -1414,15 +1414,15 @@ export default function SolarApp() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-800/50 rounded-[50px] p-10 border border-white/10 grid grid-cols-2 gap-6 relative">
+                  <div className="bg-slate-800/50 rounded-[28px] sm:rounded-[50px] p-5 sm:p-10 border border-white/10 grid grid-cols-2 gap-4 sm:gap-6 relative">
                     <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-500/10 blur-[80px] pointer-events-none" />
                     
-                    <div className="bg-slate-800/70 p-8 rounded-[40px] border border-white/10 col-span-2 shadow-2xl relative overflow-hidden group">
+                    <div className="bg-slate-800/70 p-5 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-white/10 col-span-2 shadow-2xl relative overflow-hidden group text-left">
                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform">
                           <Zap size={60} />
                        </div>
                        <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mb-4">Recommended Capacity</p>
-                       <p className="text-5xl font-black text-emerald-400 leading-none mb-6">{formatPower(calculatorResult.plantSize)}</p>
+                       <p className="text-4xl sm:text-5xl font-black text-emerald-400 leading-none mb-6">{formatPower(calculatorResult.plantSize)}</p>
                        <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
                           <motion.div 
                             initial={{ width: 0 }}
@@ -1432,35 +1432,35 @@ export default function SolarApp() {
                        </div>
                     </div>
 
-                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                    <div className="bg-slate-800/70 p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] border border-white/10 text-left">
                       <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Yearly Generation</p>
-                      <p className="text-xl font-bold text-white leading-none">{formatIndianNumber(calculatorResult.yearlyGeneration)} <span className="text-[10px] text-gray-600">KWH</span></p>
+                      <p className="text-lg sm:text-xl font-bold text-white leading-none">{formatIndianNumber(calculatorResult.yearlyGeneration)} <span className="text-[10px] text-gray-600">KWH</span></p>
                     </div>
 
-                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10 group overflow-hidden relative">
+                    <div className="bg-slate-800/70 p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] border border-white/10 group overflow-hidden relative text-left">
                       <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500/50 group-hover:h-full transition-all duration-700 opacity-20 pointer-events-none" />
                       <p className="text-[9px] text-emerald-500 font-black uppercase tracking-[0.2em] mb-2">Yearly Savings</p>
-                      <p className="text-xl font-bold text-emerald-400 leading-none">₹{formatIndianNumber(calculatorResult.yearlySavings)}</p>
+                      <p className="text-lg sm:text-xl font-bold text-emerald-400 leading-none">₹{formatIndianNumber(calculatorResult.yearlySavings)}</p>
                     </div>
 
-                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                    <div className="bg-slate-800/70 p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] border border-white/10 text-left">
                       <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">System Cost (Est)</p>
-                      <p className="text-xl font-bold text-white leading-none">₹{formatIndianNumber(calculatorResult.projectCost)}</p>
+                      <p className="text-lg sm:text-xl font-bold text-white leading-none">₹{formatIndianNumber(calculatorResult.projectCost)}</p>
                     </div>
 
-                    <div className="bg-slate-800/70 p-6 rounded-[32px] border border-white/10">
+                    <div className="bg-slate-800/70 p-4 sm:p-6 rounded-[20px] sm:rounded-[32px] border border-white/10 text-left">
                       <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">ROI Payback</p>
-                      <p className="text-xl font-bold text-white leading-none font-mono">{calculatorResult.payback} <span className="text-[10px] text-gray-600">YRS</span></p>
+                      <p className="text-lg sm:text-xl font-bold text-white leading-none font-mono">{calculatorResult.payback} <span className="text-[10px] text-gray-600">YRS</span></p>
                     </div>
                 </div>
             </div>
 
                 <div className="mt-20 pt-16 border-t border-white/5">
-                  <div className="bg-emerald-500 text-slate-900 p-12 rounded-[50px] flex flex-col md:flex-row items-center justify-between gap-12 group relative overflow-hidden">
+                  <div className="bg-emerald-500 text-slate-900 p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-12 group relative overflow-hidden">
                     <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-[60px]" />
                     <div className="space-y-4 text-center md:text-left relative z-10">
-                      <h3 className="text-3xl sm:text-4xl font-black leading-[1.1]">Get Technical <br/><span className="italic opacity-80">Feasibility Design.</span></h3>
-                      <p className="text-slate-900/70 text-sm max-w-sm font-bold uppercase tracking-wide">Professional on-site audit & precise system layout design.</p>
+                      <h3 className="text-2xl sm:text-4xl font-black leading-[1.1]">Get Technical <br/><span className="italic opacity-80">Feasibility Design.</span></h3>
+                      <p className="text-slate-900/70 text-xs sm:text-sm max-w-sm font-bold uppercase tracking-wide">Professional on-site audit & precise system layout design.</p>
                     </div>
                     <button 
                       onClick={() => setShowQuoteModal(true)}
@@ -1565,12 +1565,12 @@ export default function SolarApp() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                       {filteredLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).map((lead, i) => (
                         <motion.div 
                           key={i} 
                           whileHover={{ y: -8, transition: { duration: 0.3, ease: 'easeOut' } }}
-                          className="group bg-white text-slate-900 p-10 rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col justify-between border border-slate-100 hover:shadow-[0_40px_70px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden"
+                          className="group bg-white text-slate-900 p-6 sm:p-10 rounded-[28px] sm:rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col justify-between border border-slate-100 hover:shadow-[0_40px_70px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden text-left"
                         >
                           <div>
                             <div className="flex justify-between items-start mb-10">
@@ -1606,7 +1606,7 @@ export default function SolarApp() {
                     </div>
 
                     {/* Pagination Controls */}
-                    <div className="flex items-center justify-center gap-6 mt-12 bg-black/40 p-6 rounded-[32px] backdrop-blur-xl">
+                    <div className="flex items-center justify-center gap-3 sm:gap-6 mt-12 bg-black/40 p-4 sm:p-6 rounded-2xl sm:rounded-[32px] backdrop-blur-xl">
                         <button 
                           disabled={currentPageIndex === 1}
                           onClick={() => setCurrentPageIndex(p => Math.max(1, p - 1))}
@@ -1729,8 +1729,8 @@ export default function SolarApp() {
                       </div>
 
                       {/* STEP 2: Design Canvas Card (8 columns) */}
-                      <div className="xl:col-span-8 bg-white rounded-3xl sm:rounded-[56px] border border-slate-100 flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-[550px] sm:min-h-[700px]">
-                        <header className="px-4 py-4 sm:px-10 sm:py-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-50 bg-white z-10">
+                      <div className="xl:col-span-8 bg-white rounded-2xl sm:rounded-[56px] border border-slate-100 flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.03)] h-[360px] sm:h-[550px] sm:min-h-[700px]">
+                        <header className="px-4 py-3 sm:px-10 sm:py-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 border-b border-slate-50 bg-white z-10 w-full">
                           <div className="flex items-center gap-3 sm:gap-4">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl">
                               <PenTool size={16} className="sm:w-5 sm:h-5" />
@@ -1796,7 +1796,7 @@ export default function SolarApp() {
 
                        {showDesign3D && designBuildings.length > 0 && (
                          <div className="w-full space-y-8 animate-in fade-in zoom-in-95 duration-700">
-                           <div className="h-[380px] sm:h-[600px] bg-slate-900 rounded-[2rem] sm:rounded-[3.5rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+                           <div className="h-[280px] sm:h-[600px] bg-slate-900 rounded-[1.5rem] sm:rounded-[3.5rem] overflow-hidden border border-white/10 shadow-2xl relative group pb-16 sm:pb-0">
                               <ThreeScene 
                                 buildings={designBuildings}
                                 panelZones={designPanelZones}
@@ -1913,7 +1913,7 @@ export default function SolarApp() {
                                   </div>
                                </div>
 
-                               <div className="flex justify-between items-center px-12 border-t border-slate-50 pt-8">
+                               <div className="flex justify-between items-center px-4 sm:px-12 border-t border-white/10 pt-8">
                                   <div className="space-y-1">
                                      <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Project size</p>
                                      <p className="text-3xl font-black text-white">{(designPanelCount * 0.55).toFixed(1)} kWp</p>
@@ -1962,7 +1962,7 @@ export default function SolarApp() {
                         </div>
                       ) : (
                         inboxData.map((item, idx) => (
-                          <div key={idx} className="bg-slate-900/40 text-white p-8 rounded-[40px] border border-white/5 shadow-2xl flex flex-col md:flex-row gap-8 backdrop-blur-md group hover:border-emerald-500/30 transition-all">
+                          <div key={idx} className="bg-slate-900/40 text-white p-5 sm:p-8 rounded-[24px] sm:rounded-[40px] border border-white/5 shadow-2xl flex flex-col md:flex-row gap-6 sm:gap-8 backdrop-blur-md group hover:border-emerald-500/30 transition-all text-left">
                             <div className="shrink-0">
                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black ${item.type === 'quote' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                   {item.type === 'quote' ? 'QT' : 'FB'}
@@ -1980,7 +1980,7 @@ export default function SolarApp() {
                                </div>
 
                                {item.type === 'quote' ? (
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-900/50 p-8 rounded-[32px] border border-white/5">
+                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 bg-slate-900/50 p-4 sm:p-8 rounded-[20px] sm:rounded-[32px] border border-white/5 text-left">
                                    <div>
                                       <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Factory</p>
                                       <p className="font-bold text-sm text-gray-100">{item.factory}</p>
@@ -1999,7 +1999,7 @@ export default function SolarApp() {
                                    </div>
                                  </div>
                                ) : (
-                                 <div className="bg-slate-900/50 p-8 rounded-[32px] border border-white/5 italic text-gray-400 text-base leading-relaxed font-medium">
+                                 <div className="bg-slate-900/50 p-4 sm:p-8 rounded-[20px] sm:rounded-[32px] border border-white/5 italic text-gray-400 text-sm sm:text-base leading-relaxed font-medium text-left">
                                    "{item.message}"
                                  </div>
                                )}
@@ -2068,7 +2068,7 @@ export default function SolarApp() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="bg-slate-900/40 rounded-[40px] p-8 shadow-2xl relative overflow-hidden h-64 border border-white/10 group flex flex-col justify-between backdrop-blur-md"
+                      className="bg-slate-900/40 rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl relative overflow-hidden h-64 border border-white/10 group flex flex-col justify-between backdrop-blur-md"
                     >
                       <div className="flex justify-between items-start mb-4">
                          <div className="pr-4">
@@ -2202,7 +2202,7 @@ export default function SolarApp() {
               initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-slate-900 rounded-[50px] w-full max-w-lg p-10 sm:p-16 relative z-10 shadow-3xl overflow-hidden border border-white/5"
+              className="bg-slate-900 rounded-[32px] sm:rounded-[50px] w-full max-w-lg p-6 sm:p-16 max-h-[90vh] overflow-y-auto relative z-10 shadow-3xl border border-white/5 text-left"
               onClick={e => e.stopPropagation()}
             >
               <div className="absolute top-0 right-0 p-8">
@@ -2314,7 +2314,7 @@ export default function SolarApp() {
               initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-slate-900 text-white p-10 sm:p-16 rounded-[60px] w-full max-w-2xl shadow-3xl relative my-auto border border-white/5" 
+              className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[60px] w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-3xl relative my-auto border border-white/5 text-left" 
               onClick={e => e.stopPropagation()}
             >
                <div className="absolute top-0 right-0 p-10">
@@ -2399,7 +2399,7 @@ export default function SolarApp() {
                       exit={{ opacity: 0, height: 0 }}
                       className="overflow-hidden mb-10"
                     >
-                      <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[40px] p-10">
+                      <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[24px] sm:rounded-[40px] p-5 sm:p-10">
                         <h4 className="text-emerald-400 font-black text-xs uppercase tracking-[0.25em] mb-8 flex items-center gap-3">
                           <ShieldCheck className="w-5 h-5" /> Recommended Action Plan
                         </h4>

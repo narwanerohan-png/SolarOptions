@@ -31,22 +31,22 @@ export const LoginModal = React.memo(({
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-slate-900/80 backdrop-blur-2xl text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-white/10 shadow-emerald-500/5" 
+        className="bg-slate-900/80 backdrop-blur-2xl text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative border border-white/10 shadow-emerald-500/5" 
         onClick={e => e.stopPropagation()}
       >
-        <div className="absolute top-0 right-0 p-6">
+        <div className="absolute top-0 right-0 p-4 sm:p-6">
           <button onClick={onClose} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-10">
+        <div className="space-y-6 sm:space-y-10 text-left">
           <div className="space-y-4">
-            <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
+            <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 shadow-xl shadow-emerald-500/20">
               <Sun className="w-8 h-8 text-slate-900" />
             </div>
-            <h2 className="text-4xl font-black tracking-tight leading-tight">Secure <br/><span className="text-emerald-400 italic">Access.</span></h2>
-            <p className="text-gray-400 font-medium leading-relaxed">Enterprise solar intelligence dashboard for approved partners.</p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">Secure <br/><span className="text-emerald-400 italic">Access.</span></h2>
+            <p className="text-gray-400 font-medium leading-relaxed text-sm">Enterprise solar intelligence dashboard for approved partners.</p>
           </div>
 
           <div className="space-y-6">

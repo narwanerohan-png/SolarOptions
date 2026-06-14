@@ -17,7 +17,7 @@ export const CredentialsModal = React.memo(({ isOpen, credentials, onClose, onCo
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-md shadow-2xl relative overflow-hidden border border-slate-800" 
+        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative border border-slate-800 text-center" 
       >
         <div className="mb-10 text-center">
           <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20 mx-auto">

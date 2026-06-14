@@ -14,7 +14,7 @@ export const ForgotPasswordModal = React.memo(({ isOpen, onClose }: ForgotPasswo
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }} 
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-slate-900 text-white p-8 sm:p-12 rounded-[40px] w-full max-w-sm border border-slate-800" 
+        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[40px] w-full max-w-sm max-h-[90vh] overflow-y-auto border border-slate-800 text-left" 
         onClick={e => e.stopPropagation()}
       >
         <h3 className="text-2xl font-black mb-4">Reset Access</h3>

@@ -44,18 +44,18 @@ export const AccessFormModal = React.memo(({
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 30 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-slate-900 text-white p-12 rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide" 
+        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide" 
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-10">
-          <div className="space-y-2">
-            <h3 className="text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10">
+          <div className="space-y-2 text-left">
+            <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
             <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
           </div>
-          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">₹7800 Enterprise</div>
+          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹7800 Enterprise</div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-6 sm:mb-12 text-left">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-white/40">Company Entity</label>
             <input 
