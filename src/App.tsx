@@ -996,7 +996,7 @@ export default function SolarApp() {
 
               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
 
-              <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-24 mt-12">
+              <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-12 sm:py-20 mt-4 sm:mt-12">
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -1008,7 +1008,7 @@ export default function SolarApp() {
                 </motion.div>
                 <motion.h1 
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  className="text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-8 leading-[1.02] tracking-tight text-white drop-shadow-2xl"
+                  className="text-[38px] xs:text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-6 sm:mb-8 leading-[1.08] sm:leading-[1.02] tracking-tight text-white drop-shadow-2xl"
                 >
                   <span className="text-emerald-400">Rooftop</span> & Solar <br />
                   Sales Tools.
@@ -1049,12 +1049,12 @@ export default function SolarApp() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 0.6, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="mt-8 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-[0.25em] flex flex-wrap justify-center items-center gap-x-3 gap-y-1.5 px-4"
+                  className="mt-8 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-[0.25em] flex flex-col sm:flex-row justify-center items-center gap-y-2.5 sm:gap-x-3 sm:gap-y-0 px-4"
                 >
                   <span>1,500+ Industrial Facilities</span>
-                  <span className="text-emerald-500/45">•</span>
+                  <span className="hidden sm:inline text-emerald-500/45">•</span>
                   <span>Major MIDC Clusters</span>
-                  <span className="text-emerald-500/45">•</span>
+                  <span className="hidden sm:inline text-emerald-500/45">•</span>
                   <span>Verified Solar Potential</span>
                 </motion.p>
                 
@@ -1071,7 +1071,7 @@ export default function SolarApp() {
             </header>
 
             {/* Strategy Section */}
-            <section id="features" className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+            <section id="features" className="max-w-7xl mx-auto px-6 py-12 sm:py-20 border-t border-white/5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -1125,7 +1125,7 @@ export default function SolarApp() {
               </div>
 
               {/* Enterprise Section */}
-              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-12 sm:p-20 text-center relative overflow-hidden mb-24 backdrop-blur-xl shadow-2xl shadow-black/50 will-change-transform">
+              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-8 sm:p-16 text-center relative overflow-hidden mb-12 sm:mb-20 backdrop-blur-xl shadow-2xl shadow-black/50 will-change-transform">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] -mr-48 -mt-48 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/5 blur-[120px] -ml-48 -mb-48 pointer-events-none"></div>
                 
@@ -1194,7 +1194,7 @@ export default function SolarApp() {
 
                <div className="relative z-10">
                  {/* SEO Keyword Sections */}
-                 <section className="max-w-7xl mx-auto px-6 py-24 mb-12">
+                 <section className="max-w-7xl mx-auto px-6 py-10 sm:py-16 mb-4 sm:mb-8">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 text-left">
                 {[
                   { title: "Solar Design Tool", desc: "Advanced 3D solar design tool for industrial rooftops. Create accurate PV system layouts with safety spacing, optimize panel placement, and generate professional solar project proposals for EPC execution." },
@@ -1212,7 +1212,7 @@ export default function SolarApp() {
             </section>
 
                 {/* Solar Options Guide for SEO */}
-            <section id="seo-insights" className="max-w-5xl mx-auto px-6 py-24 text-left border-t border-white/5">
+            <section id="seo-insights" className="max-w-5xl mx-auto px-6 py-12 sm:py-16 text-left border-t border-white/5">
                <h2 className="text-3xl font-black mb-12 text-white/90 uppercase tracking-tight">Solar <br/><span className="text-emerald-400 italic font-medium">Insights Engine.</span></h2>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-16 text-sm text-gray-500">
                   <div className="space-y-6">
@@ -1231,7 +1231,7 @@ export default function SolarApp() {
             </section>
 
             {/* Final Footer */}
-            <footer className="max-w-6xl mx-auto px-6 py-24 mb-12">
+            <footer className="max-w-6xl mx-auto px-6 py-12 sm:py-16 mb-4">
                <div className="bg-slate-900/50 p-12 rounded-[50px] border border-white/5 backdrop-blur-md">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                     <div className="text-left space-y-4">
