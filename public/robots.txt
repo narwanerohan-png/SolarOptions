@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://solaroptions.in/sitemap.xml
+Sitemap: https://www.solaroptions.in/sitemap.xml

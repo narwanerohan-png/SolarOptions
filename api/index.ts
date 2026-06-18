@@ -1424,13 +1424,13 @@ app.get("/sitemap.xml", async (req, res) => {
     const facilities = await getFacilitiesCachedList();
     
     const staticUrls = [
-      "https://solaroptions.in/",
-      "https://solaroptions.in/solar-rooftop-calculator",
-      "https://solaroptions.in/3d-layout-designer",
-      "https://solaroptions.in/industrial-intelligence",
-      "https://solaroptions.in/opportunity-inbox",
-      "https://solaroptions.in/privacy",
-      "https://solaroptions.in/terms"
+      "https://www.solaroptions.in/",
+      "https://www.solaroptions.in/solar-rooftop-calculator",
+      "https://www.solaroptions.in/3d-layout-designer",
+      "https://www.solaroptions.in/industrial-intelligence",
+      "https://www.solaroptions.in/opportunity-inbox",
+      "https://www.solaroptions.in/privacy-policy",
+      "https://www.solaroptions.in/terms-of-service"
     ];
     
     let urlBlocksStr = staticUrls.map(url => `  <url>\n    <loc>${url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`).join("\n");
@@ -1448,7 +1448,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
     // Render URLs
     uniqueSlugs.forEach(slug => {
-      urlBlocksStr += `\n  <url>\n    <loc>https://solaroptions.in/company/${slug}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`;
+      urlBlocksStr += `\n  <url>\n    <loc>https://www.solaroptions.in/company/${slug}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`;
     });
     
     const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1497,7 +1497,7 @@ app.get("/company/:slug", async (req, res) => {
     
     const title = `${companyName} Rooftop Area & Industrial Site Intelligence | SolarOptions`;
     const description = `Explore industrial rooftop intelligence for ${companyName} in ${location}, including rooftop area insights and site information. Unlock additional solar opportunity intelligence with SolarOptions.`;
-    const canonicalUrl = `https://solaroptions.in/company/${slug}`;
+    const canonicalUrl = `https://www.solaroptions.in/company/${slug}`;
     
     const breadcrumbSchema = {
       "@context": "https://schema.org",
@@ -1507,7 +1507,7 @@ app.get("/company/:slug", async (req, res) => {
           "@type": "ListItem",
           "position": 1,
           "name": "SolarOptions",
-          "item": "https://solaroptions.in/"
+          "item": "https://www.solaroptions.in/"
         },
         {
           "@type": "ListItem",

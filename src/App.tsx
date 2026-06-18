@@ -975,7 +975,7 @@ export default function SolarApp() {
           <>
             <title>{`${companyLead.factory} Rooftop Area & Industrial Site Intelligence | SolarOptions`}</title>
             <meta name="description" content={`Explore industrial rooftop intelligence for ${companyLead.factory} in ${companyLead.location}, including rooftop area insights and site information. Unlock additional solar opportunity intelligence with SolarOptions.`} />
-            <link rel="canonical" href={`https://solaroptions.in/company/${companySlug}`} />
+            <link rel="canonical" href={`https://www.solaroptions.in/company/${companySlug}`} />
           </>
         )}
       </Helmet>
