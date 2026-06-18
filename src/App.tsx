@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import * as THREE from 'three';
 import SketchBoard from './components/SketchBoard';
 import ThreeScene from './components/ThreeScene';
@@ -111,8 +111,8 @@ export default function SolarApp() {
     if (path.startsWith('/company/')) return 'company';
     if (path === '/solar-rooftop-calculator') return 'consumer';
     if (path === '/3d-layout-designer' || path === '/industrial-intelligence') return 'epc';
-    if (path === '/privacy') return 'privacy';
-    if (path === '/terms') return 'terms';
+    if (path === '/privacy' || path === '/privacy-policy') return 'privacy';
+    if (path === '/terms' || path === '/terms-of-service') return 'terms';
     if (path === '/opportunity-inbox') return 'epc'; // Added support for opportunity-inbox path directly
     return 'landing';
   }, [location.pathname]);
@@ -1266,8 +1266,8 @@ export default function SolarApp() {
                       <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Intelligence Platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
                     </div>
                     <div className="flex flex-wrap justify-center md:justify-end gap-10">
-                       <button onClick={() => { window.scrollTo(0, 0); navigate('/privacy'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy</button>
-                       <button onClick={() => { window.scrollTo(0, 0); navigate('/terms'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms</button>
+                       <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy Policy</Link>
+                       <Link to="/terms-of-service" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms of Service</Link>
                        <button onClick={() => setShowFeedbackModal(true)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Feedback</button>
                     </div>
                  </div>
@@ -1524,8 +1524,8 @@ export default function SolarApp() {
                   <p className="text-[11px] text-gray-500 leading-relaxed">India's Industrial Rooftop Intelligence & Lead Generation Platform. Ranging across MIDC and core manufacturing corridors.</p>
                 </div>
                 <div className="flex flex-wrap justify-start md:justify-end gap-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  <button onClick={() => { window.scrollTo(0, 0); navigate('/privacy'); }} className="hover:text-emerald-400 transition-colors">Privacy</button>
-                  <button onClick={() => { window.scrollTo(0, 0); navigate('/terms'); }} className="hover:text-emerald-400 transition-colors">Terms</button>
+                  <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} className="hover:text-emerald-400 transition-colors">Privacy Policy</Link>
+                  <Link to="/terms-of-service" onClick={() => window.scrollTo(0, 0)} className="hover:text-emerald-400 transition-colors">Terms of Service</Link>
                   <button onClick={() => setShowAccessForm(true)} className="hover:text-emerald-400 transition-colors">Activate Portal</button>
                 </div>
               </div>
@@ -1548,7 +1548,17 @@ export default function SolarApp() {
                 <h3 className="text-gray-300 font-bold mb-4 flex items-center gap-2 uppercase tracking-widest text-[10px]">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 1. Minimal Tracking & Data Collection
                 </h3>
-                <p className="font-light pl-3.5 border-l border-white/5">We use industry-standard analytics tools (such as Google Analytics 4) to understand how users interact with our platform. This includes general usage data like pages visited, time spent, and device information. We do not collect personally identifiable information from casual visitors unless voluntarily provided. For registered users or EPC partners, basic details such as name, email, phone number, and project-related inputs may be stored securely to improve service delivery.</p>
+                <div className="font-light pl-3.5 border-l border-white/5 space-y-3">
+                  <p>We use industry-standard analytics tools (such as Google Analytics 4) to understand how users interact with our platform. This includes general usage data like pages visited, time spent, and device information. We do not collect personally identifiable information from casual visitors unless voluntarily provided.</p>
+                  <p>For registered users, trial accounts, or EPC partners, we explicitly collect and store the following fields to facilitate secure portal access and prevent trial exploitation:</p>
+                  <ul className="space-y-1.5 ml-4">
+                    <li className="flex items-start gap-2"><span className="w-1 h-1 bg-emerald-400/50 rounded-full mt-1.5 shrink-0"></span> <strong>Google Sign-In Account Details:</strong> Verified email address, user display name, profile picture URL, and Google Unique User ID (UID) if you authenticate using Google.</li>
+                    <li className="flex items-start gap-2"><span className="w-1 h-1 bg-emerald-400/50 rounded-full mt-1.5 shrink-0"></span> <strong>Email Address:</strong> Valid username/email to create individual profile logs.</li>
+                    <li className="flex items-start gap-2"><span className="w-1 h-1 bg-emerald-400/50 rounded-full mt-1.5 shrink-0"></span> <strong>Mobile & Contact Numbers:</strong> Directly collected to prevent duplicate verification and for platform communication.</li>
+                    <li className="flex items-start gap-2"><span className="w-1 h-1 bg-emerald-400/50 rounded-full mt-1.5 shrink-0"></span> <strong>Company/Business Information:</strong> Associated with registered EPC corporate profiles.</li>
+                    <li className="flex items-start gap-2"><span className="w-1 h-1 bg-emerald-400/50 rounded-full mt-1.5 shrink-0"></span> <strong>Trial, Storage, & Account Records:</strong> Activation timestamps, subscription tiers (e.g., Trial vs. Premium Active), browser fingerprints, IP logs, and feedback history to enforce access limits in Sheet2.</li>
+                  </ul>
+                </div>
               </section>
 
               <section>
