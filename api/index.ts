@@ -1331,8 +1331,8 @@ app.get("/sitemap.xml", async (req, res) => {
       "https://solaroptions.in/",
       "https://solaroptions.in/solar-rooftop-calculator",
       "https://solaroptions.in/3d-layout-designer",
-      "https://solaroptions.in/factory-data-insights",
-      "https://solaroptions.in/leads-inbox",
+      "https://solaroptions.in/industrial-intelligence",
+      "https://solaroptions.in/opportunity-inbox",
       "https://solaroptions.in/privacy",
       "https://solaroptions.in/terms"
     ];

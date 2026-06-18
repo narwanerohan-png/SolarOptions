@@ -50,7 +50,7 @@ export const AccessFormModal = React.memo(({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10">
           <div className="space-y-2 text-left">
             <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
-            <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility leads.</p>
+            <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility intelligence.</p>
           </div>
           <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹7800 Enterprise</div>
         </div>
@@ -176,7 +176,7 @@ export const AccessFormModal = React.memo(({
                     <div className="p-3 bg-emerald-500/5 border border-emerald-500/15 rounded-xl">
                       <p className="text-[11px] text-gray-400 leading-normal">
                         <strong className="text-emerald-400 uppercase text-[9px] [letter-spacing:0.04em] block">Sandbox Developer Mode</strong>
-                        Need to test the 3D tool or search leads right now without updating settings? You can auto-verify the corporate email you entered using sandbox simulation mode.
+                        Need to test the 3D tool or explore facilities right now without updating settings? You can auto-verify the corporate email you entered using sandbox simulation mode.
                       </p>
                     </div>
                     <button

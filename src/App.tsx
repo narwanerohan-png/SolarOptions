@@ -109,10 +109,10 @@ export default function SolarApp() {
     
     if (path.startsWith('/company/')) return 'company';
     if (path === '/solar-rooftop-calculator') return 'consumer';
-    if (path === '/3d-layout-designer' || path === '/factory-data-insights') return 'epc';
+    if (path === '/3d-layout-designer' || path === '/industrial-intelligence') return 'epc';
     if (path === '/privacy') return 'privacy';
     if (path === '/terms') return 'terms';
-    if (path === '/leads-inbox') return 'epc'; // Added support for leads-inbox path directly
+    if (path === '/opportunity-inbox') return 'epc'; // Added support for opportunity-inbox path directly
     return 'landing';
   }, [location.pathname]);
 
@@ -134,7 +134,7 @@ export default function SolarApp() {
     const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
 
     if (path === '/3d-layout-designer') return 'design';
-    if (path === '/leads-inbox') return 'inbox';
+    if (path === '/opportunity-inbox') return 'inbox';
     return 'search'; 
   }, [location.pathname]) as 'search' | 'design' | 'inbox';
 
@@ -749,7 +749,7 @@ export default function SolarApp() {
         setIsLoggedIn(true);
         localStorage.setItem('solar_options_isLoggedIn', 'true');
         setShowLoginModal(false);
-        navigate('/factory-data-insights');
+        navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
       } else {
         alert(data.message || "Google Sign-In Authentication failed.");
@@ -817,7 +817,7 @@ export default function SolarApp() {
         setIsLoggedIn(true);
         localStorage.setItem('solar_options_isLoggedIn', 'true');
         setShowLoginModal(false);
-        navigate('/factory-data-insights');
+        navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
       } else {
         alert(data.message || "Invalid credentials");
@@ -881,10 +881,10 @@ export default function SolarApp() {
           {isLoggedIn ? (
             <>
               <button 
-                onClick={() => { window.scrollTo(0, 0); navigate('/factory-data-insights'); }} 
+                onClick={() => { window.scrollTo(0, 0); navigate('/industrial-intelligence'); }} 
                 className={cn(
                   "text-xs sm:text-sm font-bold transition-colors cursor-pointer",
-                  (location.pathname === '/factory-data-insights' || location.pathname === '/3d-layout-designer') ? "text-emerald-400" : "text-gray-400 hover:text-white"
+                  (location.pathname === '/industrial-intelligence' || location.pathname === '/3d-layout-designer') ? "text-emerald-400" : "text-gray-400 hover:text-white"
                 )}
                 aria-label="Access Dashboard"
               >
@@ -1001,20 +1001,26 @@ export default function SolarApp() {
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-50px" }}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8 backdrop-blur-md"
+                    className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8 backdrop-blur-md"
                   >
-                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-emerald-400">Pro Studio 3D Designer Now Live</span>
                 </motion.div>
                 <motion.h1 
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 leading-[1.05] tracking-tight text-white drop-shadow-2xl"
+                  className="text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-8 leading-[1.02] tracking-tight text-white drop-shadow-2xl"
                 >
-                  <span className="text-emerald-400">Rooftop</span> & Solar <br className="hidden sm:block" />Design Tool.
+                  <span className="text-emerald-400">Rooftop</span> & Solar <br />
+                  Sales Tools.
                 </motion.h1>
-                <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
-                  Elevating execution through better options, sharper planning, and confident decisions.
-                </p>
+                <motion.p
+                  initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 font-medium tracking-wide mb-12 max-w-4xl mx-auto leading-relaxed"
+                >
+                  Everything your team needs to identify opportunities, create better proposals, and move projects forward.
+                </motion.p>
+
 
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -1024,7 +1030,7 @@ export default function SolarApp() {
                 >
                   <button 
                     onClick={() => setShowAccessForm(true)}
-                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
                   >
                     Get Access <ArrowRight className="w-5 h-5" />
                   </button>
@@ -1038,6 +1044,19 @@ export default function SolarApp() {
                     Start 3D Design
                   </button>
                 </motion.div>
+
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 0.6, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-8 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-[0.25em] flex flex-wrap justify-center items-center gap-x-3 gap-y-1.5 px-4"
+                >
+                  <span>1,500+ Industrial Facilities</span>
+                  <span className="text-emerald-500/45">•</span>
+                  <span>Major MIDC Clusters</span>
+                  <span className="text-emerald-500/45">•</span>
+                  <span>Verified Solar Potential</span>
+                </motion.p>
                 
                 <motion.div 
                   initial={{ opacity: 0 }}
@@ -1064,9 +1083,9 @@ export default function SolarApp() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <Database className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">1. Right Rooftops</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">1. Industrial Intelligence</h3>
                   <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Leverage high-potential rooftop data and deep industrial insights. Explore a curated network of industrial facilities across key clusters, so you approach the right sites with a clear strategy from day one.
+                    Explore industrial facilities with mapped rooftop dimensions, estimated solar potential, project capacity, and opportunity insights.
                   </p>
                 </motion.div>
                 
@@ -1081,9 +1100,9 @@ export default function SolarApp() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <PenTool className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">2. Design Faster</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">2. Layout & Sketching Tools</h3>
                   <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Turn insights into precise, site-ready designs. Sketch boundaries, auto-place panels with safety walkways, and simulate real-world layouts in 3D—so you present a plan that is clear, practical, and built for confidence and closure.
+                    Create professional rooftop layouts with automated panel placement, safety spacing, shadow analysis, and 3D visualization.
                   </p>
                 </motion.div>
 
@@ -1098,9 +1117,9 @@ export default function SolarApp() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">3. Close Better</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">3. Decision Intelligence</h3>
                   <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Reach the right decision-makers with data-backed proposals in hand. Eliminate blind outreach and guesswork—so your team moves with clarity, shortens the sales cycle, and closes deals faster.
+                    Prioritize opportunities and engage stakeholders with confidence using verified business insights
                   </p>
                 </motion.div>
               </div>
@@ -1148,7 +1167,7 @@ export default function SolarApp() {
                         <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Rooftop Area Dimensions</p>
                         <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Potential Project</p>
                         <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Monthly Savings</p>
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Contact Decision Maker</p>
+                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Decision Intelligence</p>
                       </div>
                     </div>
                   </div>
@@ -1179,8 +1198,8 @@ export default function SolarApp() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 text-left">
                 {[
                   { title: "Solar Design Tool", desc: "Advanced 3D solar design tool for industrial rooftops. Create accurate PV system layouts with safety spacing, optimize panel placement, and generate professional solar project proposals for EPC execution." },
-                  { title: "Factory Data List", desc: "Access a curated database of industrial facilities across MIDC and key industrial zones, mapped with rooftop solar potential to help identify high-value solar installation opportunities." },
-                  { title: "Decision Makers", desc: "Connect directly with key decision-makers in industrial facilities. Save prospecting time with verified contact insights and approach stakeholders with data-driven solar proposals." },
+                  { title: "Factory Intelligence", desc: "Access curated industrial facilities across MIDC and major industrial zones, mapped with rooftop dimensions, solar potential, and project opportunity insights." },
+                  { title: "Decision Intelligence", desc: "Access verified stakeholder insights to help prioritize opportunities and engage the right people with confidence." },
                   { title: "Solar Calculator", desc: "Instant solar feasibility calculator for industrial and commercial projects. Estimate system size, rooftop solar capacity, and potential savings based on electricity usage, rooftop area, and local tariff structures." },
                   { title: "Solar Project Costing", desc: "Estimate industrial solar project cost with accurate, data-driven calculations. Analyze system size, installation cost, ROI, and payback period based on rooftop area, electricity consumption, and current tariff rates." }
                 ].map((item, i) => (
@@ -1222,7 +1241,7 @@ export default function SolarApp() {
                          </div>
                          <span className="text-xl font-black text-white tracking-tighter">SolarOptions.in</span>
                       </div>
-                      <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Lead Intelligence platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
+                      <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Intelligence Platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
                     </div>
                     <div className="flex flex-wrap justify-center md:justify-end gap-10">
                        <button onClick={() => { window.scrollTo(0, 0); navigate('/privacy'); }} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy</button>
@@ -1889,7 +1908,7 @@ export default function SolarApp() {
                       <div className="h-4 w-[1px] bg-slate-700" />
                       <div className="flex gap-4">
                         <button 
-                          onClick={() => navigate('/factory-data-insights')}
+                          onClick={() => navigate('/industrial-intelligence')}
                           className={`text-xs font-black uppercase tracking-widest transition-all ${epcView === 'search' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400'}`}
                         >
                           Explore Sites
@@ -1904,7 +1923,7 @@ export default function SolarApp() {
                           onClick={() => {}} 
                           className={`text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${epcView === 'inbox' ? 'text-emerald-400' : 'text-gray-600 hover:text-gray-400 opacity-50 cursor-not-allowed'}`}
                         >
-                          Leads Inbox 
+                          Opportunity Inbox 
                         </button>
                       </div>
                     </div>
@@ -2030,19 +2049,19 @@ export default function SolarApp() {
                     {/* SEO Informational Content Section */}
                     <div className="mt-24 pt-16 border-t border-white/5 pb-12">
                       <div className="mb-12">
-                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Factory Data for <span className="text-emerald-400 italic font-medium">Industrial Solar Lead Generation</span></h2>
+                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Factory Intelligence for <span className="text-emerald-400 italic font-medium">Industrial Solar Discovery</span></h2>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-400 opacity-80">
                         <div className="space-y-6">
                           <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Target the Right Industrial Solar Projects</h3>
                           <p className="leading-relaxed font-medium">
-                            Access verified industrial factory data with rooftop solar potential to identify high-value solar opportunities. Our platform helps solar EPC companies find factories with large rooftop areas (5,000 to 100,000+ sq.ft), making it easier to target the right prospects for industrial solar installations. With accurate factory data and solar insights, EPC companies can identify factories suitable for rooftop solar, focus on high-potential industrial zones like MIDC clusters, and approach clients with data-backed proposals. This improves conversion rates by targeting only those sites where solar feasibility is strong.
+                            Access verified industrial factory intelligence with rooftop solar potential to identify high-value solar opportunities. Our platform helps solar EPC companies discover facilities with large rooftop areas (5,000 to 100,000+ sq.ft), making it easier to target the right prospects for industrial solar installations. With accurate factory intelligence and solar insights, EPC companies can identify facilities suitable for rooftop solar, focus on high-potential industrial zones like MIDC clusters, and approach clients with data-backed proposals. This improves conversion rates by targeting only those sites where solar feasibility is strong.
                           </p>
                         </div>
                         <div className="space-y-6">
                           <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Faster Sales & Better Conversion</h3>
                           <p className="leading-relaxed font-medium">
-                            Instead of manual searching, this tool provides ready-to-use industrial solar leads with insights on rooftop suitability, location clusters, and site potential. This helps reduce customer acquisition cost and improves the efficiency of solar sales efforts. By accessing decision-ready data, your team can skip initial research and prospecting, reach the right stakeholders faster, and present solar solutions with confidence. This approach helps EPC companies move from basic outreach to strategic solar project planning, leading to faster deal closures and better project outcomes.
+                            Instead of manual searching, this tool provides ready-to-use industrial facility insights with insights on rooftop suitability, location clusters, and site potential. This helps reduce customer acquisition cost and improves the efficiency of solar sales efforts. By accessing decision-ready data, your team can skip initial research and prospecting, reach the right stakeholders faster, and present solar solutions with confidence. This approach helps EPC companies move from basic outreach to strategic solar project planning, leading to faster deal closures and better project outcomes.
                           </p>
                         </div>
                       </div>
@@ -2058,7 +2077,7 @@ export default function SolarApp() {
                   >
                     <div className="flex justify-between items-center mb-8 no-print">
                       <button 
-                        onClick={() => navigate('/factory-data-insights')}
+                        onClick={() => navigate('/industrial-intelligence')}
                         className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-white uppercase tracking-[0.2em] transition-all group"
                       >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -2344,7 +2363,7 @@ export default function SolarApp() {
                   <div className="space-y-6">
                     <div className="flex justify-between items-center bg-emerald-500/5 p-8 rounded-[32px] border border-emerald-500/20 backdrop-blur-md">
                       <div>
-                        <h2 className="text-2xl font-black text-emerald-400 tracking-tight">Leads Inbox</h2>
+                        <h2 className="text-2xl font-black text-emerald-400 tracking-tight">Opportunity Inbox</h2>
                         <p className="text-gray-400 text-sm font-medium opacity-80">Secure storage for customer inquiries and feedback.</p>
                       </div>
                       <div className="bg-emerald-500 text-slate-900 px-8 py-3 rounded-2xl font-black text-sm shadow-lg shadow-emerald-500/20">
@@ -2422,19 +2441,19 @@ export default function SolarApp() {
                     {/* SEO Informational Content Section */}
                     <div className="mt-24 pt-16 border-t border-white/5 pb-12">
                       <div className="mb-12 text-center">
-                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">High-Performance <span className="text-emerald-400 italic font-medium">Solar Lead Management & CRO</span></h2>
+                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">High-Performance <span className="text-emerald-400 italic font-medium">Solar Opportunity Management & CRO</span></h2>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-16 text-sm text-gray-400 opacity-80 text-left">
                         <div className="space-y-6">
                           <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Centralized Unified Sales Truth</h3>
                           <p className="leading-relaxed font-medium">
-                            For a high-growth solar organization, lead leakage is the silent killer of profitability. Our Leads Inbox serves as a centralized 'source of truth,' aggregating inquiries from every touchpoint into a unified, secure dashboard. By eliminating fragmented communication channels, your sales team can maintain a consistent brand voice and ensure every multi-megawatt prospect is handled with the appropriate technical depth. The system categorizes leads by intent—separating detailed feasibility inquiries from general feedback—enabling your managers to allocate resources according to project value. In the world of industrial solar B2B, a structured response protocol is the difference between a missed opportunity and a long-term strategic partnership.
+                            For a high-growth solar organization, pipeline leakage is the silent killer of profitability. Our Opportunity Inbox serves as a centralized 'source of truth,' aggregating inquiries from every touchpoint into a unified, secure dashboard. By eliminating fragmented communication channels, your sales team can maintain a consistent brand voice and ensure every multi-megawatt prospect is handled with the appropriate technical depth. The system categorizes potential projects by intent—separating detailed feasibility inquiries from general feedback—enabling your managers to allocate resources according to project value. In the world of industrial solar B2B, a structured response protocol is the difference between a missed opportunity and a long-term strategic partnership.
                           </p>
                         </div>
                         <div className="space-y-6">
                           <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Conversion Rate Optimization (CRO) & Engagement</h3>
                           <p className="leading-relaxed font-medium">
-                            The core of modern lead triage is the 'Speed to Lead'. Integrating direct engagement tools like WhatsApp allows your representatives to reach prospects within the critical 5-minute window of their inquiry. This immediate responsiveness significantly boosts conversion rates by establishing trust while the project's energy challenges are top-of-mind for the client. Beyond speed, our portal emphasizes data integrity; by having site location, rooftop metrics, and load profiles directly linked to the conversation, your team can provide personalized, data-backed advice from the first interaction. Scaling an EPC business requires robust pipeine visibility—use our Leads Inbox to optimize your engagement strategy and ensure your sales engine is running at peak efficiency.
+                            The core of modern opportunity triage is the 'Speed to Engage'. Integrating direct engagement tools like WhatsApp allows your representatives to reach prospects within the critical 5-minute window of their inquiry. This immediate responsiveness significantly boosts conversion rates by establishing trust while the project's energy challenges are top-of-mind for the client. Beyond speed, our portal emphasizes data integrity; by having site location, rooftop metrics, and load profiles directly linked to the conversation, your team can provide personalized, data-backed advice from the first interaction. Scaling an EPC business requires robust pipeline visibility—use our Opportunity Inbox to optimize your engagement strategy and ensure your sales engine is running at peak efficiency.
                           </p>
                         </div>
                       </div>
@@ -2457,7 +2476,7 @@ export default function SolarApp() {
                  <div className="text-center space-y-4">
                     <h2 className="text-3xl sm:text-4xl font-black">Partner Dashboard Access</h2>
                     <p className="text-gray-400 max-w-xl mx-auto font-light">
-                       Access 1,500+ potential industrial rooftop leads. Targeted specifically for EPC professionals.
+                       Access 1,500+ potential industrial rooftop opportunities. Targeted specifically for EPC professionals.
                     </p>
                  </div>
 
