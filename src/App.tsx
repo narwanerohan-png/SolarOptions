@@ -13,6 +13,7 @@ import { ForgotPasswordModal } from './components/modals/ForgotPasswordModal';
 import { CredentialsModal } from './components/modals/CredentialsModal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
+import { auth, googleProvider, signInWithPopup } from './lib/firebase';
 
 // --- HELPERS ---
 const slugify = (text: string): string => {
@@ -508,6 +509,33 @@ export default function SolarApp() {
 
   const handleFreeTrial = async (formData: any, forceBypass = false) => {
     setTrialError(null);
+
+    // Prevent nested exceptions by declaring user credential reference
+    let userCredential = null;
+
+    if (!forceBypass) {
+      // 1. Launch Google Login Popup IMMEDIATELY to preserve user-action stack trace and bypass browser popup blockers!
+      try {
+        userCredential = await signInWithPopup(auth, googleProvider);
+      } catch (popupErr: any) {
+        console.error("Popup verification error:", popupErr);
+        const errMsg = popupErr.message || "";
+        const errCode = popupErr.code || "";
+        if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
+          setTrialError("Google verification was canceled because the popup window was closed. Please try again.");
+        } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
+          setTrialError("Google Sign-In popup was blocked by your browser. Please allow popups or click the 'Open in New Tab' button in the top-right corner to bypass iframe domain policies.");
+        } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
+          setTrialError("This preview domain is currently unauthorized for Google Sign-In. Please click the 'Open in New Tab' button in the top-right corner of the editor to launch the authorized application and sign in securely.");
+        } else if (errMsg.toLowerCase().includes("firebase") || errCode.startsWith("auth/")) {
+          setTrialError("Google Authentication encountered an error in this sandboxed preview iframe. Please click the 'Open in New Tab' button at the top-right corner of the screen to sign in seamlessly.");
+        } else {
+          setTrialError(errMsg || "Failed to initialize Google Sign-In popup.");
+        }
+        return;
+      }
+    }
+
     if (!formData.email.includes('@') || formData.contact.length !== 10) {
       setTrialError("Please enter valid direct contact details. Your email must contain '@' and your mobile number must be exactly 10 digits.");
       return;
@@ -517,7 +545,7 @@ export default function SolarApp() {
     setPaymentLoadingMessage('Initializing verification check...');
 
     try {
-      // 1. Get browser fingerprint
+      // 2. Load FingerprintJS asynchronously AFTER the popup window is closed
       let fingerprintVal = "unknown-device";
       try {
         const FP = await import('@fingerprintjs/fingerprintjs');
@@ -528,7 +556,7 @@ export default function SolarApp() {
         console.warn("FingerprintJS failed to acquire visitor id:", fpErr);
       }
 
-      // 1.2 Pre-flight check: Verify if the input email or mobile number has already claimed a trial/access
+      // 3. Pre-flight check: Verify if the input email or mobile number has already claimed a trial/access
       setPaymentLoadingMessage('Checking eligibility status...');
       const checkResponse = await fetch('/api/check-existence', {
         method: 'POST',
@@ -551,13 +579,8 @@ export default function SolarApp() {
 
       let verifiedEmail = formData.email.trim().toLowerCase();
 
-      if (!forceBypass) {
-        // 1.5 Verify email ownership using Google popup before generating credentials
-        setPaymentLoadingMessage('Verifying ownership via Google Account. Please complete the login popup...');
-        const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
-        const userCredential = await signInWithPopup(auth, googleProvider);
+      if (!forceBypass && userCredential) {
         const googleUser = userCredential.user;
-
         if (!googleUser || !googleUser.email) {
           throw new Error("Unable to retrieve verified email from Google Sign-In.");
         }
@@ -572,7 +595,7 @@ export default function SolarApp() {
         console.log("[Developer Mode] Bypassing Google OAuth Popup sign-in step for sandbox testing.");
       }
 
-      // 2. Generate custom 1-day credentials
+      // 4. Generate custom 1-day credentials
       setPaymentLoadingMessage('Activating your free trial...');
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let genPwd = '';
@@ -590,7 +613,7 @@ export default function SolarApp() {
         expiry: "Free Trial (Expires: " + expiryStr + ")"
       };
 
-      // 3. Post to server register endpoint as a trial account
+      // 5. Post to server register endpoint as a trial account
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -670,22 +693,7 @@ export default function SolarApp() {
     } catch (err: any) {
       console.error("Free trial registration error:", err);
       const errMsg = err.message || "";
-      const errCode = err.code || "";
-      
-      if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
-        setTrialError("Google verification was canceled because the popup window was closed. Please complete Google authentication to verify ownership of your email address.");
-      } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
-        setTrialError("Google Sign-In popup was blocked by your browser. Please allow popups in your browser settings for this site or click the 'Open in New Tab' button in the top-right corner to access the app fully and bypass sandboxed restrictions.");
-      } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
-        setTrialError("This preview domain is currently unauthorized for Google Sign-In. Please click the 'Open in New Tab' button in the top-right corner of the editor to launch the authorized application and sign in securely.");
-      } else {
-        // If it's a generic Firebase auth setup or network error, show a user-friendly message
-        if (errMsg.toLowerCase().includes("firebase") || errCode.startsWith("auth/")) {
-          setTrialError("Google Authentication encountered an error in this sandboxed preview iframe. Please click the 'Open in New Tab' button at the top-right corner of the screen to sign in seamlessly, or log in with an existing passcode if you have already claimed a free trial.");
-        } else {
-          setTrialError(errMsg || "Failed to create free trial session. Please try again.");
-        }
-      }
+      setTrialError(errMsg || "Failed to create free trial session. Please try again.");
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -693,10 +701,36 @@ export default function SolarApp() {
   };
 
   const handleGoogleLogin = async () => {
+    // 1. Launch Firebase popup IMMEDIATELY to prevent browser popup blockers!
+    // This maintains direct synchronous connection to the user-click event.
+    let userCredential = null;
+    try {
+      userCredential = await signInWithPopup(auth, googleProvider);
+    } catch (popupErr: any) {
+      console.error("Google Sign-In popup canceled/blocked:", popupErr);
+      const errMsg = popupErr.message || "";
+      const errCode = popupErr.code || "";
+      if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
+        alert("Google Login popup was closed before completion. Please try again.");
+      } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
+        alert("Google Sign-In popup was blocked by your browser. Please allow popups for this site or click the 'Open in New Tab' button in the top-right corner to bypass iframe security policies.");
+      } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
+        alert("This preview domain is currently unauthorized for Google Sign-In in Firebase. Please click 'Open in New Tab' in the top-right corner to sign in securely and bypass iframe domain policies.");
+      } else {
+        alert(popupErr.message || "Failed to initialize Google Sign-In popup.");
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     setPaymentLoadingMessage('Connecting with Google...');
     try {
-      // 1. Get browser fingerprint
+      const googleUser = userCredential.user;
+      if (!googleUser || !googleUser.email) {
+        throw new Error("Unable to retrieve email from Google Account.");
+      }
+
+      // 2. Fetch browser fingerprint asynchronously AFTER the user has already approved standard Google login
       let fingerprintVal = "unknown-device";
       try {
         const FP = await import('@fingerprintjs/fingerprintjs');
@@ -706,15 +740,6 @@ export default function SolarApp() {
         console.log("[FingerprintJS] Visitor ID acquired:", fingerprintVal);
       } catch (fpErr) {
         console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
-      }
-
-      // 2. Firebase sign in with popup
-      const { auth, googleProvider, signInWithPopup } = await import('./lib/firebase');
-      const userCredential = await signInWithPopup(auth, googleProvider);
-      const googleUser = userCredential.user;
-      
-      if (!googleUser || !googleUser.email) {
-        throw new Error("Unable to retrieve email from Google Account.");
       }
 
       // 3. Post to google login endpoint in backend
@@ -749,6 +774,7 @@ export default function SolarApp() {
         setIsLoggedIn(true);
         localStorage.setItem('solar_options_isLoggedIn', 'true');
         setShowLoginModal(false);
+        setShowAccessForm(false);
         navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
       } else {
@@ -756,17 +782,7 @@ export default function SolarApp() {
       }
     } catch (e: any) {
       console.error("Google Sign-In login error:", e);
-      const errMsg = e.message || "";
-      const errCode = e.code || "";
-      if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
-        alert("Google Login popup was closed before completion. Please try again.");
-      } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
-        alert("Google Sign-In popup was blocked by your browser. Please allow popups or click the 'Open in New Tab' button in the top-right corner to log in fully.");
-      } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
-        alert("This preview domain is currently unauthorized for Google Sign-In. Please click 'Open in New Tab' in the top-right corner to sign in securely and bypass iframe domain policies.");
-      } else {
-        alert(e.message || "Authentication through Google was unsuccessful.");
-      }
+      alert(e.message || "Authentication through Google was unsuccessful.");
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -996,7 +1012,7 @@ export default function SolarApp() {
 
               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
 
-              <div className="max-w-7xl mx-auto text-center relative z-10 px-6 py-12 sm:py-20 mt-4 sm:mt-12">
+              <div className="max-w-7xl mx-auto text-center relative z-10 px-6 pt-36 pb-12 sm:pt-28 sm:pb-20 mt-6 sm:mt-12">
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -1008,7 +1024,7 @@ export default function SolarApp() {
                 </motion.div>
                 <motion.h1 
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  className="text-[38px] xs:text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-6 sm:mb-8 leading-[1.08] sm:leading-[1.02] tracking-tight text-white drop-shadow-2xl"
+                  className="text-[34px] xs:text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-6 sm:mb-8 leading-[1.08] sm:leading-[1.02] tracking-tight text-white drop-shadow-2xl"
                 >
                   <span className="text-emerald-400">Rooftop</span> & Solar <br />
                   Sales Tools.
@@ -1049,12 +1065,12 @@ export default function SolarApp() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 0.6, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="mt-8 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-[0.25em] flex flex-col sm:flex-row justify-center items-center gap-y-2.5 sm:gap-x-3 sm:gap-y-0 px-4"
+                  className="mt-8 text-[9px] xs:text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.25em] flex flex-wrap justify-center items-center gap-x-2 sm:gap-x-3 gap-y-1.5 px-4 text-center"
                 >
                   <span>1,500+ Industrial Facilities</span>
-                  <span className="hidden sm:inline text-emerald-500/45">•</span>
+                  <span className="text-emerald-500/45">•</span>
                   <span>Major MIDC Clusters</span>
-                  <span className="hidden sm:inline text-emerald-500/45">•</span>
+                  <span className="text-emerald-500/45">•</span>
                   <span>Verified Solar Potential</span>
                 </motion.p>
                 
@@ -2591,6 +2607,7 @@ export default function SolarApp() {
         }}
         onSubmit={handlePayment}
         onFreeTrial={handleFreeTrial}
+        onGoogleLogin={handleGoogleLogin}
         isSubmitting={isSubmitting}
         errorMessage={trialError}
         onClearError={() => setTrialError(null)}

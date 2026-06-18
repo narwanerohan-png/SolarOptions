@@ -7,6 +7,7 @@ interface AccessFormModalProps {
   onClose: () => void;
   onSubmit: (form: any) => void;
   onFreeTrial?: (form: any, forceBypass?: boolean) => void;
+  onGoogleLogin?: () => void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
   onClearError?: () => void;
@@ -17,6 +18,7 @@ export const AccessFormModal = React.memo(({
   onClose, 
   onSubmit, 
   onFreeTrial,
+  onGoogleLogin,
   isSubmitting = false,
   errorMessage = null,
   onClearError
@@ -54,6 +56,25 @@ export const AccessFormModal = React.memo(({
           </div>
           <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹7800 Enterprise</div>
         </div>
+
+        {/* Google Sign-In Option for instant login or automated trial provisioning */}
+        {onGoogleLogin && (
+          <div className="mb-8 space-y-4">
+            <button
+              type="button"
+              onClick={onGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 py-4 sm:py-5 bg-white/10 hover:bg-white/15 active:scale-[0.98] border border-white/10 hover:border-white/20 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-xl cursor-pointer"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" referrerPolicy="no-referrer" />
+              One-Tap access with Google
+            </button>
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-white/5"></div>
+              <span className="flex-shrink mx-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">or request access manually</span>
+              <div className="flex-grow border-t border-white/5"></div>
+            </div>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-6 sm:mb-12 text-left">
           <div className="space-y-2">
