@@ -564,7 +564,9 @@ export default function SolarApp() {
         body: JSON.stringify({
           email: formData.email,
           contact: formData.contact,
-          fingerprint: fingerprintVal
+          fingerprint: fingerprintVal,
+          googleUid: userCredential ? (userCredential as any).user.uid : "",
+          uid: userCredential ? (userCredential as any).user.uid : ""
         })
       });
 
@@ -657,6 +659,8 @@ export default function SolarApp() {
           "Expiry": expiry.toISOString(),
           fingerprint: fingerprintVal,
           "Fingerprint": fingerprintVal,
+          googleUid: userCredential ? (userCredential as any).user.uid : "",
+          uid: userCredential ? (userCredential as any).user.uid : "",
           timestamp: new Date().toISOString()
         })
       });
@@ -751,7 +755,9 @@ export default function SolarApp() {
         body: JSON.stringify({
           email: googleUser.email,
           fingerprint: fingerprintVal,
-          companyName: googleUser.displayName || 'Google Trial User'
+          companyName: googleUser.displayName || 'Google Trial User',
+          googleUid: googleUser.uid,
+          uid: googleUser.uid
         })
       });
 

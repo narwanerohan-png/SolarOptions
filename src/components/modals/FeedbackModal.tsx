@@ -26,7 +26,10 @@ export const FeedbackModal = React.memo(({ isOpen, onClose, onSubmit }: Feedback
             <MessageSquare className="w-7 h-7 text-slate-900" />
           </div>
           <h3 className="text-3xl font-black mb-2 uppercase tracking-tight">System <span className="text-emerald-400 italic">Feedback.</span></h3>
-          <p className="text-gray-400 font-medium leading-relaxed">Help us calibrate our industrial solar intelligence engine.</p>
+          <p className="text-gray-400 font-medium leading-relaxed mb-4">Help us calibrate our industrial solar intelligence engine.</p>
+          <div className="text-[11px] font-black tracking-widest text-emerald-400 uppercase">
+            Email Us: <a href="mailto:admin@solaroptions.in" className="hover:text-emerald-300 transition-colors underline decoration-emerald-500/30 underline-offset-4">admin@solaroptions.in</a>
+          </div>
         </div>
         
         <div className="space-y-8">

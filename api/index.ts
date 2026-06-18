@@ -374,6 +374,103 @@ async function fetchSheet2Users(bypassCache: boolean = false): Promise<any[]> {
   }
 }
 
+function findRowMatch(
+  email: string,
+  googleUid: string | undefined,
+  contact: string | undefined,
+  sheetUsers: any[]
+): { matchedRow: any; isPremium: boolean } | null {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  
+  const cleanNumber = (numStr: string) => {
+    const clean = String(numStr || "").replace(/\D/g, ''); // keep only digits
+    return clean.length >= 10 ? clean.slice(-10) : clean;
+  };
+
+  const cleanContact = contact ? cleanNumber(contact) : "";
+
+  const getRowValue = (val: any): string => {
+    if (val === undefined || val === null) return "";
+    return String(val).trim();
+  };
+
+  const findValueByKeyPatterns = (row: any, patterns: string[]): string => {
+    if (!row || typeof row !== 'object') return "";
+    const keys = Object.keys(row);
+    for (const key of keys) {
+      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const pattern of patterns) {
+        const normalizedPattern = pattern.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normalizedKey === normalizedPattern || normalizedKey.includes(normalizedPattern) || normalizedPattern.includes(normalizedKey)) {
+          return getRowValue(row[key]);
+        }
+      }
+    }
+    return "";
+  };
+
+  for (const row of sheetUsers) {
+    if (!row || typeof row !== 'object') continue;
+
+    // 1. Get row email
+    const rowEmail = (
+      getRowValue(row.username) || getRowValue(row.Username) || 
+      getRowValue(row.email) || getRowValue(row.Email) || 
+      getRowValue(row['Email ID']) || getRowValue(row['EmailId']) || 
+      getRowValue(row['email_id']) || getRowValue(row['Email id']) || 
+      getRowValue(row.user) || getRowValue(row.User) || 
+      findValueByKeyPatterns(row, ['username', 'email', 'emailid', 'user'])
+    ).toLowerCase();
+
+    // 2. Get row Google UID
+    const rowUid = (
+      getRowValue(row.googleUid) || getRowValue(row.googleUID) ||
+      getRowValue(row.google_uid) || getRowValue(row.googleuid) ||
+      getRowValue(row.uid) || getRowValue(row.Uid) ||
+      getRowValue(row.UID) || getRowValue(row['Google UID']) ||
+      getRowValue(row['googleUid']) ||
+      findValueByKeyPatterns(row, ['googleuid', 'uid', 'google_uid'])
+    );
+
+    // 3. Get row contact
+    const rowContact = getRowValue(
+      row.contact || row.Contact || 
+      row.phone || row.Phone || 
+      row.mobile || row.Mobile || 
+      row['Mobile Number'] || row['MobileNumber'] || 
+      row['mobile_number'] || row['Mobile number'] || 
+      row['Phone Number'] || row['PhoneNumber'] || 
+      row['Phone_Number'] || row['Phone number'] || 
+      row['Contact Number'] || row['ContactNumber'] || 
+      row['contact_number'] || row['Contact number'] || 
+      row['direct contact'] || row['Direct Contact'] || 
+      findValueByKeyPatterns(row, ['contact', 'phone', 'mobile', 'cell', 'mobilenumber', 'phonenumber', 'contactnumber', 'directcontact'])
+    );
+    const rowContactClean = cleanNumber(rowContact);
+
+    // Check matches
+    let isMatch = false;
+    if (cleanEmail && rowEmail === cleanEmail) {
+      isMatch = true;
+    } else if (googleUid && rowUid && rowUid === googleUid) {
+      isMatch = true;
+    } else if (cleanContact && rowContactClean && rowContactClean === cleanContact) {
+      isMatch = true;
+    }
+
+    if (isMatch) {
+      // Determine if premium (NOT a trial user)
+      const rowIsTrial = row.isTrial === true || 
+                         String(row.isTrial || '').toLowerCase() === 'true' || 
+                         String(row.paymentId || '').includes('free-trial') || 
+                         !row.paymentId;
+      return { matchedRow: row, isPremium: !rowIsTrial };
+    }
+  }
+
+  return null;
+}
+
 function isUserAlreadyPresent(inputEmail: string, inputContact: string, sheetUsers: any[], localUsersList: LocalUser[]): { exists: boolean; reason: string } {
   const cleanEmail = String(inputEmail || "").trim().toLowerCase();
   
@@ -772,7 +869,7 @@ app.post(["/api/login", "/api/login/"], async (req, res) => {
 
 // Google Sign-In Verification and Trial Control
 app.post("/api/google-login", async (req, res) => {
-  const { email, fingerprint, companyName } = req.body;
+  const { email, fingerprint, companyName, googleUid, uid, contact } = req.body;
   const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
   const timestamp = new Date().toISOString();
 
@@ -782,63 +879,89 @@ app.post("/api/google-login", async (req, res) => {
 
   const normalizedEmail = String(email).trim().toLowerCase();
   const cleanFingerprint = String(fingerprint || "").trim();
+  const activeUid = googleUid || uid;
 
   // Load existing registrations from Sheet2 to prevent abuse after server restarts or multi-instance drift
   let sheetUsers: any[] = [];
   try {
     console.log(`[Google Login] Pulling Sheet2 live registrations list for duplicate trial and subscription checks...`);
-    sheetUsers = await fetchSheet2Users();
+    sheetUsers = await fetchSheet2Users(true); // STRICT ENFORCEMENT: Bypass cache to query live sheet data
     console.log(`[Google Login] Live Sheet2 loaded with ${sheetUsers.length} entries.`);
   } catch (sheetErr: any) {
     console.warn(`[Google Login] Live Sheet2 fetch failed (${sheetErr.message}). Relying on local session cache.`);
   }
 
-  // A. Check if user is already registered as a premium/paid user under this email (non-trial) or has non-trial access
-  const existingPaidUser = sheetUsers.find(row => {
-    if (!row || typeof row !== 'object') return false;
-    const rowEmail = String(row.username || row.email || row.Email || '').trim().toLowerCase();
-    const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial');
-    return rowEmail === normalizedEmail && !rowIsTrial;
-  });
+  // A. Search matching record in Sheet2 (single source of truth) using Email, UID, Contact
+  const matchResult = findRowMatch(normalizedEmail, activeUid, contact, sheetUsers);
 
-  if (existingPaidUser) {
-    const companyName = existingPaidUser.companyName || existingPaidUser['Company Name'] || "Premium Subscriber";
-    let validUntil = existingPaidUser.validUntil || existingPaidUser['Valid Until'] || existingPaidUser.expiryDate || "30 Days";
-    
-    // Check if subscription has expired
-    if (validUntil && !validUntil.toLowerCase().includes("30 days") && !validUntil.toLowerCase().includes("lifetime") && !isNaN(Date.parse(validUntil))) {
-      const expTime = new Date(validUntil).getTime();
-      if (expTime < Date.now()) {
-        console.warn(`[Google Login] Premium subscription expired for ${normalizedEmail}`);
-        return res.status(403).json({
-          success: false,
-          expired: true,
-          error: "Subscription expired",
-          message: "Your premium subscription has expired. Please upgrade or renew your subscription to reactivate access."
-        });
+  if (matchResult) {
+    const matchedRow = matchResult.matchedRow;
+    if (matchResult.isPremium) {
+      // Premium user login path
+      const companyNameVal = matchedRow.companyName || matchedRow['Company Name'] || "Premium Subscriber";
+      let validUntil = matchedRow.validUntil || matchedRow['Valid Until'] || matchedRow.expiryDate || "30 Days";
+      
+      // Check if subscription has expired
+      if (validUntil && !validUntil.toLowerCase().includes("30 days") && !validUntil.toLowerCase().includes("lifetime") && !isNaN(Date.parse(validUntil))) {
+        const expTime = new Date(validUntil).getTime();
+        if (expTime < Date.now()) {
+          console.warn(`[Google Login] Premium subscription expired for ${normalizedEmail}`);
+          return res.status(403).json({
+            success: false,
+            expired: true,
+            error: "Subscription expired",
+            message: "Your premium subscription has expired. Please upgrade or renew your subscription to reactivate access."
+          });
+        }
       }
+      
+      console.log(`[Google Login] Existing premium user login successful: ${normalizedEmail}`);
+      return res.json({
+        success: true,
+        user: {
+          username: normalizedEmail,
+          companyName: companyNameVal,
+          validUntil: validUntil.includes('T') ? new Date(validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : validUntil,
+          isTrial: false
+        }
+      });
+    } else {
+      // Trial user exists path. Check if their trial is still active (within 1-day/24-hour window)
+      let expiryVal = matchedRow.expiryDate || matchedRow.validUntil || matchedRow['Valid Until'] || null;
+      if (expiryVal && !isNaN(Date.parse(expiryVal))) {
+        const expiryTime = new Date(expiryVal).getTime();
+        if (expiryTime > Date.now()) {
+          console.log(`[Google Login] Re-using active trial for ${normalizedEmail} (Expires: ${expiryVal})`);
+          return res.json({
+            success: true,
+            user: {
+              username: normalizedEmail,
+              companyName: matchedRow.companyName || "Google Trial User",
+              validUntil: new Date(expiryTime).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              isTrial: true
+            }
+          });
+        }
+      }
+
+      // Trial has already been claimed or expired - block strictly!
+      console.warn(`[Google Login] Duplicate/expired trial claim blocked for: ${normalizedEmail}`);
+      return res.status(403).json({
+        success: false,
+        trialUsed: true,
+        error: "Trial already claimed",
+        message: "This account has already claimed the 1-Day Free Trial. Please get access to continue."
+      });
     }
-    
-    console.log(`[Google Login] Existing premium user login successful: ${normalizedEmail}`);
-    return res.json({
-      success: true,
-      user: {
-        username: normalizedEmail,
-        companyName,
-        validUntil: validUntil.includes('T') ? new Date(validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : validUntil,
-        isTrial: false
-      }
-    });
   }
 
-  // B. Prevent same Google account or device fingerprint from claiming free trial multiple times
-  const wasTrialClaimedEmail = localUsers.some(u => String(u.username || '').toLowerCase() === normalizedEmail && u.isTrial) ||
-    sheetUsers.some(row => {
-      const rowEmail = String(row.username || row.email || row.Email || '').trim().toLowerCase();
-      const rowIsTrial = row.isTrial === true || String(row.isTrial || '').toLowerCase() === 'true' || String(row.paymentId || '').includes('free-trial') || !row.paymentId;
-      return rowEmail === normalizedEmail && rowIsTrial;
-    });
-
+  // B. Fallback Fingerprint check for existing trials to protect against multi-account/device level abuse
   const wasTrialClaimedFP = (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") && (
     localUsers.some(u => u.fingerprint === cleanFingerprint && u.isTrial) ||
     sheetUsers.some(row => {
@@ -848,48 +971,17 @@ app.post("/api/google-login", async (req, res) => {
     })
   );
 
-  if (wasTrialClaimedEmail || wasTrialClaimedFP) {
-    // Check if the trial session is still within its 24-hour window
-    let expiryVal: string | null = null;
-    const cacheMatch = localUsers.find(u => String(u.username || '').toLowerCase() === normalizedEmail);
-    const sheetMatch = sheetUsers.find(row => String(row.username || row.email || row.Email || '').trim().toLowerCase() === normalizedEmail);
-    
-    if (cacheMatch) expiryVal = cacheMatch.expiryDate || cacheMatch.validUntil || null;
-    if (!expiryVal && sheetMatch) expiryVal = sheetMatch.expiryDate || sheetMatch.validUntil || sheetMatch['Valid Until'] || null;
-
-    if (expiryVal && !isNaN(Date.parse(expiryVal))) {
-      const expiryTime = new Date(expiryVal).getTime();
-      if (expiryTime > Date.now()) {
-        console.log(`[Google Login] Re-using active trial for ${normalizedEmail} (Expires: ${expiryVal})`);
-        return res.json({
-          success: true,
-          user: {
-            username: normalizedEmail,
-            companyName: (cacheMatch?.companyName || sheetMatch?.companyName || "Google Trial User"),
-            validUntil: new Date(expiryTime).toLocaleDateString('en-IN', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
-            isTrial: true
-          }
-        });
-      }
-    }
-
-    // Trial already claimed or expired - redirect to payment screen
-    console.warn(`[Google Login] Duplicate trial claim denied for: ${normalizedEmail}, Fingerprint: ${cleanFingerprint}`);
+  if (wasTrialClaimedFP) {
+    console.warn(`[Google Login] Fingerprint reuse blocker triggered for: ${normalizedEmail}, FP: ${cleanFingerprint}`);
     return res.status(403).json({
       success: false,
       trialUsed: true,
       error: "Trial already claimed",
-      message: "Our security engine detected that a 1-day free trial has transitively already been claimed on this Google account or device browser. Please upgrade/unlock a professional (30 Days) premium account."
+      message: "This account has already claimed the 1-Day Free Trial. Please get access to continue."
     });
   }
 
-  // C. Register a new 1-day free trial account
+  // C. Register a new 1-day free trial account (No previous match in Sheet2 exists)
   const expiry = new Date();
   expiry.setDate(expiry.getDate() + 1); // Exact 1-day restriction
 
@@ -941,6 +1033,10 @@ app.post("/api/google-login", async (req, res) => {
       "is_trial": "true",
       fingerprint: cleanFingerprint,
       "Fingerprint": cleanFingerprint,
+      googleUid: activeUid || "",
+      "Google UID": activeUid || "",
+      uid: activeUid || "",
+      "UID": activeUid || "",
       ipAddress: String(ipAddress),
       timestamp: timestamp,
       "Timestamp": timestamp,
@@ -1040,7 +1136,7 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
         console.warn("[Register Warning] Sheet pull during restriction validation failed or timed out:", e.message);
       }
 
-      const checkResult = isUserAlreadyPresent(normalizedEmail, String(req.body.contact || ""), sheetUsers, localUsers);
+      const matchResult = findRowMatch(normalizedEmail, req.body.googleUid || req.body.uid, req.body.contact, sheetUsers);
 
       const alreadyClaimedFP = (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") && (
         localUsers.some(u => u.fingerprint === cleanFingerprint && u.isTrial) ||
@@ -1052,12 +1148,12 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
         })
       );
 
-      if (checkResult.exists || alreadyClaimedFP) {
-        console.warn(`[Register] Blocked trial abuse for ${normalizedEmail} (Fingerprint: ${cleanFingerprint}): ${checkResult.exists ? checkResult.reason : 'Device tracking match'}`);
+      if (matchResult || alreadyClaimedFP) {
+        console.warn(`[Register] Blocked trial abuse for ${normalizedEmail} (Fingerprint: ${cleanFingerprint})`);
         return res.status(403).json({
           success: false,
           error: "Trial already claimed",
-          message: "User already exists and has already used the free trial."
+          message: "This account has already claimed the 1-Day Free Trial. Please get access to continue."
         });
       }
     }
@@ -1241,11 +1337,11 @@ app.post("/api/check-existence", async (req, res) => {
       console.warn("[Check Existence Warning] Sheet pull failed or timed out:", e.message);
     }
 
-    const checkResult = isUserAlreadyPresent(inputEmail, inputContact, sheetUsers, localUsers);
-    if (checkResult.exists) {
+    const matchResult = findRowMatch(inputEmail, req.body.googleUid || req.body.uid, inputContact, sheetUsers);
+    if (matchResult) {
       return res.json({
         exists: true,
-        message: checkResult.reason
+        message: "This account has already claimed the 1-Day Free Trial. Please get access to continue."
       });
     }
 
