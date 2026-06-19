@@ -63,6 +63,8 @@ const sampleLeadsData: Lead[] = [
   { factory: 'RBSM Industrial Plant', location: 'Pune, Maharashtra', rooftop: 56000, kw: 800, region: 'pune' },
 ];
 
+
+
 export default function SolarApp() {
   useEffect(() => {
     // Handle Vite preload errors (chunk loading failures)
@@ -980,7 +982,7 @@ export default function SolarApp() {
         )}
       </Helmet>
       {/* Global Background Layer */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 will-change-transform" />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900/20 will-change-transform" />
       
       <div className="relative z-10">
         <Nav />
@@ -1092,6 +1094,21 @@ export default function SolarApp() {
               </div>
             </header>
 
+            {/* Content Background: One Large, Clear, Noticeable Industrial Rooftop Solar Drone Video */}
+            <div className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden z-0" style={{ top: '85vh' }}>
+              <video 
+                autoPlay 
+                loop 
+                muted 
+                playsInline 
+                preload="auto"
+                className="w-full h-full object-cover scale-105"
+                style={{ opacity: 1.0 }}
+              >
+                <source src="https://player.vimeo.com/external/370364955.sd.mp4?s=740611847c28373f1d00f796be4b459b794d2f09&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
+              </video>
+            </div>
+
             {/* Strategy Section */}
             <section id="features" className="max-w-7xl mx-auto px-6 py-12 sm:py-20 border-t border-white/5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -1201,18 +1218,7 @@ export default function SolarApp() {
 
             {/* Bottom Background Image Section */}
             <div className="relative overflow-hidden will-change-transform">
-               {/* Professional Aerial Solar Plant Background */}
-               <div className="absolute inset-0 z-0 pointer-events-none">
-                 <img 
-                   src="https://images.unsplash.com/photo-1542332213-31f87348057f?auto=format&fit=crop&q=80&w=1920" 
-                   alt="Aerial view solar power plant"
-                   className="w-full h-full object-cover opacity-[0.04] blur-[3px] scale-110 will-change-transform"
-                   referrerPolicy="no-referrer"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-900/40 to-slate-900" />
-                 <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-slate-900 to-transparent" />
-                 <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-slate-900 to-transparent" />
-               </div>
+
 
                <div className="relative z-10">
                  {/* SEO Keyword Sections */}
