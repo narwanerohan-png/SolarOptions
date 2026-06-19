@@ -949,8 +949,8 @@ export default function SolarApp() {
       <Helmet>
         {currentPage === 'landing' && (
           <>
-            <title>SolarOptions.in | Global Industrial Solar ROI Calculator & 3D Design</title>
-            <meta name="description" content="The world's most advanced tool for industrial solar ROI calculation and 3D rooftop sketching. Scale your solar business with precision." />
+            <title>SolarOptions.in | Industrial Solar Platform</title>
+            <meta name="description" content="Access industrial facilities, evaluate rooftop solar potential, estimate savings, design layouts in 3D, and accelerate project closures with SolarOptions." />
           </>
         )}
         {currentPage === 'consumer' && (
@@ -1033,11 +1033,11 @@ export default function SolarApp() {
                   className="text-[34px] xs:text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-6 sm:mb-8 leading-[1.08] sm:leading-[1.02] tracking-tight text-white drop-shadow-2xl"
                 >
                   <span className="text-emerald-400">Rooftop</span> & Solar <br />
-                  Sales Tools.
+                  Sales Tool.
                 </motion.h1>
                 <motion.p
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
+                  transition={{ delay: 0.15 }}
                   className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 font-medium tracking-wide mb-12 max-w-4xl mx-auto leading-relaxed"
                 >
                   Everything your team needs to identify opportunities, create better proposals, and move projects forward.
@@ -1052,7 +1052,7 @@ export default function SolarApp() {
                 >
                   <button 
                     onClick={() => setShowAccessForm(true)}
-                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
+                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-lg rounded-2xl shadow-2xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
                     Get Access <ArrowRight className="w-5 h-5" />
                   </button>
@@ -1263,7 +1263,7 @@ export default function SolarApp() {
                          </div>
                          <span className="text-xl font-black text-white tracking-tighter">SolarOptions.in</span>
                       </div>
-                      <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Intelligence Platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
+                      <p className="text-xs text-gray-500 max-w-sm leading-relaxed">Industrial Solar Platform. Precision data for high-capacity projects. 2024 © All Rights Reserved.</p>
                     </div>
                     <div className="flex flex-wrap justify-center md:justify-end gap-10">
                        <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy Policy</Link>
@@ -1521,7 +1521,7 @@ export default function SolarApp() {
                     </div>
                     <span className="text-base font-black text-white tracking-tighter">SolarOptions.in</span>
                   </div>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">India's Industrial Rooftop Intelligence & Lead Generation Platform. Ranging across MIDC and core manufacturing corridors.</p>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">India's Industrial Solar Platform. Ranging across MIDC and core manufacturing corridors.</p>
                 </div>
                 <div className="flex flex-wrap justify-start md:justify-end gap-6 text-[10px] font-black text-gray-500 uppercase tracking-widest">
                   <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} className="hover:text-emerald-400 transition-colors">Privacy Policy</Link>

@@ -1,6 +1,6 @@
 {
   "name": "SolarOptions",
-  "description": "Industrial Solar Intelligence Platform. Access verified industrial facilities, precise dynamic mapping, shadow analysis, and integrated solar design tools to streamline and execute EPC projects.",
+  "description": "Industrial Solar Platform. Access verified industrial facilities, precise dynamic mapping, shadow analysis, and integrated solar design tools to streamline and execute EPC projects.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
