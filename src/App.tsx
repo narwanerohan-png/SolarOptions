@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import * as THREE from 'three';
@@ -14,6 +14,7 @@ import { CredentialsModal } from './components/modals/CredentialsModal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 import { auth, googleProvider, signInWithPopup } from './lib/firebase';
+import { authFetch } from './utils/authFetch';
 
 // --- HELPERS ---
 const slugify = (text: string): string => {
@@ -63,6 +64,73 @@ const sampleLeadsData: Lead[] = [
   { factory: 'RBSM Industrial Plant', location: 'Pune, Maharashtra', rooftop: 56000, kw: 800, region: 'pune' },
 ];
 
+const BACKGROUND_IMAGES = [
+  "https://images.unsplash.com/photo-1548613053-220bfb80f94f?auto=format&fit=crop&q=80&w=1920",
+  "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=80&w=1920",
+  "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=1920"
+];
+
+function PremiumSolarBackground() {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { scrollY } = useScroll();
+
+  // Create buttery smooth dampened scroll for luxury high-end web experience
+  const smoothScrollY = useSpring(scrollY, {
+    damping: 50,
+    stiffness: 90,
+    mass: 0.8
+  });
+  
+  // Real dynamic multi-dimensional wallpaper physics
+  const yParallax = useTransform(smoothScrollY, [0, 8000], [0, -500]);
+  const scaleScroll = useTransform(smoothScrollY, [0, 8000], [1.02, 1.18]);
+  const rotateScroll = useTransform(smoothScrollY, [0, 8000], [0, 0.8]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
+    }, 12000); // Transitions to next image every 12 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      <motion.div 
+        style={{ y: yParallax, scale: scaleScroll, rotateZ: rotateScroll }}
+        className="absolute inset-0 w-full h-[120%] -top-12 will-change-transformOrigin will-change-transform origin-center"
+      >
+        {BACKGROUND_IMAGES.map((img, idx) => {
+          const isActive = idx === currentImageIndex;
+          return (
+            <motion.div
+              key={img}
+              initial={{ opacity: 0 }}
+              animate={{ 
+                opacity: isActive ? 0.45 : 0, // Slightly increased target image visibility for premium solar aesthetics
+                scale: isActive ? 1.06 : 1.0,
+              }}
+              transition={{
+                opacity: { duration: 2.5, ease: "easeInOut" },
+                scale: { duration: 35, ease: "linear" }, // Gentle base Ken-Burns drift 
+              }}
+              className="absolute inset-0 w-full h-full"
+            >
+              <img 
+                src={img} 
+                alt="Industrial Aerial Solar Rooftop"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            </motion.div>
+          );
+        })}
+        
+        {/* Soft, ultra-premium overlay gradients to ensure pristine high contrast text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/68 to-slate-950" />
+      </motion.div>
+    </div>
+  );
+}
 
 
 export default function SolarApp() {
@@ -227,8 +295,8 @@ export default function SolarApp() {
   useEffect(() => {
     if (isLoggedIn && epcView === 'inbox') {
       // Use adblocker-safe alias path with leads fallback
-      fetch('/api/facilities')
-        .then(res => res.ok ? res : fetch('/api/leads'))
+      authFetch('/api/facilities')
+        .then(res => res.ok ? res : authFetch('/api/leads'))
         .then(res => res.json())
         .then(data => setInboxData(data))
         .catch(err => console.error('Failed to fetch inbox:', err));
@@ -240,8 +308,8 @@ export default function SolarApp() {
       setIsLoadingCompany(true);
       
       const fetchPath = '/api/facilities';
-      fetch(fetchPath)
-        .then(res => res.ok ? res : fetch('/api/leads'))
+      authFetch(fetchPath)
+        .then(res => res.ok ? res : authFetch('/api/leads'))
         .then(res => res.json())
         .then(resData => {
           let rawLeads: any[] = [];
@@ -306,11 +374,11 @@ export default function SolarApp() {
       // Use adblocker-safe primary path /api/facilities to bypass uBlock/Brave Shields, fallback to leads
       let response;
       try {
-        response = await fetch(`/api/facilities?${queryParams.toString()}`);
+        response = await authFetch(`/api/facilities?${queryParams.toString()}`);
         if (!response.ok) throw new Error('Server returned status: ' + response.status);
       } catch (err) {
         console.warn('Primary facilities fetch bypassed or failed, falling back to leads...', err);
-        response = await fetch(`/api/leads?${queryParams.toString()}`, {
+        response = await authFetch(`/api/leads?${queryParams.toString()}`, {
           headers: {
             'X-Requested-With': 'SolarOptionsApp'
           }
@@ -982,7 +1050,7 @@ export default function SolarApp() {
         )}
       </Helmet>
       {/* Global Background Layer */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900/20 will-change-transform" />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950 will-change-transform" />
       
       <div className="relative z-10">
         <Nav />
@@ -1094,23 +1162,13 @@ export default function SolarApp() {
               </div>
             </header>
 
-            {/* Content Background: One Large, Clear, Noticeable Industrial Rooftop Solar Drone Video */}
-            <div className="absolute inset-x-0 bottom-0 pointer-events-none overflow-hidden z-0" style={{ top: '85vh' }}>
-              <video 
-                autoPlay 
-                loop 
-                muted 
-                playsInline 
-                preload="auto"
-                className="w-full h-full object-cover scale-105"
-                style={{ opacity: 1.0 }}
-              >
-                <source src="https://player.vimeo.com/external/370364955.sd.mp4?s=740611847c28373f1d00f796be4b459b794d2f09&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
-              </video>
-            </div>
+            {/* Below Hero Content Area */}
+            <div className="relative w-full z-10">
+              {/* Content Background: Premium slideshow/parallax of high-quality industrial solar imagery */}
+              <PremiumSolarBackground />
 
-            {/* Strategy Section */}
-            <section id="features" className="max-w-7xl mx-auto px-6 py-12 sm:py-20 border-t border-white/5">
+              {/* Strategy Section */}
+              <section id="features" className="max-w-7xl mx-auto px-6 py-12 sm:py-20 border-t border-white/5 relative z-10">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -1284,6 +1342,7 @@ export default function SolarApp() {
             </footer>
                </div>
             </div>
+          </div>
           </motion.div>
         )}
 
@@ -2609,7 +2668,7 @@ export default function SolarApp() {
         onSubmit={async (msg) => {
           if (!msg || msg.trim().length === 0) return;
           try {
-            await fetch('/api/feedback', {
+            await authFetch('/api/feedback', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'feedback', feedback: msg, timestamp: new Date().toISOString() }),
@@ -2734,7 +2793,7 @@ export default function SolarApp() {
                       if (!quoteData.factory || !quoteData.contact) return alert('Missing essential details.');
                       setIsSubmittingQuote(true);
                       try {
-                        await fetch('/api/feedback', {
+                        await authFetch('/api/feedback', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ type: 'quote', ...quoteData }),

@@ -1,5 +1,56 @@
 {
   "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents detailed user profile, registration, subscription and payment status info",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique Firebase Authentication user ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "The primary email address of the registered user"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "The company name associated with the user"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The contact phone number of the user"
+        },
+        "plan": {
+          "type": "string",
+          "description": "The name or type of the active plan"
+        },
+        "subscriptionStatus": {
+          "type": "string",
+          "description": "The current status of the subscription"
+        },
+        "subscriptionExpiry": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time when the subscription expires"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The status of the user's payment"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of account registration"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of the last update to the user profile"
+        }
+      },
+      "required": ["uid", "email"]
+    },
     "TrialClaim": {
       "title": "Trial Claim",
       "description": "Records representing a claim of free 1-day trial by email or device fingerprint",
@@ -66,6 +117,10 @@
     }
   },
   "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user documents keyed by their Firebase Auth UID"
+    },
     "trials/{trialId}": {
       "schema": "TrialClaim",
       "description": "Collection tracking trial usages to block duplicates"

@@ -8,6 +8,8 @@ import https from "https";
 import fs from "fs";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, runTransaction, setDoc, getDoc } from "firebase/firestore";
+import { verifyFirebaseToken } from "./lib/firebaseAdmin.js";
+
 
 if (!process.env.VERCEL) {
   dotenv.config();
@@ -555,7 +557,7 @@ function isUserAlreadyPresent(inputEmail: string, inputContact: string, sheetUse
 }
 
 // Proxy: Get Leads (with alias /api/facilities to bypass adblockers)
-app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], async (req, res) => {
+app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], verifyFirebaseToken, async (req, res) => {
   try {
     const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
     
