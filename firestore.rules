@@ -62,5 +62,10 @@ service cloud.firestore {
         && (!('phone' in request.resource.data) || request.resource.data.phone is string)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['companyName', 'phone', 'updatedAt']);
     }
+
+    // Payments collection acts as an immutable backend ledger of verified transactions
+    match /payments/{paymentId} {
+      allow read, write: if false; // Only accessible via server-side admin/privileged SDKs
+    }
   }
 }

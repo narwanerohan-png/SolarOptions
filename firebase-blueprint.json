@@ -38,6 +38,14 @@
           "type": "string",
           "description": "The status of the user's payment"
         },
+        "razorpayOrderId": {
+          "type": "string",
+          "description": "The Razorpay order ID associated with the payment"
+        },
+        "razorpayPaymentId": {
+          "type": "string",
+          "description": "The Razorpay payment ID verifying the successful purchase"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -114,6 +122,35 @@
         }
       },
       "required": ["email", "authType", "expiryDate", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Represents an idempotency ledger record for a processed Razorpay payment transaction",
+      "type": "object",
+      "properties": {
+        "razorpayPaymentId": {
+          "type": "string",
+          "description": "The unique Razorpay payment ID"
+        },
+        "razorpayOrderId": {
+          "type": "string",
+          "description": "The associated Razorpay order ID"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the created user"
+        },
+        "email": {
+          "type": "string",
+          "description": "The email of the purchaser"
+        },
+        "processedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp indicating when the payment was verified and processed"
+        }
+      },
+      "required": ["razorpayPaymentId", "razorpayOrderId", "uid", "email", "processedAt"]
     }
   },
   "firestore": {
@@ -128,6 +165,10 @@
     "sessions/{sessionId}": {
       "schema": "UserSession",
       "description": "Collection keeping track of active user access and expiry dates"
+    },
+    "payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Collection tracking validated payments to act as an idempotent transaction ledger"
     }
   }
 }

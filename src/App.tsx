@@ -14,6 +14,7 @@ import { CredentialsModal } from './components/modals/CredentialsModal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 import { auth, googleProvider, signInWithPopup } from './lib/firebase';
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { authFetch } from './utils/authFetch';
 
 // --- HELPERS ---
@@ -167,6 +168,17 @@ export default function SolarApp() {
     };
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -212,12 +224,7 @@ export default function SolarApp() {
   const [monthlyBill, setMonthlyBill] = useState(50000);
   const [rooftopSpace, setRooftopSpace] = useState(5000);
   const [electricityRate, setElectricityRate] = useState(8);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('solar_options_isLoggedIn') === 'true';
-    }
-    return false;
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [liveLeads, setLiveLeads] = useState<Lead[]>(sampleLeadsData);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -232,7 +239,7 @@ export default function SolarApp() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [credentials, setCredentials] = useState({ username: '', password: '', expiry: '' });
+  const [credentials, setCredentials] = useState<{ username: string; password: any; expiry?: string; isPaymentSuccess?: boolean }>({ username: '', password: '', expiry: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trialError, setTrialError] = useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
@@ -461,114 +468,121 @@ export default function SolarApp() {
     setIsSubmitting(true);
     setPaymentLoadingMessage('Connecting to Razorpay...');
 
-    const openRazorpay = () => {
-      const options = {
-        key: 'rzp_live_SYVCbNHoPZBoWv',
-        amount: 780000, // ₹7800 per month
-        currency: 'INR',
-        name: 'Solar Options Pro Access',
-        description: '30 Days Premium Leads Access',
-        handler: (response: any) => {
-          console.log("Payment Success Handler Fired:", response.razorpay_payment_id);
-          
-          // 1. Generate local credentials immediately
-          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          let genPwd = '';
-          for (let i = 0; i < 8; i++) {
-            genPwd += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
+    try {
+      const orderRes = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: formData.companyName,
+          email: formData.email,
+          phone: formData.contact
+        })
+      });
 
-          const expiry = new Date();
-          expiry.setDate(expiry.getDate() + 30);
-          const expiryStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-          
-          const newCreds = { 
-            username: formData.email, 
-            password: genPwd,
-            expiry: expiryStr 
-          };
+      if (!orderRes.ok) {
+        const errData = await orderRes.json();
+        throw new Error(errData.error || "Failed to create payment order");
+      }
 
-          // 2. FORCE IMMEDIATE UI UPDATE
-          setCredentials(newCreds);
-          setShowAccessForm(false);
-          setShowCredentials(true);
-          setIsSubmitting(false);
-          setPaymentLoadingMessage('');
+      const orderData = await orderRes.json();
 
-          // 3. BACKGROUND SYNC TO GOOGLE SHEETS
-          fetch('/api/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...formData,
-              username: formData.email, // Explicitly map email to username for the script
-              password: genPwd,           // Explicitly send the generated code
-              paymentId: response.razorpay_payment_id,
-              action: 'register',
-              sheet: 'Sheet2',
-              expiryDate: expiry.toISOString(),
-              validUntil: expiryStr,
-              "Access Days": "30 Days",
-              "access_days": "30",
-              "accessDays": "30 Days",
-              "Days": "30",
-              "days": "30",
-              "Duration": "30 Days",
-              "duration": "30 Days",
-              "Plan": "30 Days Premium",
-              "plan": "30 Days Premium",
-              "Validity": "30 Days",
-              "validity": "30 Days",
-              "Subscription": "Premium 30 Days",
-              isTrial: false,
-              "Is Trial": "false",
-              "is_trial": "false",
-              timestamp: new Date().toISOString()
-            })
-          }).then(() => {
-            console.log("Background sync to Sheet2 complete");
-          }).catch(err => {
-            console.error("Background sync error:", err);
-          });
-        },
-        modal: {
-          onDismiss: () => {
+      const openRazorpay = () => {
+        const options = {
+          key: orderData.key_id || 'rzp_live_SYVCbNHoPZBoWv',
+          amount: orderData.amount,
+          currency: orderData.currency,
+          order_id: orderData.order_id,
+          name: 'Solar Options Pro Access',
+          description: '30 Days Premium Leads Access',
+          handler: async (response: any) => {
+            console.log("Payment Success Handler Fired:", response.razorpay_payment_id);
+            setPaymentLoadingMessage('Verifying payment and provisioning account...');
+            setIsSubmitting(true);
+            
+            try {
+              const verifyRes = await fetch('/api/payments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  companyName: formData.companyName,
+                  email: formData.email,
+                  phone: formData.contact
+                })
+              });
+              
+              if (!verifyRes.ok) {
+                const errData = await verifyRes.json();
+                throw new Error(errData.error || "Payment verification failed");
+              }
+              
+              const verifyData = await verifyRes.json();
+              console.log("Payment verification success:", verifyData);
+              
+              // FORCE IMMEDIATE UI UPDATE (No password shown, isPaymentSuccess: true triggers success text)
+              setCredentials({
+                username: formData.email,
+                password: '',
+                isPaymentSuccess: true
+              });
+              setShowAccessForm(false);
+              setShowCredentials(true);
+              setIsSubmitting(false);
+              setPaymentLoadingMessage('');
+            } catch (verifyErr: any) {
+              console.error("Verification error:", verifyErr);
+              alert("Payment verification failed: " + verifyErr.message);
+              setIsSubmitting(false);
+              setPaymentLoadingMessage('');
+            }
+          },
+          modal: {
+            onDismiss: () => {
+              setIsSubmitting(false);
+              setPaymentLoadingMessage('');
+            }
+          },
+          prefill: {
+            name: formData.companyName,
+            email: formData.email,
+            contact: formData.contact,
+          },
+          theme: { color: '#10b981' },
+        };
+        
+        try {
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on('payment.failed', function (failedRes: any) {
+            console.error("Razorpay Payment Failure Notice:", failedRes.error);
+            alert(`Payment Error: ${failedRes.error.description}. If you see 'Business Failure', please ensure this domain is registered in your Razorpay Dashboard.`);
             setIsSubmitting(false);
             setPaymentLoadingMessage('');
-          }
-        },
-        prefill: {
-          name: formData.companyName,
-          email: formData.email,
-          contact: formData.contact,
-        },
-        theme: { color: '#10b981' },
-      };
-      
-      try {
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (response: any) {
-          console.error("Razorpay Payment Failure Notice:", response.error);
-          alert(`Payment Error: ${response.error.description}. If you see 'Business Failure', please ensure this domain is registered in your Razorpay Dashboard.`);
+          });
+          rzp.open();
+        } catch (err) {
+          console.error("Razorpay Initialization/Open Error:", err);
+          alert("Razorpay failed to open. This may be due to a domain mismatch in Live mode.");
           setIsSubmitting(false);
           setPaymentLoadingMessage('');
-        });
-        rzp.open();
-      } catch (err) {
-        console.error("Razorpay Initialization/Open Error:", err);
-        alert("Razorpay failed to open. This may be due to a domain mismatch in Live mode.");
-        setIsSubmitting(false);
-        setPaymentLoadingMessage('');
-      }
-    };
+        }
+      };
 
-    if (!(window as any).Razorpay) {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = openRazorpay;
-      document.body.appendChild(script);
-    } else {
-      openRazorpay();
+      if (!(window as any).Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = openRazorpay;
+        document.body.appendChild(script);
+      } else {
+        openRazorpay();
+      }
+
+    } catch (orderErr: any) {
+      console.error("Order creation error:", orderErr);
+      alert("Order creation failed: " + orderErr.message);
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
     }
   };
 
@@ -848,7 +862,6 @@ export default function SolarApp() {
       const data = await resp.json();
       if (data.success) {
         setIsLoggedIn(true);
-        localStorage.setItem('solar_options_isLoggedIn', 'true');
         setShowLoginModal(false);
         setShowAccessForm(false);
         navigate('/industrial-intelligence');
@@ -869,57 +882,24 @@ export default function SolarApp() {
     if (!formData.username || !formData.password) return;
     setIsSubmitting(true);
     try {
-      console.log("[Login] Sending credentials to /api/login...");
-      const resp = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'login',
-          username: formData.username,
-          password: formData.password
-        })
-      });
+      console.log("[Login] Signing in with Firebase Auth...");
+      const userCredential = await signInWithEmailAndPassword(auth, formData.username, formData.password);
+      const user = userCredential.user;
+      console.log("[Login] Signed in user successfully:", user.uid);
       
-      if (!resp.ok) {
-        let errorMessage = `Server responded with status ${resp.status}`;
-        try {
-          const errorData = await resp.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-          if (resp.status === 403 || errorData.expired) {
-            // Trial expired - redirect to payment screen!
-            alert(errorMessage);
-            setShowLoginModal(false);
-            setShowAccessForm(true);
-            return;
-          }
-          if (errorData.debug) console.log("[Login Debug]", errorData.debug);
-        } catch (e) {
-          // Response was not JSON
-          const text = await resp.text().catch(() => "");
-          console.error("[Login] Non-JSON error response:", text.substring(0, 200));
-        }
-        alert(`Login Error: ${errorMessage}`);
-        throw new Error(errorMessage);
-      }
-      
-      const data = await resp.json();
-      if (data.success) {
-        setIsLoggedIn(true);
-        localStorage.setItem('solar_options_isLoggedIn', 'true');
-        setShowLoginModal(false);
-        navigate('/industrial-intelligence');
-        window.scrollTo(0, 0);
-      } else {
-        alert(data.message || "Invalid credentials");
-      }
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+      navigate('/industrial-intelligence');
+      window.scrollTo(0, 0);
     } catch (e: any) {
       console.error("Login Error:", e);
-      // Don't alerts if we already handled/redirected the 403 above
-      if (e.message !== "Trial expired" && !e.message?.includes("Trial expired")) {
-        alert(e.message || "Login service unavailable. Please check back later.");
+      let errMsg = e.message || "Invalid credentials";
+      if (e.code === "auth/invalid-credential" || e.code === "auth/user-not-found" || e.code === "auth/wrong-password") {
+        errMsg = "Invalid username/email or password.";
+      } else if (e.code === "auth/invalid-email") {
+        errMsg = "Invalid email format.";
       }
+      alert(`Login Error: ${errMsg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -983,9 +963,12 @@ export default function SolarApp() {
                 Dashboard
               </button>
               <button 
-                onClick={() => { 
-                  setIsLoggedIn(false); 
-                  localStorage.removeItem('solar_options_isLoggedIn');
+                onClick={async () => { 
+                  try {
+                    await auth.signOut();
+                  } catch (e) {
+                    console.error("Sign out error:", e);
+                  }
                   navigate('/'); 
                 }} 
                 className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/10 transition-all cursor-pointer active:scale-95"

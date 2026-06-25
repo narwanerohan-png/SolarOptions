@@ -43,6 +43,16 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /**
+ * Gets the Firebase Admin Auth instance.
+ */
+export function getAdminAuth() {
+  if (!adminApp) {
+    throw new Error("Firebase Admin SDK is not initialized.");
+  }
+  return getAuth(adminApp);
+}
+
+/**
  * Reusable Express middleware to verify Firebase ID tokens (JWTs) in the Authorization header.
  * Attaches the decoded token to `req.user`.
  */
@@ -51,37 +61,21 @@ export async function verifyFirebaseToken(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const isAuditMode = process.env.AUTH_AUDIT_MODE === "true";
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    if (isAuditMode) {
-      console.log("[AUTH] Missing or invalid token");
-      next();
-      return;
-    }
     res.status(401).json({ error: "Unauthorized: Missing or invalid token" });
     return;
   }
 
   const token = authHeader.split("Bearer ")[1];
   if (!token) {
-    if (isAuditMode) {
-      console.log("[AUTH] Missing or invalid token");
-      next();
-      return;
-    }
     res.status(401).json({ error: "Unauthorized: Token empty" });
     return;
   }
 
   if (!adminApp) {
     console.error("[Firebase Admin Error] Cannot verify token: Firebase Admin app is not initialized.");
-    if (isAuditMode) {
-      console.log("[AUTH] Missing or invalid token");
-      next();
-      return;
-    }
     res.status(500).json({ error: "Internal Server Error: Auth service unavailable" });
     return;
   }
@@ -90,17 +84,9 @@ export async function verifyFirebaseToken(
     const auth = getAuth(adminApp);
     const decodedToken = await auth.verifyIdToken(token);
     req.user = decodedToken;
-    if (isAuditMode) {
-      console.log(`[AUTH] User verified: ${decodedToken.uid}`);
-    }
     next();
   } catch (error: any) {
     console.error("[Firebase Admin Error] Token verification failed:", error.message);
-    if (isAuditMode) {
-      console.log("[AUTH] Missing or invalid token");
-      next();
-      return;
-    }
     res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
   }
 }
