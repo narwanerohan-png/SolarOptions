@@ -8,6 +8,7 @@ interface AccessFormModalProps {
   onSubmit: (form: any) => void;
   onFreeTrial?: (form: any, forceBypass?: boolean) => void;
   onGoogleLogin?: () => void;
+  onGoogleGetAccess?: (form: any) => void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
   onClearError?: () => void;
@@ -19,6 +20,7 @@ export const AccessFormModal = React.memo(({
   onSubmit, 
   onFreeTrial,
   onGoogleLogin,
+  onGoogleGetAccess,
   isSubmitting = false,
   errorMessage = null,
   onClearError
@@ -39,6 +41,8 @@ export const AccessFormModal = React.memo(({
     }
   };
 
+  const isFieldsValid = accessForm.companyName.trim().length > 0 && accessForm.contact.length === 10;
+
   if (!isOpen) return null;
 
   return (
@@ -58,16 +62,26 @@ export const AccessFormModal = React.memo(({
         </div>
 
         {/* Google Sign-In Option for instant login or automated trial provisioning */}
-        {onGoogleLogin && (
+        {onGoogleGetAccess && (
           <div className="mb-8 space-y-4">
             <button
               type="button"
-              onClick={onGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 py-4 sm:py-5 bg-white/10 hover:bg-white/15 active:scale-[0.98] border border-white/10 hover:border-white/20 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-xl cursor-pointer"
+              disabled={!isFieldsValid || isSubmitting}
+              onClick={() => onGoogleGetAccess(accessForm)}
+              className={`w-full flex items-center justify-center gap-3 py-4 sm:py-5 border transition-all uppercase tracking-widest shadow-xl rounded-2xl font-black text-xs ${
+                isFieldsValid && !isSubmitting
+                  ? "bg-white text-slate-900 border-white hover:bg-slate-100 active:scale-[0.98] cursor-pointer"
+                  : "bg-white/5 text-white/30 border-white/5 cursor-not-allowed opacity-50"
+              }`}
             >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" referrerPolicy="no-referrer" />
-              One-Tap access with Google
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className={`w-5 h-5 ${!isFieldsValid ? 'opacity-30' : ''}`} alt="Google" referrerPolicy="no-referrer" />
+              Continue with Google
             </button>
+            {!isFieldsValid && (
+              <p className="text-gray-400 text-xs text-center font-medium mt-2 leading-relaxed">
+                Complete your company details to continue with Google and activate your 1-Day Free Trial.
+              </p>
+            )}
             <div className="relative flex py-2 items-center">
               <div className="flex-grow border-t border-white/5"></div>
               <span className="flex-shrink mx-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">or request access manually</span>

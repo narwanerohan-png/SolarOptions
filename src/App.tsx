@@ -629,13 +629,13 @@ export default function SolarApp() {
     console.log("Legacy savePayment called (should be handled in handler):", paymentId);
   };
 
-  const handleFreeTrial = async (formData: any, forceBypass = false) => {
+  const handleFreeTrial = async (formData: any, forceBypass = false, googleCredentialOverride?: any) => {
     setTrialError(null);
 
     // Prevent nested exceptions by declaring user credential reference
-    let userCredential = null;
+    let userCredential = googleCredentialOverride || null;
 
-    if (!forceBypass) {
+    if (!forceBypass && !userCredential) {
       // 1. Launch Google Login Popup IMMEDIATELY to preserve user-action stack trace and bypass browser popup blockers!
       try {
         userCredential = await signInWithPopup(auth, googleProvider);
@@ -658,7 +658,11 @@ export default function SolarApp() {
       }
     }
 
-    if (!formData.email.includes('@') || formData.contact.length !== 10) {
+    if (googleCredentialOverride && googleCredentialOverride.user && googleCredentialOverride.user.email) {
+      formData = { ...formData, email: googleCredentialOverride.user.email };
+    }
+
+    if (!formData.email || !formData.email.includes('@') || formData.contact.length !== 10) {
       setTrialError("Please enter valid direct contact details. Your email must contain '@' and your mobile number must be exactly 10 digits.");
       return;
     }
@@ -812,14 +816,38 @@ export default function SolarApp() {
         throw new Error(errMsg);
       }
 
-      // Force update credentials and show
-      setCredentials(newCreds);
-      setShowAccessForm(false);
-      setShowCredentials(true);
+      if (googleCredentialOverride) {
+        console.log("[Get Access] Automatically logging in with newly generated credentials...");
+        await signInWithEmailAndPassword(auth, newCreds.username, newCreds.password);
+        setShowAccessForm(false);
+      } else {
+        // Force update credentials and show
+        setCredentials(newCreds);
+        setShowAccessForm(false);
+        setShowCredentials(true);
+      }
     } catch (err: any) {
       console.error("Free trial registration error:", err);
       const errMsg = err.message || "";
       setTrialError(errMsg || "Failed to create free trial session. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
+    }
+  };
+
+  const handleGoogleGetAccess = async (formData: any) => {
+    setTrialError(null);
+    setIsSubmitting(true);
+    setPaymentLoadingMessage('Connecting with Google...');
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      if (userCredential && userCredential.user) {
+        await handleFreeTrial(formData, false, userCredential);
+      }
+    } catch (popupErr: any) {
+      console.warn("Google Get Access Auth canceled or failed:", popupErr);
+      // Catch Google cancelled errors and return without resetting form or closing modal
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -2743,7 +2771,7 @@ export default function SolarApp() {
         }}
         onSubmit={handlePayment}
         onFreeTrial={handleFreeTrial}
-        onGoogleLogin={handleGoogleLogin}
+        onGoogleGetAccess={handleGoogleGetAccess}
         isSubmitting={isSubmitting}
         errorMessage={trialError}
         onClearError={() => setTrialError(null)}
