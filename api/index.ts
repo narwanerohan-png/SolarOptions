@@ -6,9 +6,7 @@ import cors from "cors";
 import axios from "axios";
 import https from "https";
 import fs from "fs";
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, runTransaction, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { verifyFirebaseToken, getAdminAuth } from "./lib/firebaseAdmin.js";
+import { verifyFirebaseToken, getAdminAuth, getAdminDb } from "./lib/firebaseAdmin.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
@@ -17,20 +15,13 @@ if (!process.env.VERCEL) {
   dotenv.config();
 }
 
-// Server-side Firestore initialization for atomic distributed lock
+// Server-side Firestore initialization using Firebase Admin Firestore
 let serverDb: any = null;
 try {
-  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-  if (fs.existsSync(configPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    serverDb = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
-    console.log("[Firebase Server Engine] Distributed lock engine successfully initialized on server.");
-  } else {
-    console.warn("[Firebase Server Engine Warning] No firebase-applet-config.json found at path:", configPath);
-  }
+  serverDb = getAdminDb();
+  console.log("[Firebase Server Engine] Firebase Admin Firestore successfully initialized on server.");
 } catch (e: any) {
-  console.warn("[Firebase Server Engine Exception] Failed to initialize Firestore:", e.message);
+  console.warn("[Firebase Server Engine Exception] Failed to initialize Admin Firestore:", e.message);
 }
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -479,10 +470,10 @@ app.post("/api/google-login", async (req, res) => {
   if (serverDb) {
     try {
       // 1. Check if the user document exists in the `users` collection
-      const userDocRef = doc(serverDb, "users", activeUid);
-      const userSnap = await getDoc(userDocRef);
+      const userDocRef = serverDb.collection("users").doc(activeUid);
+      const userSnap = await userDocRef.get();
 
-      if (userSnap.exists()) {
+      if (userSnap.exists) {
         const userData = userSnap.data();
         const isPremium = userData.plan === "Premium";
         const expiry = userData.subscriptionExpiry;
@@ -513,17 +504,17 @@ app.post("/api/google-login", async (req, res) => {
       }
 
       // 2. If the user doesn't exist, check if email/fingerprint has already claimed a trial in trial_claims
-      const emailClaimRef = doc(serverDb, "trial_claims", `email_${normalizedEmail}`);
-      const emailClaimSnap = await getDoc(emailClaimRef);
+      const emailClaimRef = serverDb.collection("trial_claims").doc(`email_${normalizedEmail}`);
+      const emailClaimSnap = await emailClaimRef.get();
 
       let fpClaimSnapExists = false;
       if (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") {
-        const fpClaimRef = doc(serverDb, "trial_claims", `fp_${cleanFingerprint}`);
-        const fpClaimSnap = await getDoc(fpClaimRef);
-        fpClaimSnapExists = fpClaimSnap.exists();
+        const fpClaimRef = serverDb.collection("trial_claims").doc(`fp_${cleanFingerprint}`);
+        const fpClaimSnap = await fpClaimRef.get();
+        fpClaimSnapExists = fpClaimSnap.exists;
       }
 
-      if (emailClaimSnap.exists() || fpClaimSnapExists) {
+      if (emailClaimSnap.exists || fpClaimSnapExists) {
         console.warn(`[Google Login] Duplicate/expired trial claim blocked for: ${normalizedEmail}`);
         return res.status(403).json({
           success: false,
@@ -539,15 +530,15 @@ app.post("/api/google-login", async (req, res) => {
       const expiryIso = expiry.toISOString();
 
       // Write to trial_claims
-      await setDoc(emailClaimRef, {
+      await emailClaimRef.set({
         email: normalizedEmail,
         fingerprint: cleanFingerprint,
         claimedAt: timestamp
       });
 
       if (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") {
-        const fpClaimRef = doc(serverDb, "trial_claims", `fp_${cleanFingerprint}`);
-        await setDoc(fpClaimRef, {
+        const fpClaimRef = serverDb.collection("trial_claims").doc(`fp_${cleanFingerprint}`);
+        await fpClaimRef.set({
           email: normalizedEmail,
           fingerprint: cleanFingerprint,
           claimedAt: timestamp
@@ -555,7 +546,7 @@ app.post("/api/google-login", async (req, res) => {
       }
 
       // Write to users
-      await setDoc(userDocRef, {
+      await userDocRef.set({
         uid: activeUid,
         email: normalizedEmail,
         companyName: companyName || "Google Trial User",
@@ -643,17 +634,17 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
       try {
         console.log(`[Distributed Lock] Querying atomic claims database for ${cleanEmail} & ${cleanContact}...`);
         
-        await runTransaction(serverDb, async (transaction) => {
-          const emailDocRef = doc(serverDb, "trial_claims", `email_${cleanEmail}`);
-          const contactDocRef = cleanContact ? doc(serverDb, "trial_claims", `contact_${cleanContact}`) : null;
+        await serverDb.runTransaction(async (transaction) => {
+          const emailDocRef = serverDb.collection("trial_claims").doc(`email_${cleanEmail}`);
+          const contactDocRef = cleanContact ? serverDb.collection("trial_claims").doc(`contact_${cleanContact}`) : null;
 
           const emailSnap = await transaction.get(emailDocRef);
           const contactSnap = contactDocRef ? await transaction.get(contactDocRef) : null;
 
-          if (emailSnap.exists()) {
+          if (emailSnap.exists) {
             throw new Error("Email duplicate claim locked.");
           }
-          if (contactSnap && contactSnap.exists()) {
+          if (contactSnap && contactSnap.exists) {
             throw new Error("Contact duplicate claim locked.");
           }
 
@@ -686,9 +677,9 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
 
     // B. Check fingerprint in trial_claims (if fingerprint is provided)
     if (serverDb && cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") {
-      const fpDocRef = doc(serverDb, "trial_claims", `fp_${cleanFingerprint}`);
-      const fpSnap = await getDoc(fpDocRef);
-      if (fpSnap.exists()) {
+      const fpDocRef = serverDb.collection("trial_claims").doc(`fp_${cleanFingerprint}`);
+      const fpSnap = await fpDocRef.get();
+      if (fpSnap.exists) {
         console.warn(`[Register] Blocked trial fingerprint reuse for ${normalizedEmail} (Fingerprint: ${cleanFingerprint})`);
         return res.status(403).json({
           success: false,
@@ -698,7 +689,7 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
       }
 
       // Record fingerprint claim
-      await setDoc(fpDocRef, {
+      await fpDocRef.set({
         email: cleanEmail,
         fingerprint: cleanFingerprint,
         claimedAt: new Date().toISOString()
@@ -730,8 +721,8 @@ app.post(["/api/register", "/api/register/"], async (req, res) => {
     const determinedValidUntil = trialExpiry.toISOString();
 
     if (serverDb) {
-      const userDocRef = doc(serverDb, "users", userRecord.uid);
-      await setDoc(userDocRef, {
+      const userDocRef = serverDb.collection("users").doc(userRecord.uid);
+      await userDocRef.set({
         uid: userRecord.uid,
         email: normalizedEmail,
         companyName: req.body.companyName || "Trial User",
@@ -916,9 +907,9 @@ app.post("/api/payments/verify", async (req, res) => {
 
     // --- IDEMPOTENCY check: Check if this payment ID has already been processed ---
     if (serverDb) {
-      const paymentDocRef = doc(serverDb, "payments", razorpay_payment_id);
-      const paymentSnap = await getDoc(paymentDocRef);
-      if (paymentSnap.exists()) {
+      const paymentDocRef = serverDb.collection("payments").doc(razorpay_payment_id);
+      const paymentSnap = await paymentDocRef.get();
+      if (paymentSnap.exists) {
         console.log(`[Payment API] [Duplicate Payment Ignored] Payment ID: ${razorpay_payment_id} has already been processed.`);
         return res.json({
           success: true,
@@ -1006,7 +997,7 @@ app.post("/api/payments/verify", async (req, res) => {
 
     // --- FIRESTORE USER DOCUMENT CREATION ---
     if (serverDb) {
-      const userDocRef = doc(serverDb, "users", userRecord.uid);
+      const userDocRef = serverDb.collection("users").doc(userRecord.uid);
       const subscriptionExpiry = new Date();
       subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 30);
 
@@ -1025,12 +1016,12 @@ app.post("/api/payments/verify", async (req, res) => {
         updatedAt: new Date().toISOString()
       };
 
-      await setDoc(userDocRef, userData);
+      await userDocRef.set(userData);
       console.log(`[Payment API] [Firestore User Created] Created document at users/${userRecord.uid}`);
 
       // Save to payments collection for complete idempotence ledger
-      const paymentDocRef = doc(serverDb, "payments", razorpay_payment_id);
-      await setDoc(paymentDocRef, {
+      const paymentDocRef = serverDb.collection("payments").doc(razorpay_payment_id);
+      await paymentDocRef.set({
         razorpayPaymentId: razorpay_payment_id,
         razorpayOrderId: razorpay_order_id,
         uid: userRecord.uid,
@@ -1143,9 +1134,9 @@ app.post("/api/check-existence", async (req, res) => {
 
       // Check email claim
       if (cleanEmail) {
-        const emailClaimRef = doc(serverDb, "trial_claims", `email_${cleanEmail}`);
-        const emailClaimSnap = await getDoc(emailClaimRef);
-        if (emailClaimSnap.exists()) {
+        const emailClaimRef = serverDb.collection("trial_claims").doc(`email_${cleanEmail}`);
+        const emailClaimSnap = await emailClaimRef.get();
+        if (emailClaimSnap.exists) {
           return res.json({
             exists: true,
             message: "This email address has already claimed the 1-Day Free Trial. Please get access to continue."
@@ -1155,9 +1146,9 @@ app.post("/api/check-existence", async (req, res) => {
 
       // Check contact claim
       if (cleanContact) {
-        const contactClaimRef = doc(serverDb, "trial_claims", `contact_${cleanContact}`);
-        const contactClaimSnap = await getDoc(contactClaimRef);
-        if (contactClaimSnap.exists()) {
+        const contactClaimRef = serverDb.collection("trial_claims").doc(`contact_${cleanContact}`);
+        const contactClaimSnap = await contactClaimRef.get();
+        if (contactClaimSnap.exists) {
           return res.json({
             exists: true,
             message: "This mobile number has already claimed the 1-Day Free Trial. Please get access to continue."

@@ -1,6 +1,9 @@
 import { initializeApp, cert, getApps, App } from "firebase-admin/app";
 import { getAuth, DecodedIdToken } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 import { Request, Response, NextFunction } from "express";
+import fs from "fs";
+import path from "path";
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -50,6 +53,38 @@ export function getAdminAuth() {
     throw new Error("Firebase Admin SDK is not initialized.");
   }
   return getAuth(adminApp);
+}
+
+let adminDb: any = null;
+
+/**
+ * Gets the Firebase Admin Firestore instance.
+ */
+export function getAdminDb() {
+  if (!adminDb) {
+    if (!adminApp) {
+      throw new Error("Firebase Admin SDK is not initialized.");
+    }
+    let dbId: string | undefined = undefined;
+    try {
+      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        dbId = config.firestoreDatabaseId;
+      }
+    } catch (e: any) {
+      console.warn("[Firebase Admin Warning] Could not load firebase-applet-config.json for database ID:", e.message);
+    }
+
+    if (dbId) {
+      adminDb = getFirestore(adminApp, dbId);
+      console.log(`[Firebase Admin Db] Successfully initialized Firestore with database ID: ${dbId}`);
+    } else {
+      adminDb = getFirestore(adminApp);
+      console.log("[Firebase Admin Db] Successfully initialized Firestore with default database.");
+    }
+  }
+  return adminDb;
 }
 
 /**
