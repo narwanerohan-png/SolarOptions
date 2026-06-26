@@ -309,11 +309,116 @@ interface LocalUser {
 
 const localInbox: LocalInboxItem[] = [];
 
+// --- RATE LIMITING IN-MEMORY ENGINES ---
+const rateLimits: Record<string, { count: number; resetTime: number }> = {};
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute window
+const MAX_REQUESTS_PER_WINDOW = 30; // Max 30 requests per window
 
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  if (!rateLimits[key]) {
+    rateLimits[key] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
+    return true;
+  }
+  const limit = rateLimits[key];
+  if (now > limit.resetTime) {
+    limit.count = 1;
+    limit.resetTime = now + RATE_LIMIT_WINDOW_MS;
+    return true;
+  }
+  limit.count++;
+  return limit.count <= MAX_REQUESTS_PER_WINDOW;
+}
+
+// --- AUDIT LOGGER UTILITY ---
+async function logAuditAction(uid: string, email: string, action: string, details: any) {
+  const ip = details.ip || "unknown";
+  console.log(`[Audit Log] ${action} | User: ${email} (${uid}) | IP: ${ip} | Timestamp: ${new Date().toISOString()} | Details: ${JSON.stringify(details)}`);
+  if (serverDb) {
+    try {
+      await serverDb.collection("audit_logs").add({
+        uid,
+        email,
+        action,
+        details,
+        ip,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e: any) {
+      console.error("[Audit Log Error] Failed to write audit log to Firestore:", e.message);
+    }
+  }
+}
+
+// --- VALUES MASKING UTILITY TO PREVENT BULK EXTRACTION ---
+const maskValue = (val: string, type: 'name' | 'contact' | 'email') => {
+  if (!val) return '';
+  const clean = String(val).trim();
+  if (type === 'name') {
+    if (clean.length <= 2) return clean;
+    return `${clean[0]}***${clean[clean.length - 1]} (Authorized Manager)`;
+  }
+  if (type === 'contact') {
+    if (clean.length <= 4) return clean;
+    return `+91 ***** ***${clean.slice(-2)}`;
+  }
+  if (type === 'email') {
+    const parts = clean.split('@');
+    if (parts.length === 2) {
+      const name = parts[0];
+      const domain = parts[1];
+      const maskedName = name.length > 2 ? `${name[0]}***${name[name.length - 1]}` : '***';
+      return `${maskedName}@${domain}`;
+    }
+    return 'partner-exclusive@domain.in';
+  }
+  return val;
+};
 
 // Proxy: Get Leads (with alias /api/facilities to bypass adblockers)
-app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], verifyFirebaseToken, async (req, res) => {
+app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], verifyFirebaseToken, async (req: any, res) => {
+  const activeUid = req.user?.uid || "unknown";
+  const userEmail = req.user?.email || "unknown";
+  const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
+
   try {
+    // 1. Rate Limiting Check
+    const rateLimitKey = `${activeUid}_${ipAddress}`;
+    if (!checkRateLimit(rateLimitKey)) {
+      console.warn(`[Rate Limit Exceeded] User: ${userEmail} (${activeUid}) | IP: ${ipAddress}`);
+      return res.status(429).json({ error: "Too many requests. Please slow down and try again later." });
+    }
+
+    // 2. Subscription Verification Check on Every Request
+    if (serverDb) {
+      try {
+        const userDocRef = serverDb.collection("users").doc(activeUid);
+        const userSnap = await userDocRef.get();
+        if (!userSnap.exists) {
+          console.warn(`[API Access Denied] User profile not found for UID: ${activeUid}`);
+          return res.status(403).json({ error: "Access Denied: User profile not found. Please register or sign in again." });
+        }
+        const userData = userSnap.data();
+        const isPremium = userData.plan === "Premium";
+        const expiry = userData.subscriptionExpiry;
+        const now = new Date().toISOString();
+
+        if (expiry && expiry < now) {
+          console.warn(`[API Access Denied] Subscription/Trial expired for: ${userEmail}`);
+          return res.status(403).json({
+            success: false,
+            expired: true,
+            error: isPremium ? "Subscription expired" : "Trial expired",
+            message: isPremium
+              ? "Your premium subscription has expired. Please upgrade or renew your subscription to reactivate access."
+              : "Your 1-day free trial has expired. Please upgrade to a paid premium subscription to continue."
+          });
+        }
+      } catch (e: any) {
+        console.error(`[API Subscription Verification Exception] ${e.message}`);
+      }
+    }
+
     const separator = GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?';
     
     // Server-side cache check (Stale-While-Revalidate)
@@ -387,52 +492,113 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         }
       }
 
-      // Implement pagination, search, and region filters on the server side
+      // --- 3. Detail-on-Demand Extraction via Referer URL Check ---
+      const referer = req.headers.referer || "";
+      let companySlug = "";
+      if (referer) {
+        const match = referer.match(/\/company\/([^/?#]+)/);
+        if (match) {
+          companySlug = match[1];
+        }
+      }
+
+      if (companySlug) {
+        const matchedItem = mergedInbox.find(item => {
+          const name = item['Factory Name'] || item['factory'] || '';
+          return slugify(name) === companySlug;
+        });
+
+        if (matchedItem) {
+          await logAuditAction(activeUid, userEmail, "DETAIL_DEMAND_UNLOCKED", {
+            companySlug,
+            companyName: matchedItem['Factory Name'] || matchedItem['factory'],
+            ip: ipAddress
+          });
+          return res.json([matchedItem]); // Returns single unmasked record wrapped in an array
+        }
+      }
+
+      // --- 4. Filtering (Region, Search) ---
       const limitQuery = req.query.limit;
       const offsetQuery = req.query.offset;
       const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
       const region = typeof req.query.region === 'string' ? req.query.region.trim().toLowerCase() : 'all';
 
-      if (limitQuery || offsetQuery || (search && search !== '') || (region && region !== 'all')) {
-        let filtered = [...mergedInbox];
+      let filtered = [...mergedInbox];
 
-        // 1. Filter by region
-        if (region && region !== 'all') {
-          filtered = filtered.filter(item => {
-            const itemRegion = String(item['Region'] || item['region'] || '').trim().toLowerCase();
-            return itemRegion === region;
-          });
-        }
+      // Filter by region
+      if (region && region !== 'all') {
+        filtered = filtered.filter(item => {
+          const itemRegion = String(item['Region'] || item['region'] || '').trim().toLowerCase();
+          return itemRegion === region;
+        });
+      }
 
-        // 2. Filter by search (exact matches on Rooftop Space OR substring match on Factory Name or Location or Owner Name or Email)
-        if (search) {
-          const searchClean = search.toLowerCase();
-          filtered = filtered.filter(item => {
-            const rooftop = String(item['Rooftop Space'] || item['rooftop'] || '').replace(/,/g, '');
-            const name = String(item['Factory Name'] || item['factory'] || '').toLowerCase();
-            const location = String(item['Location'] || item['location'] || '').toLowerCase();
-            const owner = String(item['Owner Name'] || item['owner'] || '').toLowerCase();
-            const email = String(item['Email'] || item['Email ID'] || item['email'] || '').toLowerCase();
-            
-            return rooftop === searchClean ||
-                   name.includes(searchClean) ||
-                   location.includes(searchClean) ||
-                   owner.includes(searchClean) ||
-                   email.includes(searchClean);
-          });
-        }
+      // Filter by search
+      if (search) {
+        const searchClean = search.toLowerCase();
+        filtered = filtered.filter(item => {
+          const rooftop = String(item['Rooftop Space'] || item['rooftop'] || '').replace(/,/g, '');
+          const name = String(item['Factory Name'] || item['factory'] || '').toLowerCase();
+          const location = String(item['Location'] || item['location'] || '').toLowerCase();
+          const owner = String(item['Owner Name'] || item['owner'] || '').toLowerCase();
+          const email = String(item['Email'] || item['Email ID'] || item['email'] || '').toLowerCase();
+          
+          return rooftop === searchClean ||
+                 name.includes(searchClean) ||
+                 location.includes(searchClean) ||
+                 owner.includes(searchClean) ||
+                 email.includes(searchClean);
+        });
+      }
 
-        const totalMatchingCount = filtered.length;
+      const totalMatchingCount = filtered.length;
 
-        // 3. Paginate / Slice
-        const limit = limitQuery ? parseInt(String(limitQuery), 10) : 100;
-        const offset = offsetQuery ? parseInt(String(offsetQuery), 10) : 0;
+      // --- 5. Server-Side Pagination & Backend-Enforced Limits (Max 25) ---
+      const rawLimit = limitQuery ? parseInt(String(limitQuery), 10) : 10;
+      const limit = Math.min(25, isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit);
+      const rawOffset = offsetQuery ? parseInt(String(offsetQuery), 10) : 0;
+      const offset = isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
+      
+      const sliced = filtered.slice(offset, offset + limit);
+
+      // --- 6. Mask Sensitive Fields in the Paginated List View ---
+      const maskedSliced = sliced.map(item => {
+        const itemToMask = { ...item };
         
-        const sliced = filtered.slice(offset, offset + limit);
+        const nameKeys = ['Owner Name', 'owner', 'Owner'];
+        const contactKeys = ['Contact Number', 'Contact', 'contact'];
+        const emailKeys = ['Email ID', 'Email', 'email'];
 
+        nameKeys.forEach(k => {
+          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
+        });
+        contactKeys.forEach(k => {
+          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
+        });
+        emailKeys.forEach(k => {
+          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
+        });
+
+        return itemToMask;
+      });
+
+      // --- 7. Audit Logging for Listing Retrieval ---
+      await logAuditAction(activeUid, userEmail, "LIST_RETRIEVE", {
+        offset,
+        limit,
+        search,
+        region,
+        returnedCount: maskedSliced.length,
+        totalMatchingCount,
+        ip: ipAddress
+      });
+
+      // --- 8. Formatted Response ---
+      if (limitQuery || offsetQuery || (search && search !== '') || (region && region !== 'all')) {
         return res.json({
           success: true,
-          data: sliced,
+          data: maskedSliced,
           totalCount: totalMatchingCount,
           limit,
           offset,
@@ -440,14 +606,51 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         });
       }
       
-      return res.json(mergedInbox);
+      return res.json(maskedSliced);
     }
     
     res.json(upstreamData);
   } catch (error: any) {
     const statusInfo = error.response ? `HTTP ${error.response.status}` : error.message;
     console.log(`[Backup Database] Leads sync unconfigured or offline (${statusInfo}). Serving local in-memory dataset.`);
-    res.json(localInbox);
+    
+    // Fallback logic for offline dataset
+    const limitQuery = req.query.limit;
+    const offsetQuery = req.query.offset;
+    const rawLimit = limitQuery ? parseInt(String(limitQuery), 10) : 10;
+    const limit = Math.min(25, isNaN(rawLimit) || rawLimit <= 0 ? 10 : rawLimit);
+    const rawOffset = offsetQuery ? parseInt(String(offsetQuery), 10) : 0;
+    const offset = isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
+
+    const slicedFallback = localInbox.slice(offset, offset + limit).map(item => {
+      const itemToMask = { ...item };
+      const nameKeys = ['Owner Name', 'owner', 'Owner'];
+      const contactKeys = ['Contact Number', 'Contact', 'contact'];
+      const emailKeys = ['Email ID', 'Email', 'email'];
+
+      nameKeys.forEach(k => {
+        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
+      });
+      contactKeys.forEach(k => {
+        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
+      });
+      emailKeys.forEach(k => {
+        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
+      });
+      return itemToMask;
+    });
+
+    if (limitQuery || offsetQuery) {
+      return res.json({
+        success: true,
+        data: slicedFallback,
+        totalCount: localInbox.length,
+        limit,
+        offset,
+        hasMore: offset + limit < localInbox.length
+      });
+    }
+    res.json(slicedFallback);
   }
 });
 
