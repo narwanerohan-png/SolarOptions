@@ -5,39 +5,60 @@ import { Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
 
-const projectId = process.env.FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-// Safely handle newlines in private key
-const privateKey = process.env.FIREBASE_PRIVATE_KEY
-  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
-  : undefined;
-
 let adminApp: App | null = null;
 
-if (projectId && clientEmail && privateKey) {
-  try {
-    const apps = getApps();
-    if (apps.length === 0) {
-      adminApp = initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-      console.log("[Firebase Admin] Successfully initialized with service account.");
-    } else {
-      adminApp = apps[0]!;
-      console.log("[Firebase Admin] Reused existing Firebase Admin instance.");
+/**
+ * Dynamically gets or initializes the Firebase Admin App instance.
+ * Ensures any environment variables (e.g. set by dotenv) are read at execution time.
+ */
+export function getAdminApp(): App {
+  if (!adminApp) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (privateKey) {
+      // Handle potential quote wrapping in environment configurations
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.substring(1, privateKey.length - 1);
+      } else if (privateKey.startsWith("'") && privateKey.endsWith("'")) {
+        privateKey = privateKey.substring(1, privateKey.length - 1);
+      }
+      privateKey = privateKey.replace(/\\n/g, "\n");
     }
-  } catch (error: any) {
-    console.error("[Firebase Admin Error] Failed to initialize Firebase Admin SDK:", error.message);
+
+    if (projectId && clientEmail && privateKey) {
+      try {
+        const apps = getApps();
+        if (apps.length === 0) {
+          adminApp = initializeApp({
+            credential: cert({
+              projectId,
+              clientEmail,
+              privateKey,
+            }),
+          });
+          console.log("[Firebase Admin] Successfully initialized with service account.");
+        } else {
+          adminApp = apps[0]!;
+          console.log("[Firebase Admin] Reused existing Firebase Admin instance.");
+        }
+      } catch (error: any) {
+        console.error("[Firebase Admin Error] Failed to initialize Firebase Admin SDK:", error.message);
+        throw error;
+      }
+    } else {
+      const missing = [];
+      if (!projectId) missing.push("FIREBASE_PROJECT_ID");
+      if (!clientEmail) missing.push("FIREBASE_CLIENT_EMAIL");
+      if (!privateKey) missing.push("FIREBASE_PRIVATE_KEY");
+
+      const errMsg = `Firebase Admin SDK is not initialized. Missing environment variables: ${missing.join(", ")}`;
+      console.error(`[Firebase Admin Error] ${errMsg}`);
+      throw new Error(errMsg);
+    }
   }
-} else {
-  console.warn(
-    "[Firebase Admin Warning] Missing service account environment variables. " +
-    "Firebase Admin SDK will not be initialized. Routes requiring token verification will fail."
-  );
+  return adminApp;
 }
 
 // Custom request interface to include decoded user
@@ -49,10 +70,7 @@ export interface AuthenticatedRequest extends Request {
  * Gets the Firebase Admin Auth instance.
  */
 export function getAdminAuth() {
-  if (!adminApp) {
-    throw new Error("Firebase Admin SDK is not initialized.");
-  }
-  return getAuth(adminApp);
+  return getAuth(getAdminApp());
 }
 
 let adminDb: any = null;
@@ -62,9 +80,7 @@ let adminDb: any = null;
  */
 export function getAdminDb() {
   if (!adminDb) {
-    if (!adminApp) {
-      throw new Error("Firebase Admin SDK is not initialized.");
-    }
+    const app = getAdminApp();
     let dbId: string | undefined = undefined;
     try {
       const configPath = path.join(process.cwd(), "firebase-applet-config.json");
@@ -77,10 +93,10 @@ export function getAdminDb() {
     }
 
     if (dbId) {
-      adminDb = getFirestore(adminApp, dbId);
+      adminDb = getFirestore(app, dbId);
       console.log(`[Firebase Admin Db] Successfully initialized Firestore with database ID: ${dbId}`);
     } else {
-      adminDb = getFirestore(adminApp);
+      adminDb = getFirestore(app);
       console.log("[Firebase Admin Db] Successfully initialized Firestore with default database.");
     }
   }
@@ -109,19 +125,14 @@ export async function verifyFirebaseToken(
     return;
   }
 
-  if (!adminApp) {
-    console.error("[Firebase Admin Error] Cannot verify token: Firebase Admin app is not initialized.");
-    res.status(500).json({ error: "Internal Server Error: Auth service unavailable" });
-    return;
-  }
-
   try {
-    const auth = getAuth(adminApp);
+    const app = getAdminApp();
+    const auth = getAuth(app);
     const decodedToken = await auth.verifyIdToken(token);
     req.user = decodedToken;
     next();
   } catch (error: any) {
     console.error("[Firebase Admin Error] Token verification failed:", error.message);
-    res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
+    res.status(401).json({ error: `Unauthorized: Invalid or expired token. ${error.message}` });
   }
 }
