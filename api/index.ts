@@ -254,7 +254,48 @@ app.all("/__/auth/*", (req, res) => {
 app.set("trust proxy", true);
 
 // Middleware
-app.use(cors());
+const whitelist = [
+  "https://www.solaroptions.in",
+  "https://solaroptions.in"
+];
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // If request has no Origin (like non-browser clients, same-origin, curl, server-to-server), allow it
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (whitelist.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Non-production fallback for local development / preview channels
+    const isProd = process.env.NODE_ENV === "production" || process.env.VITE_PROD === "true";
+    if (!isProd) {
+      try {
+        const url = new URL(origin);
+        if (
+          url.hostname === "localhost" ||
+          url.hostname === "127.0.0.1" ||
+          url.hostname.endsWith(".run.app") ||
+          url.hostname.endsWith(".aistudio-preview.com") ||
+          url.hostname.includes("asia-southeast1.run.app") ||
+          url.hostname.includes("solaroptions")
+        ) {
+          return callback(null, true);
+        }
+      } catch (e) {
+        console.error("[CORS Option Error] Invalid URL origin parsed:", origin);
+      }
+    }
+    
+    return callback(null, false);
+  },
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Request logger
