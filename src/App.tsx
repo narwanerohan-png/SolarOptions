@@ -247,14 +247,12 @@ export default function SolarApp() {
   const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
   
   // Portal State
-  const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [rooftopSearch, setRooftopSearch] = useState('');
   const [deferredSearch, setDeferredSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
   const [inboxData, setInboxData] = useState<any[]>([]);
 
   // High-performance server-side pagination and lazy-loading states
-  const [loadedLeadsLimit, setLoadedLeadsLimit] = useState(100);
   const [totalLeadsCount, setTotalLeadsCount] = useState(0);
   const [hasMoreLeads, setHasMoreLeads] = useState(false);
 
@@ -368,17 +366,17 @@ export default function SolarApp() {
   }, [companySlug]);
 
   // --- ACTIONS ---
-  const fetchLiveLeads = async (limit: number, searchVal: string, filterVal: string) => {
+  const fetchLiveLeadsBatch = async (offsetValue: number, isInitial: boolean, searchVal: string, filterVal: string) => {
+    if (isLoadingLeads) return;
     setIsLoadingLeads(true);
     try {
       const queryParams = new URLSearchParams({
-        limit: String(limit),
-        offset: '0',
+        limit: '25',
+        offset: String(offsetValue),
         search: searchVal,
         region: filterVal
       });
 
-      // Use adblocker-safe primary path /api/facilities to bypass uBlock/Brave Shields, fallback to leads
       let response;
       try {
         response = await authFetch(`/api/facilities?${queryParams.toString()}`);
@@ -395,52 +393,99 @@ export default function SolarApp() {
       const resData = await response.json();
       
       let rawLeads: any[] = [];
+      let backendHasMore = false;
+      let totalCount = 0;
+      
       if (resData && typeof resData === 'object' && !Array.isArray(resData)) {
         if (resData.success) {
           rawLeads = resData.data || [];
-          setTotalLeadsCount(resData.totalCount ?? 0);
-          setHasMoreLeads(resData.hasMore ?? false);
+          totalCount = resData.totalCount ?? 0;
+          backendHasMore = resData.hasMore ?? (rawLeads.length >= 25);
         }
       } else if (Array.isArray(resData)) {
         rawLeads = resData;
-        setTotalLeadsCount(resData.length);
-        setHasMoreLeads(false);
+        totalCount = resData.length;
+        backendHasMore = false;
       }
 
-      if (rawLeads.length > 0) {
-        const mapped = rawLeads.map((row) => ({
-          region: (row['Region'] || 'NA').toLowerCase(),
-          factory: row['Factory Name'] || 'NA',
-          location: row['Location'] || 'NA',
-          rooftop: Number(row['Rooftop Space']) || 0,
-          kw: row['Potential kW'] || 0,
-          owner: row['Owner Name'] || 'NA',
-          contact: row['Contact Number'] || row['Contact'] || 'NA',
-          email: row['Email ID'] || row['Email'] || 'NA',
-          monthlyBill: row['Monthly Bill'] || 'NA',
-          monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
-        }));
+      // Explicit check: Stop requesting automatically when the backend returns fewer than 25 records.
+      if (rawLeads.length < 25) {
+        backendHasMore = false;
+      }
+
+      const mapped = rawLeads.map((row) => ({
+        region: (row['Region'] || 'NA').toLowerCase(),
+        factory: row['Factory Name'] || 'NA',
+        location: row['Location'] || 'NA',
+        rooftop: Number(row['Rooftop Space']) || 0,
+        kw: row['Potential kW'] || 0,
+        owner: row['Owner Name'] || 'NA',
+        contact: row['Contact Number'] || row['Contact'] || 'NA',
+        email: row['Email ID'] || row['Email'] || 'NA',
+        monthlyBill: row['Monthly Bill'] || 'NA',
+        monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
+      }));
+
+      if (isInitial) {
         setLiveLeads(mapped);
+        setTotalLeadsCount(totalCount);
+        setHasMoreLeads(backendHasMore);
       } else {
-        setLiveLeads([]);
-        setTotalLeadsCount(0);
-        setHasMoreLeads(false);
+        // Prevent duplicate appending by checking if we already have the lead factory in the list
+        setLiveLeads(prev => {
+          const existingFactories = new Set(prev.map(item => item.factory));
+          const uniqueNew = mapped.filter(item => !existingFactories.has(item.factory));
+          return [...prev, ...uniqueNew];
+        });
+        setTotalLeadsCount(totalCount);
+        setHasMoreLeads(backendHasMore);
       }
     } catch (e) {
       console.error("Fetch failed, using samples as fallback", e);
-      setLiveLeads(sampleLeadsData);
-      setTotalLeadsCount(sampleLeadsData.length);
-      setHasMoreLeads(false);
+      if (isInitial) {
+        setLiveLeads(sampleLeadsData.slice(0, 25));
+        setTotalLeadsCount(sampleLeadsData.length);
+        setHasMoreLeads(sampleLeadsData.length > 25);
+      }
     } finally {
       setIsLoadingLeads(false);
     }
   };
 
+  // 300ms Debounce for rooftop search input to reduce server load
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const timer = setTimeout(() => {
+      setDeferredSearch(rooftopSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [rooftopSearch, isLoggedIn]);
+
+  // Initial load and filter/search changes load the first batch (offset 0)
   useEffect(() => {
     if (isLoggedIn) {
-      fetchLiveLeads(loadedLeadsLimit, deferredSearch, regionFilter);
+      fetchLiveLeadsBatch(0, true, deferredSearch, regionFilter);
     }
-  }, [isLoggedIn, loadedLeadsLimit, deferredSearch, regionFilter]);
+  }, [isLoggedIn, deferredSearch, regionFilter]);
+
+  // Infinite Scroll scroll position listener (approaching 70-80% of page height triggers next batch)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoadingLeads || !hasMoreLeads) return;
+      
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      const scrolledTo = (scrollTop + clientHeight) / scrollHeight;
+      if (scrolledTo >= 0.75) {
+        fetchLiveLeadsBatch(liveLeads.length, false, deferredSearch, regionFilter);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingLeads, hasMoreLeads, liveLeads.length, deferredSearch, regionFilter]);
 
   const calculatorResult = useMemo(() => {
     const safeBill = Number(monthlyBill) || 0;
@@ -905,22 +950,7 @@ export default function SolarApp() {
     }
   };
 
-  const filteredLeads = useMemo(() => {
-    return liveLeads.filter(l => {
-      if (regionFilter !== 'all' && l.region !== regionFilter) return false;
-      
-      const search = deferredSearch.trim();
-      if (!search) return true;
-      
-      const leadRooftopStr = String(l.rooftop).replace(/,/g, '');
-      const searchClean = search.replace(/,/g, '');
 
-      return leadRooftopStr === searchClean;
-    });
-  }, [liveLeads, regionFilter, deferredSearch]);
-
-  const cardsPerPage = 6;
-  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / cardsPerPage));
 
   // --- RENDERING ---
 
@@ -2020,24 +2050,17 @@ export default function SolarApp() {
                             onChange={(e) => { 
                               const val = e.target.value;
                               setRooftopSearch(val); 
-                              startTransition(() => {
-                                setLoadedLeadsLimit(100);
-                                setDeferredSearch(val);
-                                setCurrentPageIndex(1); 
-                              });
                             }}
-                            placeholder="Search rooftop size (exact e.g. 6000)" 
-                            className="w-full pl-11 pr-4 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-500 transition-all font-medium"
+                            placeholder="Search rooftop size, factory name, location, owner..." 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-500 transition-all font-medium text-white placeholder-gray-500"
                           />
                       </div>
                       <select 
                         value={regionFilter} 
                         onChange={(e) => { 
-                          setLoadedLeadsLimit(100);
                           setRegionFilter(e.target.value); 
-                          setCurrentPageIndex(1); 
                         }}
-                        className="px-6 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-400 font-bold"
+                        className="px-6 py-3 bg-slate-800/60 border border-white/10 rounded-2xl outline-none focus:border-emerald-400 font-bold text-white cursor-pointer"
                       >
                         <option value="all">All Regions</option>
                         <option value="pune">Pune Cluster</option>
@@ -2046,7 +2069,7 @@ export default function SolarApp() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                      {filteredLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).map((lead, i) => (
+                      {liveLeads.map((lead, i) => (
                         <motion.div 
                           key={i} 
                           whileHover={{ y: -8, transition: { duration: 0.3, ease: 'easeOut' } }}
@@ -2085,45 +2108,22 @@ export default function SolarApp() {
                       ))}
                     </div>
 
-                    {/* Progressive Data-Loading Controls */}
+                    {/* Progressive Data-Loading & Infinite Scroll Controls */}
                     <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-slate-800/40 p-5 rounded-2xl border border-white/5 gap-4 backdrop-blur-md">
                       <div className="text-gray-400 text-xs font-bold uppercase tracking-wider text-center sm:text-left">
-                        Showing <span className="text-emerald-400 font-extrabold">{filteredLeads.length}</span> of <span className="text-white font-extrabold">{totalLeadsCount}</span> verified locations
+                        Showing <span className="text-emerald-400 font-extrabold">{liveLeads.length}</span> of <span className="text-white font-extrabold">{totalLeadsCount}</span> verified locations
                       </div>
-                      {hasMoreLeads && (
-                        <button
-                          onClick={() => setLoadedLeadsLimit(prev => prev + 100)}
-                          className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xl cursor-pointer"
-                        >
-                          {isLoadingLeads ? (
-                            <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-slate-900 border-t-transparent" />
-                          ) : (
-                            <span className="w-1.5 h-1.5 bg-slate-900 rounded-full animate-ping" />
-                          )}
-                          Load 100 More Sites
-                        </button>
+                      {isLoadingLeads && (
+                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
+                          <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-emerald-400 border-t-transparent" />
+                          Loading more locations...
+                        </div>
                       )}
-                    </div>
-
-                    {/* Pagination Controls */}
-                    <div className="flex items-center justify-center gap-3 sm:gap-6 mt-12 bg-black/40 p-4 sm:p-6 rounded-2xl sm:rounded-[32px] backdrop-blur-xl">
-                        <button 
-                          disabled={currentPageIndex === 1}
-                          onClick={() => setCurrentPageIndex(p => Math.max(1, p - 1))}
-                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md"
-                        >
-                          <ArrowRight className="w-5 h-5 rotate-180" />
-                        </button>
-                        <span className="font-black text-sm uppercase tracking-widest text-gray-400">
-                          Page <span className="text-white">{currentPageIndex}</span> of <span className="text-white">{totalPages}</span>
-                        </span>
-                        <button 
-                          disabled={currentPageIndex === totalPages}
-                          onClick={() => setCurrentPageIndex(p => Math.min(totalPages, p + 1))}
-                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md"
-                        >
-                          <ArrowRight className="w-5 h-5" />
-                        </button>
+                      {!hasMoreLeads && liveLeads.length > 0 && (
+                        <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+                          All available locations loaded
+                        </div>
+                      )}
                     </div>
 
                     {/* SEO Informational Content Section */}
