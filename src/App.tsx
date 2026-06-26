@@ -247,6 +247,7 @@ export default function SolarApp() {
   const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
   
   // Portal State
+  const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [rooftopSearch, setRooftopSearch] = useState('');
   const [deferredSearch, setDeferredSearch] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
@@ -464,28 +465,20 @@ export default function SolarApp() {
   // Initial load and filter/search changes load the first batch (offset 0)
   useEffect(() => {
     if (isLoggedIn) {
+      setCurrentPageIndex(1);
       fetchLiveLeadsBatch(0, true, deferredSearch, regionFilter);
     }
   }, [isLoggedIn, deferredSearch, regionFilter]);
 
-  // Infinite Scroll scroll position listener (approaching 70-80% of page height triggers next batch)
+  // Silent fetch next backend batch (25 records) when user reaches the last local page of currently loaded records
+  const localTotalPages = Math.max(1, Math.ceil(liveLeads.length / 6));
+
   useEffect(() => {
-    const handleScroll = () => {
-      if (isLoadingLeads || !hasMoreLeads) return;
-      
-      const scrollHeight = document.documentElement.scrollHeight;
-      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
-      const clientHeight = document.documentElement.clientHeight;
-      
-      const scrolledTo = (scrollTop + clientHeight) / scrollHeight;
-      if (scrolledTo >= 0.75) {
-        fetchLiveLeadsBatch(liveLeads.length, false, deferredSearch, regionFilter);
-      }
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoadingLeads, hasMoreLeads, liveLeads.length, deferredSearch, regionFilter]);
+    if (!isLoggedIn || isLoadingLeads || !hasMoreLeads) return;
+    if (currentPageIndex >= localTotalPages) {
+      fetchLiveLeadsBatch(liveLeads.length, false, deferredSearch, regionFilter);
+    }
+  }, [currentPageIndex, localTotalPages, isLoggedIn, isLoadingLeads, hasMoreLeads, liveLeads.length, deferredSearch, regionFilter]);
 
   const calculatorResult = useMemo(() => {
     const safeBill = Number(monthlyBill) || 0;
@@ -2069,7 +2062,7 @@ export default function SolarApp() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                      {liveLeads.map((lead, i) => (
+                      {liveLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).map((lead, i) => (
                         <motion.div 
                           key={i} 
                           whileHover={{ y: -8, transition: { duration: 0.3, ease: 'easeOut' } }}
@@ -2106,12 +2099,41 @@ export default function SolarApp() {
                           </button>
                         </motion.div>
                       ))}
+
+                      {/* Display loading skeletons if we are loading the next page's data */}
+                      {isLoadingLeads && liveLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).length < 6 && (
+                        Array.from({ length: 6 - liveLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).length }).map((_, idx) => (
+                          <div key={`skeleton-${idx}`} className="bg-white border border-slate-100 p-6 sm:p-10 rounded-[28px] sm:rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[380px] animate-pulse">
+                            <div>
+                              <div className="flex justify-between items-start mb-10">
+                                <div className="h-7 bg-slate-200 rounded-lg w-2/3" />
+                                <div className="h-5 bg-slate-100 rounded-full w-16" />
+                              </div>
+                              <div className="space-y-4 mb-10">
+                                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                                  <div className="h-3 bg-slate-200 rounded w-1/4" />
+                                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <div className="h-3 bg-slate-200 rounded w-1/4" />
+                                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mb-8">
+                                <div className="w-4 h-4 bg-slate-200 rounded" />
+                                <div className="h-3 bg-slate-200 rounded w-1/2" />
+                              </div>
+                            </div>
+                            <div className="w-full h-12 bg-slate-100 rounded-2xl" />
+                          </div>
+                        ))
+                      )}
                     </div>
 
                     {/* Progressive Data-Loading & Infinite Scroll Controls */}
                     <div className="mt-8 flex flex-col sm:flex-row justify-between items-center bg-slate-800/40 p-5 rounded-2xl border border-white/5 gap-4 backdrop-blur-md">
                       <div className="text-gray-400 text-xs font-bold uppercase tracking-wider text-center sm:text-left">
-                        Showing <span className="text-emerald-400 font-extrabold">{liveLeads.length}</span> of <span className="text-white font-extrabold">{totalLeadsCount}</span> verified locations
+                        Showing <span className="text-emerald-400 font-extrabold">{liveLeads.slice((currentPageIndex - 1) * 6, currentPageIndex * 6).length}</span> of <span className="text-white font-extrabold">{totalLeadsCount}</span> verified locations
                       </div>
                       {isLoadingLeads && (
                         <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
@@ -2124,6 +2146,27 @@ export default function SolarApp() {
                           All available locations loaded
                         </div>
                       )}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex items-center justify-center gap-3 sm:gap-6 mt-8 bg-black/40 p-4 sm:p-6 rounded-2xl sm:rounded-[32px] backdrop-blur-xl">
+                        <button 
+                          disabled={currentPageIndex === 1}
+                          onClick={() => setCurrentPageIndex(p => Math.max(1, p - 1))}
+                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md cursor-pointer"
+                        >
+                          <ArrowRight className="w-5 h-5 rotate-180" />
+                        </button>
+                        <span className="font-black text-sm uppercase tracking-widest text-gray-400">
+                          Page <span className="text-white">{currentPageIndex}</span> of <span className="text-white">{Math.max(1, Math.ceil(totalLeadsCount / 6))}</span>
+                        </span>
+                        <button 
+                          disabled={currentPageIndex === Math.max(1, Math.ceil(totalLeadsCount / 6))}
+                          onClick={() => setCurrentPageIndex(p => Math.min(Math.max(1, Math.ceil(totalLeadsCount / 6)), p + 1))}
+                          className="p-3 bg-black/40 text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-emerald-500 hover:text-slate-900 transition-all shadow-lg backdrop-blur-md cursor-pointer"
+                        >
+                          <ArrowRight className="w-5 h-5" />
+                        </button>
                     </div>
 
                     {/* SEO Informational Content Section */}
