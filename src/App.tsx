@@ -885,6 +885,11 @@ export default function SolarApp() {
 
       if (resp.status === 403) {
         const errData = await resp.json();
+        try {
+          await auth.signOut();
+        } catch (signOutErr) {
+          console.warn("Sign out failed:", signOutErr);
+        }
         // Redirect to payment/subscription via showAccessForm
         alert(errData.message || "Trial already used. Please purchase premium access.");
         setShowLoginModal(false);
@@ -909,6 +914,11 @@ export default function SolarApp() {
       }
     } catch (e: any) {
       console.error("Google Sign-In login error:", e);
+      try {
+        await auth.signOut();
+      } catch (signOutErr) {
+        console.warn("Failed to sign out after login failure:", signOutErr);
+      }
       alert(e.message || "Authentication through Google was unsuccessful.");
     } finally {
       setIsSubmitting(false);
@@ -920,6 +930,25 @@ export default function SolarApp() {
     if (!formData.username || !formData.password) return;
     setIsSubmitting(true);
     try {
+      // 1. Pre-verify that the user is actually registered in our Firestore users collection
+      console.log("[Login] Verifying registration status...");
+      const checkResp = await fetch('/api/check-user-registered', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.username })
+      });
+
+      if (!checkResp.ok) {
+        throw new Error("Unable to verify registration. Please try again later.");
+      }
+
+      const checkData = await checkResp.json();
+      if (!checkData.registered) {
+        alert("Account not found. Please use 'Get Access' to create your account or start your free trial.");
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log("[Login] Signing in with Firebase Auth...");
       const userCredential = await signInWithEmailAndPassword(auth, formData.username, formData.password);
       const user = userCredential.user;

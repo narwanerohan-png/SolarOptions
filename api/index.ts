@@ -697,7 +697,7 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
 
 
 
-// Google Sign-In Verification and Trial Control
+// Google Sign-In Verification and Trial Control (Strictly authenticate existing users only)
 app.post("/api/google-login", async (req, res) => {
   const { email, fingerprint, companyName, googleUid, uid, contact } = req.body;
   const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
@@ -718,7 +718,7 @@ app.post("/api/google-login", async (req, res) => {
       const userSnap = await userDocRef.get();
 
       if (userSnap.exists) {
-        const userData = userSnap.data();
+        const userData = userSnap.data() || {};
         const isPremium = userData.plan === "Premium";
         const expiry = userData.subscriptionExpiry;
         const now = new Date().toISOString();
@@ -747,102 +747,41 @@ app.post("/api/google-login", async (req, res) => {
         });
       }
 
-      // 2. If the user doesn't exist, check if email/fingerprint has already claimed a trial in trial_claims
-      const emailClaimRef = serverDb.collection("trial_claims").doc(`email_${normalizedEmail}`);
-      const emailClaimSnap = await emailClaimRef.get();
-
-      let fpClaimSnapExists = false;
-      if (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") {
-        const fpClaimRef = serverDb.collection("trial_claims").doc(`fp_${cleanFingerprint}`);
-        const fpClaimSnap = await fpClaimRef.get();
-        fpClaimSnapExists = fpClaimSnap.exists;
-      }
-
-      if (emailClaimSnap.exists || fpClaimSnapExists) {
-        console.warn(`[Google Login] Duplicate/expired trial claim blocked for: ${normalizedEmail}`);
-        return res.status(403).json({
-          success: false,
-          trialUsed: true,
-          error: "Trial already claimed",
-          message: "This account or device has already claimed the 1-Day Free Trial. Please get access to continue."
-        });
-      }
-
-      // 3. Register a brand new 1-day trial (No previous trial claims found)
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + 1); // 1-Day Limit
-      const expiryIso = expiry.toISOString();
-
-      // Write to trial_claims
-      await emailClaimRef.set({
-        email: normalizedEmail,
-        fingerprint: cleanFingerprint,
-        claimedAt: timestamp
-      });
-
-      if (cleanFingerprint && cleanFingerprint !== "unknown-device" && cleanFingerprint !== "unknown") {
-        const fpClaimRef = serverDb.collection("trial_claims").doc(`fp_${cleanFingerprint}`);
-        await fpClaimRef.set({
-          email: normalizedEmail,
-          fingerprint: cleanFingerprint,
-          claimedAt: timestamp
-        });
-      }
-
-      // Write to users
-      await userDocRef.set({
-        uid: activeUid,
-        email: normalizedEmail,
-        companyName: companyName || "Google Trial User",
-        phone: contact || "",
-        plan: "Trial",
-        paymentStatus: "Trial",
-        subscriptionStatus: "Active",
-        subscriptionExpiry: expiryIso,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      });
-
-      console.log(`[Google Login] Created new 1-day trial user in Firestore for ${normalizedEmail}`);
-
-      // Sync back to Google sheet
-      try {
-        await postGoogleScriptData(GOOGLE_SCRIPT_URL, {
-          action: 'register',
-          date: timestamp,
-          companyName: companyName || "Google Trial User",
-          email: normalizedEmail,
-          phone: contact || "",
-          plan: "Trial",
-          subscriptionExpiry: expiryIso,
-          paymentStatus: "Trial"
-        });
-      } catch (err: any) {
-        console.warn(`[Google Login GAS Sync] Sync fallback: ${err.message}`);
-      }
-
-      return res.json({
-        success: true,
-        user: {
-          username: normalizedEmail,
-          companyName: companyName || "Google Trial User",
-          validUntil: expiry.toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          isTrial: true
-        }
+      // 2. If the user does not exist in our Firestore users collection, block registration from Login page
+      console.warn(`[Google Login] Login blocked for non-existent user: ${normalizedEmail}`);
+      return res.status(404).json({
+        success: false,
+        error: "account_not_found",
+        message: "Account not found. Please use 'Get Access' to create your account or start your free trial."
       });
 
     } catch (dbErr: any) {
-      console.error("[Google Login Error] Firestore lookup/write failed:", dbErr);
+      console.error("[Google Login Error] Firestore lookup failed:", dbErr);
       return res.status(500).json({ error: "Database error during login" });
     }
   } else {
     return res.status(503).json({ error: "Auth engine offline (Firestore unavailable)" });
+  }
+});
+
+// API: Check if email is already registered in our users collection
+app.post("/api/check-user-registered", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    if (serverDb) {
+      const usersRef = serverDb.collection("users");
+      const snapshot = await usersRef.where("email", "==", email).get();
+      if (!snapshot.empty) {
+        return res.json({ registered: true });
+      }
+    }
+    return res.json({ registered: false });
+  } catch (err: any) {
+    console.error("[Check User Registered Error]", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
