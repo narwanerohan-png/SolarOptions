@@ -62,6 +62,12 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
 
   const panelGeometry = useMemo(() => new THREE.BoxGeometry(panelConfig.width * 0.96, panelConfig.height * 0.96, 0.06), [panelConfig.width, panelConfig.height]);
   
+  useEffect(() => {
+    return () => {
+      panelGeometry.dispose();
+    };
+  }, [panelGeometry]);
+
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -98,11 +104,21 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
     return panelZones.length > 0 ? panelZones : buildings;
   }, [panelZones, buildings]);
 
+  // Clean up glRef reference on unmount to prevent WebGL context retention leaks
+  useEffect(() => {
+    return () => {
+      if (glRef) {
+        glRef.current = null;
+      }
+    };
+  }, [glRef]);
+
   return (
     <div className="w-full h-full bg-[#f8fafc]">
       <Canvas 
         shadows 
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
+        frameloop="demand"
         performance={{ min: 0.5 }}
         gl={{ 
           antialias: true, 

@@ -65,15 +65,30 @@ const sampleLeadsData: Lead[] = [
   { factory: 'RBSM Industrial Plant', location: 'Pune, Maharashtra', rooftop: 56000, kw: 800, region: 'pune' },
 ];
 
-const BACKGROUND_IMAGES = [
-  "https://images.unsplash.com/photo-1548613053-220bfb80f94f?auto=format&fit=crop&q=80&w=1920",
-  "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=80&w=1920",
-  "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=80&w=1920"
+const BACKGROUND_IMAGES_DESKTOP = [
+  "https://images.unsplash.com/photo-1548613053-220bfb80f94f?auto=format&fit=crop&q=75&w=1440",
+  "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=75&w=1440",
+  "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=75&w=1440"
+];
+
+const BACKGROUND_IMAGES_MOBILE = [
+  "https://images.unsplash.com/photo-1548613053-220bfb80f94f?auto=format&fit=crop&q=70&w=750",
+  "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=70&w=750",
+  "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&q=70&w=750"
 ];
 
 function PremiumSolarBackground() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const { scrollY } = useScroll();
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    setIsMobile(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
 
   // Create buttery smooth dampened scroll for luxury high-end web experience
   const smoothScrollY = useSpring(scrollY, {
@@ -82,25 +97,28 @@ function PremiumSolarBackground() {
     mass: 0.8
   });
   
-  // Real dynamic multi-dimensional wallpaper physics
+  // Real dynamic multi-dimensional wallpaper physics (disabled on mobile for 60fps scrolling)
   const yParallax = useTransform(smoothScrollY, [0, 8000], [0, -500]);
   const scaleScroll = useTransform(smoothScrollY, [0, 8000], [1.02, 1.18]);
   const rotateScroll = useTransform(smoothScrollY, [0, 8000], [0, 0.8]);
 
   useEffect(() => {
+    const images = isMobile ? BACKGROUND_IMAGES_MOBILE : BACKGROUND_IMAGES_DESKTOP;
     const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
     }, 12000); // Transitions to next image every 12 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [isMobile]);
+
+  const imagesToUse = isMobile ? BACKGROUND_IMAGES_MOBILE : BACKGROUND_IMAGES_DESKTOP;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
       <motion.div 
-        style={{ y: yParallax, scale: scaleScroll, rotateZ: rotateScroll }}
+        style={isMobile ? {} : { y: yParallax, scale: scaleScroll, rotateZ: rotateScroll }}
         className="absolute inset-0 w-full h-[120%] -top-12 will-change-transformOrigin will-change-transform origin-center"
       >
-        {BACKGROUND_IMAGES.map((img, idx) => {
+        {imagesToUse.map((img, idx) => {
           const isActive = idx === currentImageIndex;
           return (
             <motion.div
@@ -108,11 +126,11 @@ function PremiumSolarBackground() {
               initial={{ opacity: 0 }}
               animate={{ 
                 opacity: isActive ? 0.45 : 0, // Slightly increased target image visibility for premium solar aesthetics
-                scale: isActive ? 1.06 : 1.0,
+                scale: isActive && !isMobile ? 1.06 : 1.0,
               }}
               transition={{
                 opacity: { duration: 2.5, ease: "easeInOut" },
-                scale: { duration: 35, ease: "linear" }, // Gentle base Ken-Burns drift 
+                scale: { duration: isMobile ? 0 : 35, ease: "linear" }, // Gentle base Ken-Burns drift (disabled on mobile)
               }}
               className="absolute inset-0 w-full h-full"
             >
