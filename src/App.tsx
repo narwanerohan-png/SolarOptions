@@ -331,9 +331,9 @@ export default function SolarApp() {
     if (companySlug) {
       setIsLoadingCompany(true);
       
-      const fetchPath = '/api/facilities';
+      const fetchPath = `/api/facilities?slug=${companySlug}`;
       authFetch(fetchPath)
-        .then(res => res.ok ? res : authFetch('/api/leads'))
+        .then(res => res.ok ? res : authFetch(`/api/leads?slug=${companySlug}`))
         .then(res => res.json())
         .then(resData => {
           let rawLeads: any[] = [];
@@ -914,18 +914,19 @@ export default function SolarApp() {
         console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
       }
 
+      // Get Firebase ID Token
+      const idToken = await googleUser.getIdToken();
+
       // 3. Post to google login endpoint in backend
       const resp = await fetch('/api/google-login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          email: googleUser.email,
           fingerprint: fingerprintVal,
-          companyName: googleUser.displayName || 'Google Trial User',
-          googleUid: googleUser.uid,
-          uid: googleUser.uid
+          companyName: googleUser.displayName || 'Google Trial User'
         })
       });
 
@@ -950,6 +951,9 @@ export default function SolarApp() {
 
       const data = await resp.json();
       if (data.success) {
+        if (data.sessionId) {
+          localStorage.setItem("activeSessionId", data.sessionId);
+        }
         setIsLoggedIn(true);
         setShowLoginModal(false);
         setShowAccessForm(false);
@@ -999,11 +1003,51 @@ export default function SolarApp() {
       const userCredential = await signInWithEmailAndPassword(auth, formData.username, formData.password);
       const user = userCredential.user;
       console.log("[Login] Signed in user successfully:", user.uid);
-      
-      setIsLoggedIn(true);
-      setShowLoginModal(false);
-      navigate('/industrial-intelligence');
-      window.scrollTo(0, 0);
+
+      // Get Firebase ID Token
+      const idToken = await user.getIdToken();
+
+      // Acquire fingerprint
+      let fingerprintVal = "unknown-device";
+      try {
+        const FP = await import('@fingerprintjs/fingerprintjs');
+        const fp = await FP.load();
+        const result = await fp.get();
+        fingerprintVal = result.visitorId;
+      } catch (fpErr) {
+        console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
+      }
+
+      // Call google-login backend endpoint to establish active session
+      const resp = await fetch('/api/google-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          fingerprint: fingerprintVal,
+          companyName: 'Email User'
+        })
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.message || `Server session registration failed with status ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (data.success) {
+        if (data.sessionId) {
+          localStorage.setItem("activeSessionId", data.sessionId);
+        }
+        setIsLoggedIn(true);
+        setShowLoginModal(false);
+        navigate('/industrial-intelligence');
+        window.scrollTo(0, 0);
+      } else {
+        alert(data.message || "Authentication failed.");
+      }
     } catch (e: any) {
       console.error("Login Error:", e);
       let errMsg = e.message || "Invalid credentials";
@@ -1063,6 +1107,7 @@ export default function SolarApp() {
               <button 
                 onClick={async () => { 
                   try {
+                    localStorage.removeItem("activeSessionId");
                     await auth.signOut();
                   } catch (e) {
                     console.error("Sign out error:", e);

@@ -91,7 +91,14 @@ const AXIOS_CONFIG = {
 
 // Resilient Google Apps Script Helper: GET with absolute safety timeouts (< 10 seconds total to fit on Vercel Hobby)
 async function getGoogleScriptData(url: string): Promise<any> {
-  console.log(`[Google SDK] Fetching data via dual-engine: ${url.substring(0, 75)}...`);
+  const secret = process.env.APPS_SCRIPT_SECRET || "";
+  let targetUrl = url;
+  if (secret) {
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    targetUrl = `${targetUrl}${separator}secret=${encodeURIComponent(secret)}`;
+  }
+
+  console.log(`[Google SDK] Fetching data via dual-engine: ${targetUrl.substring(0, 75)}...`);
   
   const FETCH_TIMEOUT_MS = 15000; // 15 seconds timeout for Native fetch
   const AXIOS_TIMEOUT_MS = 15000; // 15 seconds timeout for Axios fallback
@@ -106,7 +113,7 @@ async function getGoogleScriptData(url: string): Promise<any> {
 
     try {
       console.log(`[Google SDK] Engine 1 (Native fetch) requesting list with 15s timeout...`);
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl, {
         method: "GET",
         headers: {
           "Accept": "application/json"
@@ -134,7 +141,7 @@ async function getGoogleScriptData(url: string): Promise<any> {
 
   // Method 2: Fallback to Axios GET
   console.log(`[Google SDK] Engine 2 (Axios GET) requesting list with 3s timeout...`);
-  const response = await axios.get(url, {
+  const response = await axios.get(targetUrl, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
     },
@@ -146,7 +153,14 @@ async function getGoogleScriptData(url: string): Promise<any> {
 
 // Resilient Google Apps Script Helper: POST with absolute safety timeouts
 async function postGoogleScriptData(url: string, payload: any): Promise<any> {
-  console.log(`[Google SDK] Posting data via dual-engine: ${url.substring(0, 75)}...`);
+  const secret = process.env.APPS_SCRIPT_SECRET || "";
+  let targetUrl = url;
+  if (secret) {
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    targetUrl = `${targetUrl}${separator}secret=${encodeURIComponent(secret)}`;
+  }
+
+  console.log(`[Google SDK] Posting data via dual-engine: ${targetUrl.substring(0, 75)}...`);
   
   const FETCH_TIMEOUT_MS = 15000; // 15 seconds timeout for Native fetch POST
   const AXIOS_TIMEOUT_MS = 15000; // 15 seconds timeout for Axios fallback POST
@@ -161,7 +175,7 @@ async function postGoogleScriptData(url: string, payload: any): Promise<any> {
 
     try {
       console.log(`[Google SDK] Engine 1 (Native fetch POST) sending payload with 15s timeout...`);
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -191,7 +205,7 @@ async function postGoogleScriptData(url: string, payload: any): Promise<any> {
 
   // Method 2: Fallback to Axios POST
   console.log(`[Google SDK] Engine 2 (Axios POST) sending payload with 3s timeout...`);
-  const response = await axios.post(url, payload, {
+  const response = await axios.post(targetUrl, payload, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
       "Content-Type": "application/json"
@@ -421,6 +435,7 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
   const activeUid = req.user?.uid || "unknown";
   const userEmail = req.user?.email || "unknown";
   const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
+  let isPremium = false;
 
   try {
     // 1. Rate Limiting Check
@@ -440,7 +455,7 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
           return res.status(403).json({ error: "Access Denied: User profile not found. Please register or sign in again." });
         }
         const userData = userSnap.data();
-        const isPremium = userData.plan === "Premium";
+        isPremium = userData.plan === "Premium";
         const expiry = userData.subscriptionExpiry;
         const now = new Date().toISOString();
 
@@ -533,15 +548,8 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         }
       }
 
-      // --- 3. Detail-on-Demand Extraction via Referer URL Check ---
-      const referer = req.headers.referer || "";
-      let companySlug = "";
-      if (referer) {
-        const match = referer.match(/\/company\/([^/?#]+)/);
-        if (match) {
-          companySlug = match[1];
-        }
-      }
+      // --- 3. Detail-on-Demand Extraction via slug Query Parameter ---
+      const companySlug = typeof req.query.slug === 'string' ? req.query.slug.trim() : "";
 
       if (companySlug) {
         const matchedItem = mergedInbox.find(item => {
@@ -550,12 +558,38 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         });
 
         if (matchedItem) {
-          await logAuditAction(activeUid, userEmail, "DETAIL_DEMAND_UNLOCKED", {
-            companySlug,
-            companyName: matchedItem['Factory Name'] || matchedItem['factory'],
-            ip: ipAddress
-          });
-          return res.json([matchedItem]); // Returns single unmasked record wrapped in an array
+          if (isPremium) {
+            // Premium gets full unmasked details
+            await logAuditAction(activeUid, userEmail, "DETAIL_DEMAND_UNLOCKED", {
+              companySlug,
+              companyName: matchedItem['Factory Name'] || matchedItem['factory'],
+              ip: ipAddress
+            });
+            return res.json([matchedItem]); // Returns single unmasked record wrapped in an array
+          } else {
+            // Trial User gets same structure, but with sensitive fields masked or omitted on backend
+            const itemToMask = { ...matchedItem };
+            const nameKeys = ['Owner Name', 'owner', 'Owner'];
+            const contactKeys = ['Contact Number', 'Contact', 'contact'];
+            const emailKeys = ['Email ID', 'Email', 'email'];
+
+            nameKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
+            });
+            contactKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
+            });
+            emailKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
+            });
+
+            await logAuditAction(activeUid, userEmail, "DETAIL_DEMAND_MASKED", {
+              companySlug,
+              companyName: itemToMask['Factory Name'] || itemToMask['factory'],
+              ip: ipAddress
+            });
+            return res.json([itemToMask]); // Returns single masked record wrapped in an array
+          }
         }
       }
 
@@ -697,19 +731,81 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
 
 
 
+function parseUserAgent(uaString: string | undefined) {
+  const ua = uaString || "";
+  let browser = "Unknown Browser";
+  let os = "Unknown OS";
+  let deviceType = "Desktop";
+
+  if (ua.includes("Firefox/")) {
+    browser = "Firefox";
+  } else if (ua.includes("Edg/")) {
+    browser = "Edge";
+  } else if (ua.includes("Chrome/")) {
+    browser = "Chrome";
+  } else if (ua.includes("Safari/")) {
+    browser = "Safari";
+  } else if (ua.includes("OPR/") || ua.includes("Opera/")) {
+    browser = "Opera";
+  }
+
+  if (ua.includes("Windows NT")) {
+    os = "Windows";
+  } else if (ua.includes("Macintosh") && !ua.includes("iPhone") && !ua.includes("iPad")) {
+    os = "MacOS";
+  } else if (ua.includes("Linux") && !ua.includes("Android")) {
+    os = "Linux";
+  } else if (ua.includes("Android")) {
+    os = "Android";
+  } else if (ua.includes("iPhone") || ua.includes("iPad") || ua.includes("iPod")) {
+    os = "iOS";
+  }
+
+  if (ua.includes("Mobi") || ua.includes("Android") || ua.includes("iPhone")) {
+    deviceType = "Mobile";
+  } else if (ua.includes("iPad")) {
+    deviceType = "Tablet";
+  }
+
+  return { browser, os, deviceType };
+}
+
 // Google Sign-In Verification and Trial Control (Strictly authenticate existing users only)
 app.post("/api/google-login", async (req, res) => {
-  const { email, fingerprint, companyName, googleUid, uid, contact } = req.body;
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  let decodedToken;
+  try {
+    const adminAuth = getAdminAuth();
+    decodedToken = await adminAuth.verifyIdToken(token);
+  } catch (error: any) {
+    console.error("[Firebase Admin Error] Token verification failed:", error.message);
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const activeUid = decodedToken.uid;
+  const email = decodedToken.email;
+
+  if (!activeUid || !email) {
+    console.error("[Google Login Error] Verified token is missing essential claims");
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { fingerprint, companyName, contact } = req.body;
   const ipAddress = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip;
   const timestamp = new Date().toISOString();
 
-  if (!email) {
-    return res.status(400).json({ error: "Email is required" });
-  }
-
   const normalizedEmail = String(email).trim().toLowerCase();
   const cleanFingerprint = String(fingerprint || "").trim();
-  const activeUid = googleUid || uid;
 
   if (serverDb) {
     try {
@@ -735,9 +831,28 @@ app.post("/api/google-login", async (req, res) => {
           });
         }
 
-        console.log(`[Google Login] Existing user login successful: ${normalizedEmail} (Plan: ${userData.plan})`);
+        // Generate secure random sessionId
+        const sessionId = crypto.randomUUID();
+
+        // Parse user-agent
+        const userAgent = req.headers["user-agent"];
+        const { browser, os, deviceType } = parseUserAgent(userAgent);
+
+        // Update user document with activeSessionId and device info for audit
+        await userDocRef.update({
+          activeSessionId: sessionId,
+          lastLogin: timestamp,
+          lastActivity: timestamp,
+          lastLoginIP: ipAddress,
+          lastBrowser: browser,
+          lastOS: os,
+          lastDevice: deviceType
+        });
+
+        console.log(`[Google Login] Existing user login successful: ${normalizedEmail} (Plan: ${userData.plan}) with Session: ${sessionId}`);
         return res.json({
           success: true,
+          sessionId: sessionId,
           user: {
             username: normalizedEmail,
             companyName: userData.companyName || companyName || "Subscriber",
@@ -1347,19 +1462,21 @@ app.post("/api/check-existence", async (req, res) => {
   }
 });
 
-// Debug Endpoint
-app.get("/api/debug-config", (req, res) => {
-  res.json({
-    has_env_var: !!process.env.GOOGLE_SCRIPT_URL,
-    url_preview: GOOGLE_SCRIPT_URL.substring(0, 40) + "...",
-    is_dev_url: GOOGLE_SCRIPT_URL.includes("/dev"),
-    is_exec_url: GOOGLE_SCRIPT_URL.includes("/exec"),
-    node_env: process.env.NODE_ENV,
-    advice: GOOGLE_SCRIPT_URL.includes("/dev") 
-      ? "CHANGE YOUR URL: It ends in /dev. Deploy as a 'Web App' for 'Anyone' to get an /exec URL." 
-      : "URL format looks okay. Make sure 'Who has access' is set to 'Anyone'."
+// Debug Endpoint - Registered only during development
+if (process.env.NODE_ENV === "development") {
+  app.get("/api/debug-config", (req, res) => {
+    res.json({
+      has_env_var: !!process.env.GOOGLE_SCRIPT_URL,
+      url_preview: GOOGLE_SCRIPT_URL.substring(0, 40) + "...",
+      is_dev_url: GOOGLE_SCRIPT_URL.includes("/dev"),
+      is_exec_url: GOOGLE_SCRIPT_URL.includes("/exec"),
+      node_env: process.env.NODE_ENV,
+      advice: GOOGLE_SCRIPT_URL.includes("/dev") 
+        ? "CHANGE YOUR URL: It ends in /dev. Deploy as a 'Web App' for 'Anyone' to get an /exec URL." 
+        : "URL format looks okay. Make sure 'Who has access' is set to 'Anyone'."
+    });
   });
-});
+}
 
 // --- SEO PHASE 2 HELPER & ENDPOINTS ---
 const BACKEND_SAMPLE_FACILITIES = [

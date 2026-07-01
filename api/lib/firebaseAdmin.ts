@@ -103,10 +103,6 @@ export function getAdminDb() {
   return adminDb;
 }
 
-/**
- * Reusable Express middleware to verify Firebase ID tokens (JWTs) in the Authorization header.
- * Attaches the decoded token to `req.user`.
- */
 export async function verifyFirebaseToken(
   req: AuthenticatedRequest,
   res: Response,
@@ -115,13 +111,13 @@ export async function verifyFirebaseToken(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized: Missing or invalid token" });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
   const token = authHeader.split("Bearer ")[1];
   if (!token) {
-    res.status(401).json({ error: "Unauthorized: Token empty" });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
@@ -129,10 +125,47 @@ export async function verifyFirebaseToken(
     const app = getAdminApp();
     const auth = getAuth(app);
     const decodedToken = await auth.verifyIdToken(token);
+    const uid = decodedToken.uid;
+
+    const clientSessionId = req.headers["x-session-id"];
+    if (!clientSessionId) {
+      res.status(401).json({
+        error: "Session expired",
+        message: "Your account has been logged in on another device."
+      });
+      return;
+    }
+
+    // Always query Firestore directly - Firestore is the ONLY source of truth
+    const db = getAdminDb();
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const userData = userDoc.data() || {};
+    const activeSessionId = userData.activeSessionId;
+
+    if (!activeSessionId || clientSessionId !== activeSessionId) {
+      res.status(401).json({
+        error: "Session expired",
+        message: "Your account has been logged in on another device."
+      });
+      return;
+    }
+
+    // Update lastActivity in background (non-blocking)
+    db.collection("users").doc(uid).update({
+      lastActivity: new Date().toISOString()
+    }).catch((err: any) => {
+      console.error("[Firebase Admin Error] Failed to update lastActivity:", err.message);
+    });
+
     req.user = decodedToken;
     next();
   } catch (error: any) {
     console.error("[Firebase Admin Error] Token verification failed:", error.message);
-    res.status(401).json({ error: `Unauthorized: Invalid or expired token. ${error.message}` });
+    res.status(401).json({ error: "Unauthorized" });
   }
 }
