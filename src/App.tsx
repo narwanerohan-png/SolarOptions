@@ -189,9 +189,17 @@ export default function SolarApp() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setIsLoggedIn(true);
+        // Only transition to isLoggedIn = true if we already have a backend-managed activeSessionId.
+        // For new login flows, they will fetch the activeSessionId first and then explicitly set setIsLoggedIn(true).
+        // This completely avoids the race condition where onAuthStateChanged sets isLoggedIn(true)
+        // before the backend session has been established.
+        const hasSession = !!localStorage.getItem("activeSessionId");
+        if (hasSession) {
+          setIsLoggedIn(true);
+        }
       } else {
         setIsLoggedIn(false);
+        localStorage.removeItem("activeSessionId");
       }
     });
     return () => unsubscribe();
@@ -836,8 +844,43 @@ export default function SolarApp() {
 
       if (googleCredentialOverride) {
         console.log("[Get Access] Automatically logging in with newly generated credentials...");
-        await signInWithEmailAndPassword(auth, newCreds.username, newCreds.password);
+        const userCredential = await signInWithEmailAndPassword(auth, newCreds.username, newCreds.password);
+        const user = userCredential.user;
+        const idToken = await user.getIdToken();
+        
+        let fingerprintVal = "unknown-device";
+        try {
+          const FP = await import('@fingerprintjs/fingerprintjs');
+          const fp = await FP.load();
+          const result = await fp.get();
+          fingerprintVal = result.visitorId;
+        } catch (fpErr) {
+          console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
+        }
+
+        const resp = await fetch('/api/google-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            fingerprint: fingerprintVal,
+            companyName: user.displayName || 'Trial User'
+          })
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.success && data.sessionId) {
+            localStorage.setItem("activeSessionId", data.sessionId);
+          }
+        }
+        
+        setIsLoggedIn(true);
         setShowAccessForm(false);
+        navigate('/industrial-intelligence');
+        window.scrollTo(0, 0);
       } else {
         // Force update credentials and show
         setCredentials(newCreds);
