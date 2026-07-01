@@ -231,6 +231,7 @@ if (GOOGLE_SCRIPT_URL.includes("docs.google.com/spreadsheets/d/")) {
 console.log(`[Server] Using Google Script URL from ${process.env.GOOGLE_SCRIPT_URL ? 'environment variable' : 'default value'}: ${GOOGLE_SCRIPT_URL.substring(0, 30)}...`);
 
 const app = express();
+app.disable("x-powered-by");
 const PORT = 3000;
 
 // Streaming Reverse Proxy for Firebase Auth custom domain resolution
@@ -266,6 +267,24 @@ app.all("/__/auth/*", (req, res) => {
 
 // Trust the AI Studio / Nginx proxy
 app.set("trust proxy", true);
+
+// Content Security Policy (CSP) Global Middleware
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.googleapis.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.googletagmanager.com https://checkout.razorpay.com https://*.razorpay.com https://player.vimeo.com https://*.vimeo.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com; " +
+    "img-src 'self' data: https:; " +
+    "font-src 'self' https://fonts.gstatic.com https://*.googleapis.com data:; " +
+    "connect-src 'self' https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://vimeo.com https://*.vimeo.com https://api.razorpay.com https://*.razorpay.com https://www.google-analytics.com; " +
+    "frame-src 'self' https://checkout.razorpay.com https://player.vimeo.com https://accounts.google.com; " +
+    "frame-ancestors 'self' https://solaroptions.in https://www.solaroptions.in; " +
+    "form-action 'self' https://accounts.google.com https://api.razorpay.com;"
+  );
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  next();
+});
 
 // Middleware
 const whitelist = [
