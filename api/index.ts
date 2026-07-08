@@ -1691,7 +1691,7 @@ app.get("/company/:slug", async (req, res) => {
 
     const semanticHtmlBlock = `
 <div id="root">
-  <article style="display: none;">
+  <article>
     <header>
       <h1>${companyName} – Industrial Rooftop Solar Opportunity</h1>
     </header>
