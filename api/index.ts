@@ -1675,6 +1675,71 @@ app.get("/company/:slug", async (req, res) => {
     `;
     
     html = html.replace("</head>", `${schemaBlock}\n</head>`);
+
+    const rooftopRaw = facility['Rooftop Space'] || facility['rooftop'] || '';
+    let rooftopArea = 'NA';
+    if (rooftopRaw) {
+      const parsedNum = parseFloat(String(rooftopRaw).replace(/,/g, ''));
+      if (!isNaN(parsedNum)) {
+        rooftopArea = `${new Intl.NumberFormat('en-IN').format(parsedNum)} Sq.ft`;
+      } else {
+        rooftopArea = `${rooftopRaw} Sq.ft`;
+      }
+    } else {
+      rooftopArea = 'NA Sq.ft';
+    }
+
+    const semanticHtmlBlock = `
+<div id="root">
+  <article style="display: none;">
+    <header>
+      <h1>${companyName} – Industrial Rooftop Solar Opportunity</h1>
+    </header>
+    <section>
+      <h2>Introduction</h2>
+      <p><strong>${companyName}</strong> is an industrial manufacturing facility located in <strong>${location}</strong>. This facility has been analysed using satellite imagery to estimate its rooftop solar potential.</p>
+      <p>SolarOptions helps Commercial & Industrial (C&I) Solar EPC companies discover factories, evaluate rooftop opportunities and perform preliminary solar feasibility before site visits.</p>
+    </section>
+    <section>
+      <h2>Available Rooftop Area</h2>
+      <p><strong>${rooftopArea}</strong></p>
+      <p>Estimated using satellite-based rooftop analysis.</p>
+    </section>
+    <section>
+      <h2>How SolarOptions Helps</h2>
+      <ul>
+        <li>Discover industrial factories</li>
+        <li>Identify rooftop solar opportunities</li>
+        <li>Reduce unnecessary site visits</li>
+        <li>Improve industrial solar prospecting</li>
+        <li>Support faster pre-sales planning</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Premium Features</h2>
+      <p>Additional information is available to registered users:</p>
+      <ul>
+        <li>Decision-maker information</li>
+        <li>Contact details</li>
+        <li>Verified business email</li>
+        <li>Technical calculations</li>
+        <li>3D rooftop layouts</li>
+        <li>Financial analysis</li>
+      </ul>
+    </section>
+    <section>
+      <h2>About SolarOptions</h2>
+      <p>SolarOptions is an Industrial Solar Sales Intelligence Platform built for Commercial & Industrial (C&I) Solar EPC companies across India.</p>
+      <p>The platform enables factory discovery, rooftop assessment and industrial solar prospecting using satellite-based intelligence.</p>
+    </section>
+    <section>
+      <h2>Call To Action</h2>
+      <p>Create a free account to access premium industrial intelligence across 1,500+ industrial facilities.</p>
+    </section>
+  </article>
+</div>`;
+
+    html = html.replace(/<div\s+id=["']root["']>\s*<\/div>/, semanticHtmlBlock);
     
     res.setHeader("Content-Type", "text/html");
     return res.status(200).send(html);
