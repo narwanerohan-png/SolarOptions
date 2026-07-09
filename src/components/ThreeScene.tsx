@@ -187,7 +187,17 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
           position={[0, -0.01, 0]}
         />
         
-        <Environment files="/hdri/potsdamer_platz_1k.hdr" />
+        <Environment 
+          files={
+            typeof window !== 'undefined' && 
+            (window.location.hostname.endsWith('.run.app') || 
+             window.location.hostname.endsWith('.aistudio-preview.com') ||
+             window.location.hostname === 'localhost' ||
+             window.location.hostname === '127.0.0.1')
+              ? 'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@456060a26bbeb8fdf79326f224b6d99b8bcce736/hdri/potsdamer_platz_1k.hdr'
+              : '/hdri/potsdamer_platz_1k.hdr'
+          } 
+        />
       </Canvas>
     </div>
   );
