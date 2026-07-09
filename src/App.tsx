@@ -339,58 +339,100 @@ export default function SolarApp() {
     if (companySlug) {
       setIsLoadingCompany(true);
       
-      const fetchPath = `/api/facilities?slug=${companySlug}`;
-      authFetch(fetchPath)
-        .then(res => res.ok ? res : authFetch(`/api/leads?slug=${companySlug}`))
-        .then(res => res.json())
-        .then(resData => {
-          let rawLeads: any[] = [];
-          if (resData && typeof resData === 'object' && !Array.isArray(resData)) {
-            if (resData.success) {
-              rawLeads = resData.data || [];
-            }
-          } else if (Array.isArray(resData)) {
-            rawLeads = resData;
-          }
-          
-          if (rawLeads.length > 0) {
-            const mapped = rawLeads.map((row) => ({
-              region: (row['Region'] || 'NA').toLowerCase(),
-              factory: row['Factory Name'] || 'NA',
-              location: row['Location'] || 'NA',
-              rooftop: Number(row['Rooftop Space']) || 0,
-              kw: row['Potential kW'] || 0,
-              owner: row['Owner Name'] || 'NA',
-              contact: row['Contact Number'] || row['Contact'] || 'NA',
-              email: row['Email ID'] || row['Email'] || 'NA',
-              monthlyBill: row['Monthly Bill'] || 'NA',
-              monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
-            }));
-            
-            const matched = mapped.find(lead => slugify(lead.factory) === companySlug);
-            if (matched) {
-              setCompanyLead(matched);
+      const fetchPublicDetails = () => {
+        fetch(`/api/public/company/${companySlug}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Public company not found or failed");
+            return res.json();
+          })
+          .then(resData => {
+            if (resData && resData.success && resData.data) {
+              const row = resData.data;
+              setCompanyLead({
+                region: 'NA',
+                factory: row.factory || 'NA',
+                location: row.location || 'NA',
+                rooftop: Number(row.rooftop) || 0,
+                kw: 0,
+                owner: 'NA',
+                contact: 'NA',
+                email: 'NA',
+                monthlyBill: 'NA',
+                monthlySavings: 'NA'
+              });
             } else {
               const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
               setCompanyLead(sampleMatched || null);
             }
-          } else {
+          })
+          .catch(err => {
+            console.error("Failed to load public company details:", err);
             const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
             setCompanyLead(sampleMatched || null);
-          }
-        })
-        .catch(err => {
-          console.error("Failed to load company detail page:", err);
-          const sampleMatched = sampleLeadsData.find(lead => slugify(lead.factory) === companySlug);
-          setCompanyLead(sampleMatched || null);
-        })
-        .finally(() => {
-          setIsLoadingCompany(false);
-        });
+          })
+          .finally(() => {
+            setIsLoadingCompany(false);
+          });
+      };
+
+      if (isLoggedIn) {
+        const fetchPath = `/api/facilities?slug=${companySlug}`;
+        authFetch(fetchPath)
+          .then(res => res.ok ? res : authFetch(`/api/leads?slug=${companySlug}`))
+          .then(res => {
+            if (!res.ok) {
+              fetchPublicDetails();
+              return null;
+            }
+            return res.json();
+          })
+          .then(resData => {
+            if (!resData) return;
+            let rawLeads: any[] = [];
+            if (resData && typeof resData === 'object' && !Array.isArray(resData)) {
+              if (resData.success) {
+                rawLeads = resData.data || [];
+              }
+            } else if (Array.isArray(resData)) {
+              rawLeads = resData;
+            }
+            
+            if (rawLeads.length > 0) {
+              const mapped = rawLeads.map((row) => ({
+                region: (row['Region'] || 'NA').toLowerCase(),
+                factory: row['Factory Name'] || 'NA',
+                location: row['Location'] || 'NA',
+                rooftop: Number(row['Rooftop Space']) || 0,
+                kw: row['Potential kW'] || 0,
+                owner: row['Owner Name'] || 'NA',
+                contact: row['Contact Number'] || row['Contact'] || 'NA',
+                email: row['Email ID'] || row['Email'] || 'NA',
+                monthlyBill: row['Monthly Bill'] || 'NA',
+                monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
+              }));
+              
+              const matched = mapped.find(lead => slugify(lead.factory) === companySlug);
+              if (matched) {
+                setCompanyLead(matched);
+                setIsLoadingCompany(false);
+              } else {
+                fetchPublicDetails();
+              }
+            } else {
+              fetchPublicDetails();
+            }
+          })
+          .catch(err => {
+            console.error("Failed to load company detail page with auth:", err);
+            fetchPublicDetails();
+          });
+      } else {
+        fetchPublicDetails();
+      }
     } else {
       setCompanyLead(null);
     }
-  }, [companySlug]);
+  }, [companySlug, isLoggedIn]);
 
   // --- ACTIONS ---
   const fetchLiveLeadsBatch = async (offsetValue: number, isInitial: boolean, searchVal: string, filterVal: string) => {

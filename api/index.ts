@@ -431,6 +431,56 @@ const maskValue = (val: string, type: 'name' | 'contact' | 'email') => {
   return val;
 };
 
+// Public endpoint for company details by slug (strictly limited information for anonymous users/crawlers)
+app.get("/api/public/company/:slug", async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const facilities = await getFacilitiesCachedList();
+    
+    // Search in live facilities, then localInbox, then backend static sample list
+    let facility = facilities.find(f => {
+      const name = f['Factory Name'] || f['factory'] || '';
+      return slugify(name) === slug;
+    });
+
+    if (!facility) {
+      facility = localInbox.find(f => f.factory && slugify(f.factory) === slug);
+    }
+
+    if (!facility) {
+      facility = BACKEND_SAMPLE_FACILITIES.find(f => f.factory && slugify(f.factory) === slug);
+    }
+
+    if (!facility) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    const companyName = facility['Factory Name'] || facility['factory'] || 'NA';
+    const location = facility['Location'] || facility['location'] || 'NA';
+    const rooftopRaw = facility['Rooftop Space'] || facility['rooftop'] || '0';
+    let rooftopAreaVal = 0;
+    if (rooftopRaw) {
+      const parsedNum = parseFloat(String(rooftopRaw).replace(/,/g, ''));
+      if (!isNaN(parsedNum)) {
+        rooftopAreaVal = parsedNum;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        factory: companyName,
+        location: location,
+        rooftop: rooftopAreaVal,
+        isPublicOnly: true
+      }
+    });
+  } catch (err: any) {
+    console.error("[Public Company Detail Error]:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Proxy: Get Leads (with alias /api/facilities to bypass adblockers)
 app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], verifyFirebaseToken, async (req: any, res) => {
   const activeUid = req.user?.uid || "unknown";
@@ -1602,7 +1652,7 @@ app.get("/company/:slug", async (req, res) => {
       : path.join(process.cwd(), "index.html");
       
     if (!facility) {
-      return res.sendFile(indexPath);
+      return res.status(404).sendFile(indexPath);
     }
     
     const companyName = facility['Factory Name'] || facility['factory'] || 'NA';
