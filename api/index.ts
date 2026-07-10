@@ -1665,6 +1665,7 @@ app.get("/company/:slug", async (req, res) => {
     const breadcrumbSchema = {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
+      "@id": `${canonicalUrl}#breadcrumb`,
       "itemListElement": [
         {
           "@type": "ListItem",
