@@ -1,3 +1,4 @@
+// PMNDRS Potsdamer Platz HDR asset integration (1.54 MB version)
 import {StrictMode, Component, ErrorInfo, ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
