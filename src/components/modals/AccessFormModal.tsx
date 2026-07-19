@@ -56,9 +56,9 @@ export const AccessFormModal = React.memo(({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10">
           <div className="space-y-2 text-left">
             <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
-            <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility intelligence.</p>
+            <p className="text-gray-400 text-sm font-medium">90-days regional access to industrial facility intelligence.</p>
           </div>
-          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹7800 Enterprise</div>
+          <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹37800 Enterprise</div>
         </div>
 
         {/* Google Sign-In Option for instant login or automated trial provisioning */}
