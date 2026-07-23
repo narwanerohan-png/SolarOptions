@@ -726,6 +726,9 @@ export default function SolarApp() {
           setPaymentLoadingMessage('');
         });
 
+        console.log("[Payment Debug] window.Razorpay:", (window as any).Razorpay);
+        console.log("[Payment Debug] rzp instance:", rzp);
+        console.log("[Payment Debug] typeof rzp.open:", typeof rzp?.open);
         console.log("[Payment Debug] rzp.open() called");
         rzp.open();
       } catch (openErr: any) {
