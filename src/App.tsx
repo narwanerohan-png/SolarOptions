@@ -153,6 +153,8 @@ function PremiumSolarBackground() {
 
 
 export default function SolarApp() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   useEffect(() => {
     // Handle Vite preload errors (chunk loading failures)
     // This happens when the browser tries to load an old chunk after a new deployment
@@ -250,7 +252,6 @@ export default function SolarApp() {
   const [monthlyBill, setMonthlyBill] = useState(50000);
   const [rooftopSpace, setRooftopSpace] = useState(5000);
   const [electricityRate, setElectricityRate] = useState(8);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [liveLeads, setLiveLeads] = useState<Lead[]>(sampleLeadsData);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -566,8 +567,8 @@ export default function SolarApp() {
   }, [monthlyBill, rooftopSpace, electricityRate]);
 
   const handlePayment = async (formData: any) => {
-    if (!formData.email.includes('@') || formData.contact.length !== 10) {
-      alert("Please enter valid contact details.");
+    if (!formData.email || !formData.email.includes('@') || !formData.contact || formData.contact.length !== 10) {
+      alert("Please enter valid contact details (10-digit mobile and valid corporate email).");
       return;
     }
     
@@ -575,6 +576,12 @@ export default function SolarApp() {
     setPaymentLoadingMessage('Connecting to Razorpay...');
 
     try {
+      console.log("[Payment Debug] Creating payment order with payload:", {
+        companyName: formData.companyName,
+        email: formData.email,
+        phone: formData.contact
+      });
+
       const orderRes = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -586,107 +593,151 @@ export default function SolarApp() {
       });
 
       if (!orderRes.ok) {
-        const errData = await orderRes.json();
-        throw new Error(errData.error || "Failed to create payment order");
+        const errData = await orderRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to create payment order (HTTP ${orderRes.status})`);
       }
 
       const orderData = await orderRes.json();
+      console.log("[Payment Debug] Order creation response:", orderData);
 
-      const openRazorpay = () => {
-        const options = {
-          key: orderData.key_id || 'rzp_live_SYVCbNHoPZBoWv',
-          amount: orderData.amount,
-          currency: orderData.currency,
-          order_id: orderData.order_id,
-          name: 'Solar Options Pro Access',
-          description: '30 Days Premium Leads Access',
-          handler: async (response: any) => {
-            console.log("Payment Success Handler Fired:", response.razorpay_payment_id);
-            setPaymentLoadingMessage('Verifying payment and provisioning account...');
-            setIsSubmitting(true);
-            
-            try {
-              const verifyRes = await fetch('/api/payments/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  companyName: formData.companyName,
-                  email: formData.email,
-                  phone: formData.contact
-                })
-              });
-              
-              if (!verifyRes.ok) {
-                const errData = await verifyRes.json();
-                throw new Error(errData.error || "Payment verification failed");
-              }
-              
-              const verifyData = await verifyRes.json();
-              console.log("Payment verification success:", verifyData);
-              
-              // FORCE IMMEDIATE UI UPDATE (No password shown, isPaymentSuccess: true triggers success text)
-              setCredentials({
-                username: formData.email,
-                password: '',
-                isPaymentSuccess: true
-              });
-              setShowAccessForm(false);
-              setShowCredentials(true);
-              setIsSubmitting(false);
-              setPaymentLoadingMessage('');
-            } catch (verifyErr: any) {
-              console.error("Verification error:", verifyErr);
-              alert("Payment verification failed: " + verifyErr.message);
-              setIsSubmitting(false);
-              setPaymentLoadingMessage('');
-            }
-          },
-          modal: {
-            onDismiss: () => {
-              setIsSubmitting(false);
-              setPaymentLoadingMessage('');
-            }
-          },
-          prefill: {
-            name: formData.companyName,
-            email: formData.email,
-            contact: formData.contact,
-          },
-          theme: { color: '#10b981' },
-        };
-        
-        try {
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on('payment.failed', function (failedRes: any) {
-            console.error("Razorpay Payment Failure Notice:", failedRes.error);
-            alert(`Payment Error: ${failedRes.error.description}. If you see 'Business Failure', please ensure this domain is registered in your Razorpay Dashboard.`);
-            setIsSubmitting(false);
-            setPaymentLoadingMessage('');
-          });
-          rzp.open();
-        } catch (err) {
-          console.error("Razorpay Initialization/Open Error:", err);
-          alert("Razorpay failed to open. This may be due to a domain mismatch in Live mode.");
-          setIsSubmitting(false);
-          setPaymentLoadingMessage('');
-        }
+      if (!orderData || !orderData.order_id) {
+        throw new Error("Invalid order response: Missing order_id from payment server.");
+      }
+
+      // Step 4: Confirm checkout.js loads successfully before instantiating Razorpay
+      const ensureRazorpaySdkLoaded = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          if ((window as any).Razorpay) {
+            console.log("[Payment Debug] SDK loaded successfully (window.Razorpay is available)");
+            resolve();
+            return;
+          }
+
+          console.log("[Payment Debug] Loading Razorpay SDK from https://checkout.razorpay.com/v1/checkout.js...");
+          const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]') as HTMLScriptElement;
+          if (existingScript) {
+            existingScript.addEventListener('load', () => {
+              console.log("[Payment Debug] SDK loaded successfully via existing script tag");
+              resolve();
+            });
+            existingScript.addEventListener('error', () => {
+              console.error("[Payment Debug] Failed to load existing Razorpay SDK script tag");
+              reject(new Error("Failed to load Razorpay Checkout SDK"));
+            });
+            return;
+          }
+
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => {
+            console.log("[Payment Debug] SDK loaded successfully via dynamically created script tag");
+            resolve();
+          };
+          script.onerror = () => {
+            console.error("[Payment Debug] Razorpay SDK script download failed");
+            reject(new Error("Failed to load Razorpay Checkout SDK. Please check your network connection."));
+          };
+          document.head.appendChild(script);
+        });
       };
 
-      if (!(window as any).Razorpay) {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = openRazorpay;
-        document.body.appendChild(script);
-      } else {
-        openRazorpay();
+      await ensureRazorpaySdkLoaded();
+
+      const options = {
+        key: orderData.key_id || 'rzp_live_SYVCbNHoPZBoWv',
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        order_id: orderData.order_id,
+        name: 'Solar Options Pro Access',
+        description: '30 Days Premium Leads Access',
+        handler: async (response: any) => {
+          console.log("[Payment Debug] Payment Success Handler Fired:", response.razorpay_payment_id);
+          setPaymentLoadingMessage('Verifying payment and provisioning account...');
+          setIsSubmitting(true);
+          
+          try {
+            const verifyRes = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                companyName: formData.companyName,
+                email: formData.email,
+                phone: formData.contact
+              })
+            });
+            
+            if (!verifyRes.ok) {
+              const errData = await verifyRes.json().catch(() => ({}));
+              throw new Error(errData.error || "Payment verification failed");
+            }
+            
+            const verifyData = await verifyRes.json();
+            console.log("[Payment Debug] Payment verification success:", verifyData);
+            
+            setCredentials({
+              username: formData.email,
+              password: '',
+              isPaymentSuccess: true
+            });
+            setShowAccessForm(false);
+            setShowCredentials(true);
+            setIsSubmitting(false);
+            setPaymentLoadingMessage('');
+          } catch (verifyErr: any) {
+            console.error("[Payment Debug] Verification exception:", verifyErr);
+            alert("Payment verification failed: " + verifyErr.message);
+            setIsSubmitting(false);
+            setPaymentLoadingMessage('');
+          }
+        },
+        modal: {
+          onDismiss: () => {
+            console.log("[Payment Debug] Razorpay Checkout Modal dismissed by user");
+            setIsSubmitting(false);
+            setPaymentLoadingMessage('');
+          }
+        },
+        prefill: {
+          name: formData.companyName,
+          email: formData.email,
+          contact: formData.contact,
+        },
+        theme: { color: '#10b981' },
+      };
+
+      console.log("[Payment Debug] Razorpay options prepared:", options);
+
+      try {
+        const RazorpayConstructor = (window as any).Razorpay;
+        if (!RazorpayConstructor) {
+          throw new Error("Razorpay SDK constructor is undefined on window object.");
+        }
+
+        const rzp = new RazorpayConstructor(options);
+        
+        rzp.on('payment.failed', function (failedRes: any) {
+          console.error("[Payment Debug] Razorpay Payment Failure Notice:", failedRes.error);
+          alert(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}. If you see 'Business Failure', please verify domain registration in your Razorpay Dashboard.`);
+          setIsSubmitting(false);
+          setPaymentLoadingMessage('');
+        });
+
+        console.log("[Payment Debug] rzp.open() called");
+        rzp.open();
+      } catch (openErr: any) {
+        console.error("[Payment Debug] Error initializing or opening Razorpay Checkout:", openErr);
+        alert("Failed to open Razorpay Checkout: " + (openErr.message || "Unknown error"));
+        setIsSubmitting(false);
+        setPaymentLoadingMessage('');
       }
 
     } catch (orderErr: any) {
-      console.error("Order creation error:", orderErr);
-      alert("Order creation failed: " + orderErr.message);
+      console.error("[Payment Debug] Payment flow exception:", orderErr);
+      alert("Payment Checkout Error: " + orderErr.message);
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
     }

@@ -313,6 +313,22 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Content Security Policy for Razorpay Checkout & Web App
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://www.googletagmanager.com https://www.gstatic.com https://cdn.jsdelivr.net; " +
+    "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.firebaseapp.com; " +
+    "child-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com; " +
+    "connect-src 'self' https: wss: https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://lumberjack-cx.razorpay.com wss://*.razorpay.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; " +
+    "img-src 'self' data: blob: https:; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' data: https://fonts.gstatic.com;"
+  );
+  next();
+});
+
 // Request logger
 app.use((req, res, next) => {
   const isApi = req.url.startsWith("/api");
@@ -505,7 +521,7 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
           console.warn(`[API Access Denied] User profile not found for UID: ${activeUid}`);
           return res.status(403).json({ error: "Access Denied: User profile not found. Please register or sign in again." });
         }
-        const userData = userSnap.data();
+        const userData = userSnap.data() || {};
         isPremium = userData.plan === "Premium";
         const expiry = userData.subscriptionExpiry;
         const now = new Date().toISOString();
@@ -1198,7 +1214,7 @@ app.post("/api/payments/create-order", async (req, res) => {
 
   try {
     const razorpay = getRazorpay();
-    const amount = 3780000; // ₹37,800 in paise
+    const amount = 780000; // ₹7,800 in paise
     const currency = "INR";
     const options = {
       amount,
@@ -1347,6 +1363,7 @@ app.post("/api/payments/verify", async (req, res) => {
     // --- FIRESTORE USER DOCUMENT CREATION ---
     if (serverDb) {
       const userDocRef = serverDb.collection("users").doc(userRecord.uid);
+      
       const subscriptionExpiry = new Date();
       subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 30);
 
@@ -1366,7 +1383,7 @@ app.post("/api/payments/verify", async (req, res) => {
       };
 
       await userDocRef.set(userData);
-      console.log(`[Payment API] [Firestore User Created] Created document at users/${userRecord.uid}`);
+      console.log(`[Payment API] [Firestore User Created] Created document at users/${userRecord.uid} with plan: Premium`);
 
       // Save to payments collection for complete idempotence ledger
       const paymentDocRef = serverDb.collection("payments").doc(razorpay_payment_id);
@@ -1375,7 +1392,8 @@ app.post("/api/payments/verify", async (req, res) => {
         razorpayOrderId: razorpay_order_id,
         uid: userRecord.uid,
         email,
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
+        plan: "Premium"
       });
       console.log(`[Payment API] Saved payment transaction to ledger for Payment ID: ${razorpay_payment_id}`);
 

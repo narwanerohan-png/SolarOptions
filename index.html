@@ -37,6 +37,12 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#10b981" />
     
+    <!-- Content Security Policy for Razorpay Checkout & External Services -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://www.googletagmanager.com https://www.gstatic.com https://cdn.jsdelivr.net; frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://*.firebaseapp.com; child-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com; connect-src 'self' https: wss: https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://lumberjack-cx.razorpay.com wss://*.razorpay.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com;" />
+
+    <!-- Razorpay Checkout SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+
     <!-- Analytics & Verification -->
     <meta name="google-site-verification" content="ADD_YOUR_VERIFICATION_CODE_HERE" />
     
