@@ -597,6 +597,14 @@ export default function SolarApp() {
         throw new Error("Invalid order response from payment server.");
       }
 
+      // DIAGNOSTIC TEST
+      alert('ORDER CREATED SUCCESSFULLY');
+      console.log('Diagnostic Order Data:', orderData);
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
+      return;
+
+      /*
       if (typeof (window as any).Razorpay === 'undefined') {
         throw new Error("Razorpay Checkout SDK is not loaded. Please check your network connection.");
       }
@@ -668,6 +676,7 @@ export default function SolarApp() {
       });
 
       rzp.open();
+      */
     } catch (orderErr: any) {
       alert("Payment Checkout Error: " + orderErr.message);
       setIsSubmitting(false);
