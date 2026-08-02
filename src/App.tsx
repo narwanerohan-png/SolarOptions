@@ -571,17 +571,11 @@ export default function SolarApp() {
       alert("Please enter valid contact details (10-digit mobile and valid corporate email).");
       return;
     }
-    
+
     setIsSubmitting(true);
     setPaymentLoadingMessage('Connecting to Razorpay...');
 
     try {
-      console.log("[Payment Debug] Creating payment order with payload:", {
-        companyName: formData.companyName,
-        email: formData.email,
-        phone: formData.contact
-      });
-
       const orderRes = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -598,65 +592,27 @@ export default function SolarApp() {
       }
 
       const orderData = await orderRes.json();
-      console.log("[Payment Debug] Order creation response:", orderData);
 
       if (!orderData || !orderData.order_id) {
-        throw new Error("Invalid order response: Missing order_id from payment server.");
+        throw new Error("Invalid order response from payment server.");
       }
 
-      // Step 4: Confirm checkout.js loads successfully before instantiating Razorpay
-      const ensureRazorpaySdkLoaded = (): Promise<void> => {
-        return new Promise((resolve, reject) => {
-          if ((window as any).Razorpay) {
-            console.log("[Payment Debug] SDK loaded successfully (window.Razorpay is available)");
-            resolve();
-            return;
-          }
-
-          console.log("[Payment Debug] Loading Razorpay SDK from https://checkout.razorpay.com/v1/checkout.js...");
-          const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]') as HTMLScriptElement;
-          if (existingScript) {
-            existingScript.addEventListener('load', () => {
-              console.log("[Payment Debug] SDK loaded successfully via existing script tag");
-              resolve();
-            });
-            existingScript.addEventListener('error', () => {
-              console.error("[Payment Debug] Failed to load existing Razorpay SDK script tag");
-              reject(new Error("Failed to load Razorpay Checkout SDK"));
-            });
-            return;
-          }
-
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.async = true;
-          script.onload = () => {
-            console.log("[Payment Debug] SDK loaded successfully via dynamically created script tag");
-            resolve();
-          };
-          script.onerror = () => {
-            console.error("[Payment Debug] Razorpay SDK script download failed");
-            reject(new Error("Failed to load Razorpay Checkout SDK. Please check your network connection."));
-          };
-          document.head.appendChild(script);
-        });
-      };
-
-      await ensureRazorpaySdkLoaded();
+      if (typeof (window as any).Razorpay === 'undefined') {
+        throw new Error("Razorpay Checkout SDK is not loaded. Please check your network connection.");
+      }
 
       const options = {
-        key: orderData.key_id || 'rzp_live_SYVCbNHoPZBoWv',
+        key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        order_id: orderData.order_id,
         name: 'Solar Options Pro Access',
         description: '30 Days Premium Leads Access',
+        order_id: orderData.order_id,
         handler: async (response: any) => {
-          console.log("[Payment Debug] Payment Success Handler Fired:", response.razorpay_payment_id);
-          setPaymentLoadingMessage('Verifying payment and provisioning account...');
-          setIsSubmitting(true);
-          
           try {
+            setPaymentLoadingMessage('Verifying payment and provisioning account...');
+            setIsSubmitting(true);
+
             const verifyRes = await fetch('/api/payments/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -669,15 +625,12 @@ export default function SolarApp() {
                 phone: formData.contact
               })
             });
-            
+
             if (!verifyRes.ok) {
               const errData = await verifyRes.json().catch(() => ({}));
-              throw new Error(errData.error || "Payment verification failed");
+              throw new Error(errData.error || "Payment verification failed.");
             }
-            
-            const verifyData = await verifyRes.json();
-            console.log("[Payment Debug] Payment verification success:", verifyData);
-            
+
             setCredentials({
               username: formData.email,
               password: '',
@@ -685,18 +638,15 @@ export default function SolarApp() {
             });
             setShowAccessForm(false);
             setShowCredentials(true);
-            setIsSubmitting(false);
-            setPaymentLoadingMessage('');
           } catch (verifyErr: any) {
-            console.error("[Payment Debug] Verification exception:", verifyErr);
             alert("Payment verification failed: " + verifyErr.message);
+          } finally {
             setIsSubmitting(false);
             setPaymentLoadingMessage('');
           }
         },
         modal: {
-          onDismiss: () => {
-            console.log("[Payment Debug] Razorpay Checkout Modal dismissed by user");
+          ondismiss: () => {
             setIsSubmitting(false);
             setPaymentLoadingMessage('');
           }
@@ -709,37 +659,16 @@ export default function SolarApp() {
         theme: { color: '#10b981' },
       };
 
-      console.log("[Payment Debug] Razorpay options prepared:", options);
+      const rzp = new (window as any).Razorpay(options);
 
-      try {
-        const RazorpayConstructor = (window as any).Razorpay;
-        if (!RazorpayConstructor) {
-          throw new Error("Razorpay SDK constructor is undefined on window object.");
-        }
-
-        const rzp = new RazorpayConstructor(options);
-        
-        rzp.on('payment.failed', function (failedRes: any) {
-          console.error("[Payment Debug] Razorpay Payment Failure Notice:", failedRes.error);
-          alert(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}. If you see 'Business Failure', please verify domain registration in your Razorpay Dashboard.`);
-          setIsSubmitting(false);
-          setPaymentLoadingMessage('');
-        });
-
-        console.log("[Payment Debug] window.Razorpay:", (window as any).Razorpay);
-        console.log("[Payment Debug] rzp instance:", rzp);
-        console.log("[Payment Debug] typeof rzp.open:", typeof rzp?.open);
-        console.log("[Payment Debug] rzp.open() called");
-        rzp.open();
-      } catch (openErr: any) {
-        console.error("[Payment Debug] Error initializing or opening Razorpay Checkout:", openErr);
-        alert("Failed to open Razorpay Checkout: " + (openErr.message || "Unknown error"));
+      rzp.on('payment.failed', (failedRes: any) => {
+        alert(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}`);
         setIsSubmitting(false);
         setPaymentLoadingMessage('');
-      }
+      });
 
+      rzp.open();
     } catch (orderErr: any) {
-      console.error("[Payment Debug] Payment flow exception:", orderErr);
       alert("Payment Checkout Error: " + orderErr.message);
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
