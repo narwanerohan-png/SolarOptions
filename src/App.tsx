@@ -11,10 +11,11 @@ import { FeedbackModal } from './components/modals/FeedbackModal';
 import { AccessFormModal } from './components/modals/AccessFormModal';
 import { ForgotPasswordModal } from './components/modals/ForgotPasswordModal';
 import { CredentialsModal } from './components/modals/CredentialsModal';
+import { AccountLinkingModal } from './components/modals/AccountLinkingModal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
-import { auth, googleProvider, signInWithPopup } from './lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, linkWithCredential, GoogleAuthProvider } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { authFetch } from './utils/authFetch';
 
 // --- HELPERS ---
@@ -259,6 +260,8 @@ export default function SolarApp() {
   // Modals & UI
   const [showAccessForm, setShowAccessForm] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showAccountLinkingModal, setShowAccountLinkingModal] = useState(false);
+  const [pendingLinkingData, setPendingLinkingData] = useState<{ email: string; credential: any } | null>(null);
   const [showCredentials, setShowCredentials] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
@@ -937,7 +940,93 @@ export default function SolarApp() {
       }
     } catch (popupErr: any) {
       console.warn("Google Get Access Auth canceled or failed:", popupErr);
-      // Catch Google cancelled errors and return without resetting form or closing modal
+      const errMsg = popupErr.message || "";
+      const errCode = popupErr.code || "";
+      if (errCode === 'auth/account-exists-with-different-credential' || errMsg.includes('account-exists-with-different-credential')) {
+        const pendingCred = GoogleAuthProvider.credentialFromError(popupErr);
+        const email = popupErr.customData?.email || "";
+        if (pendingCred && email) {
+          setPendingLinkingData({ email, credential: pendingCred });
+          setShowAccessForm(false);
+          setShowAccountLinkingModal(true);
+          return;
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
+      setPaymentLoadingMessage('');
+    }
+  };
+
+  const handleLinkAccount = async (password: string) => {
+    if (!pendingLinkingData) return;
+    setIsSubmitting(true);
+    setPaymentLoadingMessage('Verifying credentials & linking Google account...');
+    try {
+      // 1. Authenticate with existing Email/Password credentials
+      console.log("[Account Linking] Authenticating user with email/password...");
+      const userCredential = await signInWithEmailAndPassword(auth, pendingLinkingData.email, password);
+      const user = userCredential.user;
+
+      // 2. Native Firebase Account Linking: Attach pending Google credential to existing user account
+      console.log("[Account Linking] Linking pending Google credential to UID:", user.uid);
+      await linkWithCredential(user, pendingLinkingData.credential);
+
+      // 3. Acquire updated Firebase ID token
+      const idToken = await user.getIdToken();
+
+      // 4. Acquire fingerprint
+      let fingerprintVal = "unknown-device";
+      try {
+        const FP = await import('@fingerprintjs/fingerprintjs');
+        const fp = await FP.load();
+        const result = await fp.get();
+        fingerprintVal = result.visitorId;
+      } catch (fpErr) {
+        console.warn("[FingerprintJS] Failed to acquire fingerprint:", fpErr);
+      }
+
+      // 5. Post to backend session endpoint
+      const resp = await fetch('/api/google-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          fingerprint: fingerprintVal,
+          companyName: user.displayName || 'Linked Google User'
+        })
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.message || `Server session registration failed with status ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (data.success) {
+        if (data.sessionId) {
+          localStorage.setItem("activeSessionId", data.sessionId);
+        }
+        setIsLoggedIn(true);
+        setShowAccountLinkingModal(false);
+        setPendingLinkingData(null);
+        alert("Google Account linked successfully! You can now use 1-click Google Sign-In in the future.");
+        navigate('/industrial-intelligence');
+        window.scrollTo(0, 0);
+      } else {
+        throw new Error(data.message || "Authentication failed after linking.");
+      }
+    } catch (err: any) {
+      console.error("Account Linking Error:", err);
+      let errMsg = err.message || "Failed to link account.";
+      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        errMsg = "Incorrect password. Please enter the password associated with this email address.";
+      } else if (err.code === "auth/provider-already-linked") {
+        errMsg = "Google is already linked to this account. You can sign in with Google directly.";
+      }
+      throw new Error(errMsg);
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -954,6 +1043,18 @@ export default function SolarApp() {
       console.error("Google Sign-In popup canceled/blocked:", popupErr);
       const errMsg = popupErr.message || "";
       const errCode = popupErr.code || "";
+
+      if (errCode === 'auth/account-exists-with-different-credential' || errMsg.includes('account-exists-with-different-credential')) {
+        const pendingCred = GoogleAuthProvider.credentialFromError(popupErr);
+        const email = popupErr.customData?.email || "";
+        if (pendingCred && email) {
+          setPendingLinkingData({ email, credential: pendingCred });
+          setShowLoginModal(false);
+          setShowAccountLinkingModal(true);
+          return;
+        }
+      }
+
       if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
         alert("Google Login popup was closed before completion. Please try again.");
       } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
@@ -2857,7 +2958,7 @@ export default function SolarApp() {
         )}
       </AnimatePresence>
 
-         {/* Modals */}
+      {/* Modals */}
       <LoginModal 
         isOpen={showLoginModal} 
         onClose={() => setShowLoginModal(false)}
@@ -2865,6 +2966,17 @@ export default function SolarApp() {
         onGoogleLogin={handleGoogleLogin}
         onShowForgotPassword={() => setShowForgotPasswordModal(true)}
         onShowAccessForm={() => setShowAccessForm(true)}
+        isSubmitting={isSubmitting}
+      />
+
+      <AccountLinkingModal 
+        isOpen={showAccountLinkingModal}
+        email={pendingLinkingData?.email || ''}
+        onClose={() => {
+          setShowAccountLinkingModal(false);
+          setPendingLinkingData(null);
+        }}
+        onLinkAccount={handleLinkAccount}
         isSubmitting={isSubmitting}
       />
 
