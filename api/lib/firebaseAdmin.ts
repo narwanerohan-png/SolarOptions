@@ -7,13 +7,32 @@ import path from "path";
 
 let adminApp: App | null = null;
 
+function getAppletConfig(): any {
+  try {
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    }
+  } catch (e: any) {
+    console.warn("[Firebase Admin Warning] Could not load firebase-applet-config.json:", e.message);
+  }
+  return null;
+}
+
 /**
  * Dynamically gets or initializes the Firebase Admin App instance.
  * Ensures any environment variables (e.g. set by dotenv) are read at execution time.
  */
 export function getAdminApp(): App {
   if (!adminApp) {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const apps = getApps();
+    if (apps.length > 0) {
+      adminApp = apps[0]!;
+      return adminApp;
+    }
+
+    const config = getAppletConfig();
+    const projectId = process.env.FIREBASE_PROJECT_ID || config?.projectId;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
@@ -29,31 +48,28 @@ export function getAdminApp(): App {
 
     if (projectId && clientEmail && privateKey) {
       try {
-        const apps = getApps();
-        if (apps.length === 0) {
-          adminApp = initializeApp({
-            credential: cert({
-              projectId,
-              clientEmail,
-              privateKey,
-            }),
-          });
-          console.log("[Firebase Admin] Successfully initialized with service account.");
-        } else {
-          adminApp = apps[0]!;
-          console.log("[Firebase Admin] Reused existing Firebase Admin instance.");
-        }
+        adminApp = initializeApp({
+          credential: cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
+        console.log("[Firebase Admin] Successfully initialized with service account.");
       } catch (error: any) {
-        console.error("[Firebase Admin Error] Failed to initialize Firebase Admin SDK:", error.message);
+        console.error("[Firebase Admin Error] Failed to initialize Firebase Admin SDK with cert:", error.message);
+        throw error;
+      }
+    } else if (projectId) {
+      try {
+        adminApp = initializeApp({ projectId });
+        console.log(`[Firebase Admin] Successfully initialized with project ID: ${projectId}`);
+      } catch (error: any) {
+        console.error("[Firebase Admin Error] Failed to initialize Firebase Admin SDK with project ID:", error.message);
         throw error;
       }
     } else {
-      const missing = [];
-      if (!projectId) missing.push("FIREBASE_PROJECT_ID");
-      if (!clientEmail) missing.push("FIREBASE_CLIENT_EMAIL");
-      if (!privateKey) missing.push("FIREBASE_PRIVATE_KEY");
-
-      const errMsg = `Firebase Admin SDK is not initialized. Missing environment variables: ${missing.join(", ")}`;
+      const errMsg = "Firebase Admin SDK is not initialized. No project ID found in environment or firebase-applet-config.json.";
       console.error(`[Firebase Admin Error] ${errMsg}`);
       throw new Error(errMsg);
     }
