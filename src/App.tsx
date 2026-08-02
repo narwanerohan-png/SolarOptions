@@ -597,14 +597,6 @@ export default function SolarApp() {
         throw new Error("Invalid order response from payment server.");
       }
 
-      // DIAGNOSTIC TEST
-      alert('ORDER CREATED SUCCESSFULLY');
-      console.log('Diagnostic Order Data:', orderData);
-      setIsSubmitting(false);
-      setPaymentLoadingMessage('');
-      return;
-
-      /*
       if (typeof (window as any).Razorpay === 'undefined') {
         throw new Error("Razorpay Checkout SDK is not loaded. Please check your network connection.");
       }
@@ -667,7 +659,9 @@ export default function SolarApp() {
         theme: { color: '#10b981' },
       };
 
+      console.log("BEFORE NEW RAZORPAY");
       const rzp = new (window as any).Razorpay(options);
+      console.log("AFTER NEW RAZORPAY");
 
       rzp.on('payment.failed', (failedRes: any) => {
         alert(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}`);
@@ -675,8 +669,9 @@ export default function SolarApp() {
         setPaymentLoadingMessage('');
       });
 
+      console.log("BEFORE OPEN");
       rzp.open();
-      */
+      console.log("AFTER OPEN");
     } catch (orderErr: any) {
       alert("Payment Checkout Error: " + orderErr.message);
       setIsSubmitting(false);
