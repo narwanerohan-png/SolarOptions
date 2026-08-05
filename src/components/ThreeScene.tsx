@@ -43,7 +43,7 @@ function Building({ points, buildingHeight }: { points: Point[]; buildingHeight:
     <group rotation={[-Math.PI / 2, 0, 0]}>
       <mesh castShadow receiveShadow>
         <extrudeGeometry args={[shape, extrudeSettings]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.05} />
+        <meshStandardMaterial color="#ffffff" roughness={0.15} metalness={0.02} />
         <Edges color="#cbd5e1" />
       </mesh>
     </group>
@@ -69,6 +69,72 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
     };
   }, [panelGeometry]);
 
+  const panelTexture = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // 1. Silver/White Outer Aluminum Frame
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(0, 0, 512, 1024);
+
+    // 2. Inner Frame / Dark border
+    const frameWidth = 10;
+    ctx.fillStyle = '#0b1329';
+    ctx.fillRect(frameWidth, frameWidth, 512 - frameWidth * 2, 1024 - frameWidth * 2);
+
+    // 3. Solar cells grid (6 cols x 12 rows)
+    const cols = 6;
+    const rows = 12;
+    const gap = 3;
+    const margin = frameWidth + 4;
+    const availableW = 512 - margin * 2;
+    const availableH = 1024 - margin * 2;
+    const cellW = (availableW - gap * (cols - 1)) / cols;
+    const cellH = (availableH - gap * (rows - 1)) / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = margin + c * (cellW + gap);
+        const y = margin + r * (cellH + gap);
+
+        // Deep navy/blue solar cell gradient
+        const grad = ctx.createLinearGradient(x, y, x + cellW, y + cellH);
+        grad.addColorStop(0, '#112540');
+        grad.addColorStop(0.5, '#0b1a30');
+        grad.addColorStop(1, '#061120');
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, cellW, cellH);
+
+        // Solar cell silver busbars (fine grid lines inside cell)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        // 2 vertical busbars per cell
+        ctx.moveTo(x + cellW * 0.33, y);
+        ctx.lineTo(x + cellW * 0.33, y + cellH);
+        ctx.moveTo(x + cellW * 0.66, y);
+        ctx.lineTo(x + cellW * 0.66, y + cellH);
+        ctx.stroke();
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (panelTexture) panelTexture.dispose();
+    };
+  }, [panelTexture]);
+
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -89,11 +155,10 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
     <group rotation={[-Math.PI / 2, 0, 0]} position={[0, buildingHeight + 0.08, 0]}>
       <instancedMesh ref={meshRef} args={[panelGeometry, undefined, allPlacements.length]} castShadow receiveShadow>
         <meshStandardMaterial 
-          color="#080c14" 
-          roughness={0.1} 
-          metalness={0.9}
-          emissive="#1e3a8a"
-          emissiveIntensity={0.1}
+          map={panelTexture || undefined}
+          color="#ffffff" 
+          roughness={0.15} 
+          metalness={0.5}
         />
       </instancedMesh>
     </group>
@@ -115,7 +180,7 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
   }, [glRef]);
 
   return (
-    <div className="w-full h-full bg-[#f8fafc]">
+    <div className="w-full h-full bg-white">
       <Canvas 
         shadows 
         dpr={[1, 1.5]}
@@ -144,19 +209,21 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
           minDistance={10}
         />
         
-        <ambientLight intensity={0.6} />
-        <spotLight 
-          position={[50, 150, 50]} 
-          angle={0.2} 
-          penumbra={1} 
-          intensity={2} 
+        <ambientLight intensity={0.75} color="#ffffff" />
+        <directionalLight 
+          position={[60, 100, 40]} 
+          intensity={2.2} 
           castShadow 
-          shadow-mapSize={[1024, 1024]}
+          shadow-mapSize={[2048, 2048]}
           shadow-bias={-0.0001}
           color="#ffffff"
         />
-        <pointLight position={[-20, 50, -20]} intensity={0.5} color="#f8fafc" />
-        <pointLight position={[20, 20, 20]} intensity={0.5} color="#ffffff" />
+        <directionalLight 
+          position={[-50, 60, -30]} 
+          intensity={0.6} 
+          color="#f1f5f9"
+        />
+        <pointLight position={[0, 40, 0]} intensity={0.5} color="#ffffff" />
 
         <Center top>
           <group>
