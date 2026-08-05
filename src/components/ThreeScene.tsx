@@ -187,7 +187,7 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
           position={[0, -0.01, 0]}
         />
         
-        <Environment preset="city" />
+        <Environment files="/hdri/potsdamer_platz_1k.hdr" />
       </Canvas>
     </div>
   );
