@@ -81,9 +81,9 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
     ctx.fillStyle = '#e2e8f0';
     ctx.fillRect(0, 0, 512, 1024);
 
-    // 2. Inner Frame / Dark Navy border
-    const frameWidth = 10;
-    ctx.fillStyle = '#102042';
+    // 2. Inner Backsheet / Midnight Gap background
+    const frameWidth = 12;
+    ctx.fillStyle = '#07101f';
     ctx.fillRect(frameWidth, frameWidth, 512 - frameWidth * 2, 1024 - frameWidth * 2);
 
     // 3. Solar cells grid (6 cols x 12 rows)
@@ -101,22 +101,31 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
         const x = margin + c * (cellW + gap);
         const y = margin + r * (cellH + gap);
 
-        // Rich dark navy blue solar cell gradient (classic monocrystalline / polycrystalline silicon blue)
+        // Professional dark royal-navy solar cell silicon gradient
         const grad = ctx.createLinearGradient(x, y, x + cellW, y + cellH);
-        grad.addColorStop(0, '#2563eb');
-        grad.addColorStop(0.3, '#1d4ed8');
-        grad.addColorStop(0.7, '#1e3a8a');
-        grad.addColorStop(1, '#0f224a');
+        grad.addColorStop(0, '#133b70');
+        grad.addColorStop(0.35, '#1e52a8');
+        grad.addColorStop(0.7, '#153f7c');
+        grad.addColorStop(1, '#0d2249');
 
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, cellW, cellH);
 
-        // Solar cell silver busbars (fine grid lines inside cell)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.lineWidth = 1.5;
-
+        // Fine horizontal grid fingers (anti-reflective silicon wafer lines)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        // 2 vertical busbars per cell
+        for (let f = 1; f < 6; f++) {
+          const fy = y + (cellH / 6) * f;
+          ctx.moveTo(x, fy);
+          ctx.lineTo(x + cellW, fy);
+        }
+        ctx.stroke();
+
+        // 2 main vertical silver busbars
+        ctx.strokeStyle = 'rgba(240, 248, 255, 0.75)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
         ctx.moveTo(x + cellW * 0.33, y);
         ctx.lineTo(x + cellW * 0.33, y + cellH);
         ctx.moveTo(x + cellW * 0.66, y);
@@ -158,10 +167,8 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
         <meshStandardMaterial 
           map={panelTexture || undefined}
           color="#ffffff" 
-          roughness={0.2} 
-          metalness={0.4}
-          emissive="#1e3a8a"
-          emissiveIntensity={0.15}
+          roughness={0.15} 
+          metalness={0.3}
         />
       </instancedMesh>
     </group>
