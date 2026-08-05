@@ -81,9 +81,9 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
     ctx.fillStyle = '#e2e8f0';
     ctx.fillRect(0, 0, 512, 1024);
 
-    // 2. Inner Frame / Dark border
+    // 2. Inner Frame / Dark Navy border
     const frameWidth = 10;
-    ctx.fillStyle = '#0b1329';
+    ctx.fillStyle = '#102042';
     ctx.fillRect(frameWidth, frameWidth, 512 - frameWidth * 2, 1024 - frameWidth * 2);
 
     // 3. Solar cells grid (6 cols x 12 rows)
@@ -101,17 +101,18 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
         const x = margin + c * (cellW + gap);
         const y = margin + r * (cellH + gap);
 
-        // Deep navy/blue solar cell gradient
+        // Rich dark navy blue solar cell gradient (classic monocrystalline / polycrystalline silicon blue)
         const grad = ctx.createLinearGradient(x, y, x + cellW, y + cellH);
-        grad.addColorStop(0, '#112540');
-        grad.addColorStop(0.5, '#0b1a30');
-        grad.addColorStop(1, '#061120');
+        grad.addColorStop(0, '#2563eb');
+        grad.addColorStop(0.3, '#1d4ed8');
+        grad.addColorStop(0.7, '#1e3a8a');
+        grad.addColorStop(1, '#0f224a');
 
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, cellW, cellH);
 
         // Solar cell silver busbars (fine grid lines inside cell)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.lineWidth = 1.5;
 
         ctx.beginPath();
@@ -157,8 +158,10 @@ function Panels({ polygons, buildingHeight, panelConfig, onUpdate }: { polygons:
         <meshStandardMaterial 
           map={panelTexture || undefined}
           color="#ffffff" 
-          roughness={0.15} 
-          metalness={0.5}
+          roughness={0.2} 
+          metalness={0.4}
+          emissive="#1e3a8a"
+          emissiveIntensity={0.15}
         />
       </instancedMesh>
     </group>
