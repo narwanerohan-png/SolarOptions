@@ -144,18 +144,19 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
           minDistance={10}
         />
         
-        <ambientLight intensity={0.4} />
+        <ambientLight intensity={0.6} />
         <spotLight 
           position={[50, 150, 50]} 
           angle={0.2} 
           penumbra={1} 
-          intensity={2.5} 
+          intensity={2} 
           castShadow 
           shadow-mapSize={[1024, 1024]}
           shadow-bias={-0.0001}
+          color="#ffffff"
         />
-        <pointLight position={[-20, 50, -20]} intensity={1} color="#3b82f6" />
-        <pointLight position={[20, 20, 20]} intensity={0.5} color="#fbbf24" />
+        <pointLight position={[-20, 50, -20]} intensity={0.5} color="#f8fafc" />
+        <pointLight position={[20, 20, 20]} intensity={0.5} color="#ffffff" />
 
         <Center top>
           <group>
@@ -190,10 +191,10 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
         
         <Environment resolution={256}>
           <group rotation={[-Math.PI / 4, 0, 0]}>
-            <Lightformer form="ring" color="#ffffff" intensity={1.5} scale={10} position={[0, 10, -10]} />
-            <Lightformer form="rect" color="#e2e8f0" intensity={2} scale={20} position={[-15, 15, -15]} rotation={[0, Math.PI / 4, 0]} />
-            <Lightformer form="rect" color="#38bdf8" intensity={1} scale={20} position={[15, 15, -15]} rotation={[0, -Math.PI / 4, 0]} />
-            <Lightformer form="rect" color="#fef08a" intensity={0.8} scale={30} position={[0, -10, 0]} rotation={[Math.PI / 2, 0, 0]} />
+            <Lightformer form="ring" color="#ffffff" intensity={2} scale={10} position={[0, 10, -10]} />
+            <Lightformer form="rect" color="#ffffff" intensity={2} scale={20} position={[-15, 15, -15]} rotation={[0, Math.PI / 4, 0]} />
+            <Lightformer form="rect" color="#f1f5f9" intensity={1} scale={20} position={[15, 15, -15]} rotation={[0, -Math.PI / 4, 0]} />
+            <Lightformer form="rect" color="#ffffff" intensity={0.5} scale={30} position={[0, -10, 0]} rotation={[Math.PI / 2, 0, 0]} />
           </group>
         </Environment>
       </Canvas>
