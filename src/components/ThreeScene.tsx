@@ -4,6 +4,7 @@ import {
   OrbitControls, 
   PerspectiveCamera, 
   Environment, 
+  Lightformer,
   Grid, 
   Center, 
   ContactShadows,
@@ -187,7 +188,14 @@ function ThreeSceneBase({ buildings, panelZones, buildingHeight, panelConfig, on
           position={[0, -0.01, 0]}
         />
         
-        <Environment files="/hdri/potsdamer_platz_1k.hdr" />
+        <Environment resolution={256}>
+          <group rotation={[-Math.PI / 4, 0, 0]}>
+            <Lightformer form="ring" color="#ffffff" intensity={1.5} scale={10} position={[0, 10, -10]} />
+            <Lightformer form="rect" color="#e2e8f0" intensity={2} scale={20} position={[-15, 15, -15]} rotation={[0, Math.PI / 4, 0]} />
+            <Lightformer form="rect" color="#38bdf8" intensity={1} scale={20} position={[15, 15, -15]} rotation={[0, -Math.PI / 4, 0]} />
+            <Lightformer form="rect" color="#fef08a" intensity={0.8} scale={30} position={[0, -10, 0]} rotation={[Math.PI / 2, 0, 0]} />
+          </group>
+        </Environment>
       </Canvas>
     </div>
   );
