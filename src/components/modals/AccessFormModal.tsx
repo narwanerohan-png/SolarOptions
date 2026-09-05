@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { HelpCircle, ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface AccessFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (form: any) => void;
-  onFreeTrial?: (form: any, forceBypass?: boolean) => void;
+  onFreeTrial?: (form: any) => void;
   onGoogleLogin?: () => void;
   onGoogleGetAccess?: (form: any) => void;
   isSubmitting?: boolean;
@@ -143,91 +143,17 @@ export const AccessFormModal = React.memo(({
           </div>
         </div>
 
-        {errorMessage && (() => {
-          const isUnauthorizedDomain = errorMessage.toLowerCase().includes("unauthorized") || 
-            errorMessage.toLowerCase().includes("auth-domain") || 
-            errorMessage.toLowerCase().includes("iframe") || 
-            errorMessage.toLowerCase().includes("firebase") || 
-            errorMessage.toLowerCase().includes("popup") ||
-            errorMessage.toLowerCase().includes("cancel") ||
-            errorMessage.toLowerCase().includes("block");
-          
-          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '';
-
-          return (
-            <div className="mb-8 space-y-4">
-              {/* Detailed Error Box */}
-              <div className="p-6 bg-red-500/10 border border-red-500/25 text-red-400 rounded-3xl flex items-start gap-4 text-xs leading-relaxed">
-                <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0 animate-pulse" />
-                <div className="flex-1 space-y-1 text-left">
-                  <span className="font-extrabold uppercase [letter-spacing:0.08em] flex items-center gap-2 text-red-500 text-[10px]">
-                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                    Verification Issue
-                  </span>
-                  <p className="font-semibold text-gray-300">{errorMessage}</p>
-                </div>
-              </div>
-
-              {/* Troubleshooting and Sandbox Instructions */}
-              {isUnauthorizedDomain && (
-                <div className="p-6 bg-slate-950 border border-white/10 rounded-3xl space-y-5 text-left text-xs">
-                  <div className="space-y-1.5">
-                    <h4 className="font-black uppercase tracking-wider text-emerald-400 text-[10px] flex items-center gap-1.5">
-                      <HelpCircle className="w-4 h-4 text-emerald-400" />
-                      How to brand as "solaroptions" & fix Auth Domains
-                    </h4>
-                    <p className="text-gray-400 text-xs">
-                      Firebase and Google Sign-In secure apps by requiring app names and authorized domains to be declared in google/firebase consoles.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 pl-1 border-l border-white/10">
-                    <div className="space-y-1">
-                      <p className="font-extrabold text-white text-[11px]">1. Change Display Name to "solaroptions"</p>
-                      <ul className="list-disc pl-4 text-[11px] text-gray-400 space-y-1">
-                        <li>Go to your <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline hover:text-emerald-300 inline-flex items-center gap-0.5 font-bold">Google Cloud Console <ExternalLink className="w-3 h-3" /></a></li>
-                        <li>Navigate to <strong>APIs & Services &rarr; OAuth consent screen</strong></li>
-                        <li>Under <strong>App Name</strong>, replace the auto-generated client ID (e.g., <code className="text-rose-400 font-mono text-[10px]">gen-lang-client-...</code>) with <strong className="text-emerald-400">solaroptions</strong> or <strong className="text-emerald-400">Solar Options</strong>.</li>
-                        <li>Save and publish changes to update the Google identity panel!</li>
-                      </ul>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="font-extrabold text-white text-[11px]">2. Authorize Deployed / Preview Domains</p>
-                      <ul className="list-disc pl-4 text-[11px] text-gray-400 space-y-1">
-                        <li>Go to your <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline hover:text-emerald-300 inline-flex items-center gap-0.5 font-bold">Firebase Console <ExternalLink className="w-3 h-3" /></a> &rarr; <strong>Authentication &rarr; Settings &rarr; Authorized domains</strong></li>
-                        <li>Click <strong>Add domain</strong> and authorize your preview/deployed domain:
-                          <div className="mt-1 bg-slate-900 border border-white/5 py-1.5 px-3 rounded font-mono text-[10px] text-emerald-400 select-all font-bold">
-                            {currentDomain || 'ais-pre-xeegx3cd7wtad4osbysfww-862991197985.asia-southeast1.run.app'}
-                          </div>
-                        </li>
-                        <li>This enables seamless single-tap authentication directly in your browser iframe!</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Sandbox Developer Bypass */}
-                  <div className="pt-4 border-t border-white/5 space-y-3">
-                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/15 rounded-xl">
-                      <p className="text-[11px] text-gray-400 leading-normal">
-                        <strong className="text-emerald-400 uppercase text-[9px] [letter-spacing:0.04em] block">Sandbox Developer Mode</strong>
-                        Need to test the 3D tool or explore facilities right now without updating settings? You can auto-verify the corporate email you entered using sandbox simulation mode.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onFreeTrial && onFreeTrial(accessForm, true)}
-                      className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black rounded-xl transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/10"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-slate-900" />
-                      Simulate Google Sign-In & Bypass
-                    </button>
-                  </div>
-                </div>
-              )}
+        {errorMessage && (
+          <div className="mb-8 p-5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl flex items-start gap-3.5 text-xs leading-relaxed text-left">
+            <AlertTriangle className="w-5 h-5 text-rose-400 mt-0.5 shrink-0" />
+            <div className="flex-1 space-y-1">
+              <span className="font-extrabold uppercase tracking-wider text-[10px] text-rose-400 block">
+                Verification Notice
+              </span>
+              <p className="text-gray-300 font-medium text-xs leading-normal">{errorMessage}</p>
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {isSubmitting && (
           <div className="mb-8 p-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-3xl flex items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest">

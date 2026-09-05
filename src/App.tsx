@@ -690,31 +690,8 @@ export default function SolarApp() {
   const handleFreeTrial = async (formData: any, forceBypass = false, googleCredentialOverride?: any) => {
     setTrialError(null);
 
-    // Prevent nested exceptions by declaring user credential reference
+    // Use credential if provided via Google sign-in flow
     let userCredential = googleCredentialOverride || null;
-
-    if (!forceBypass && !userCredential) {
-      // 1. Launch Google Login Popup IMMEDIATELY to preserve user-action stack trace and bypass browser popup blockers!
-      try {
-        userCredential = await signInWithPopup(auth, googleProvider);
-      } catch (popupErr: any) {
-        console.error("Popup verification error:", popupErr);
-        const errMsg = popupErr.message || "";
-        const errCode = popupErr.code || "";
-        if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
-          setTrialError("Google verification was canceled because the popup window was closed. Please try again.");
-        } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
-          setTrialError("Google Sign-In popup was blocked by your browser. Please allow popups or click the 'Open in New Tab' button in the top-right corner to bypass iframe domain policies.");
-        } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
-          setTrialError("This preview domain is currently unauthorized for Google Sign-In. Please click the 'Open in New Tab' button in the top-right corner of the editor to launch the authorized application and sign in securely.");
-        } else if (errMsg.toLowerCase().includes("firebase") || errCode.startsWith("auth/")) {
-          setTrialError("Google Authentication encountered an error in this sandboxed preview iframe. Please click the 'Open in New Tab' button at the top-right corner of the screen to sign in seamlessly.");
-        } else {
-          setTrialError(errMsg || "Failed to initialize Google Sign-In popup.");
-        }
-        return;
-      }
-    }
 
     if (googleCredentialOverride && googleCredentialOverride.user && googleCredentialOverride.user.email) {
       formData = { ...formData, email: googleCredentialOverride.user.email };
@@ -765,20 +742,13 @@ export default function SolarApp() {
 
       let verifiedEmail = formData.email.trim().toLowerCase();
 
-      if (!forceBypass && userCredential) {
+      if (userCredential) {
         const googleUser = userCredential.user;
         if (!googleUser || !googleUser.email) {
           throw new Error("Unable to retrieve verified email from Google Sign-In.");
         }
-
         verifiedEmail = googleUser.email.trim().toLowerCase();
-        const typedEmail = formData.email.trim().toLowerCase();
-
-        if (verifiedEmail !== typedEmail) {
-          throw new Error(`Email verification failed. The typed email (${typedEmail}) does not match your signed-in Google account (${verifiedEmail}). Please ensure you sign into the matching Google account to verify your identity.`);
-        }
-      } else {
-        console.log("[Developer Mode] Bypassing Google OAuth Popup sign-in step for sandbox testing.");
+        formData.email = verifiedEmail;
       }
 
       // 4. Generate custom 1-day credentials
@@ -952,6 +922,16 @@ export default function SolarApp() {
           return;
         }
       }
+
+      if (errCode === 'auth/popup-closed-by-user' || errMsg.includes('popup-closed-by-user')) {
+        setTrialError("Google sign-in popup was closed before completion. Please try again or complete the form below.");
+      } else if (errCode === 'auth/popup-blocked' || errMsg.includes('popup-blocked') || errMsg.includes('blocked')) {
+        setTrialError("Google sign-in popup was blocked by your browser. Please allow popups for this site or complete the form below.");
+      } else if (errCode === 'auth/unauthorized-domain' || errMsg.includes('unauthorized-domain') || errMsg.includes('auth-domain')) {
+        setTrialError("Google sign-in is not authorized for this domain. You can start your free trial directly using the form below.");
+      } else {
+        setTrialError(errMsg || "Google sign-in could not be completed. You can start your free trial directly using the form below.");
+      }
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -1056,13 +1036,13 @@ export default function SolarApp() {
       }
 
       if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
-        alert("Google Login popup was closed before completion. Please try again.");
+        alert("Google Sign-In popup was closed before completion. Please try again.");
       } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
-        alert("Google Sign-In popup was blocked by your browser. Please allow popups for this site or click the 'Open in New Tab' button in the top-right corner to bypass iframe security policies.");
+        alert("Google Sign-In popup was blocked by your browser. Please allow popups for this site and try again.");
       } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
-        alert("This preview domain is currently unauthorized for Google Sign-In in Firebase. Please click 'Open in New Tab' in the top-right corner to sign in securely and bypass iframe domain policies.");
+        alert("Google Sign-In is not authorized for this domain. Please log in using your username and password or contact support.");
       } else {
-        alert(popupErr.message || "Failed to initialize Google Sign-In popup.");
+        alert(popupErr.message || "Failed to initialize Google Sign-In.");
       }
       return;
     }
