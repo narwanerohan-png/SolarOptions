@@ -1382,7 +1382,7 @@ export default function SolarApp() {
                   className="text-[34px] xs:text-5xl sm:text-[71px] md:text-[95px] lg:text-[104px] font-black mb-6 sm:mb-8 leading-[1.08] sm:leading-[1.02] tracking-tight text-white drop-shadow-2xl"
                 >
                   <span className="text-emerald-400">Rooftop</span> & Solar <br />
-                  Sales Tool.
+                  Power Tool.
                 </motion.h1>
                 <motion.p
                   initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
