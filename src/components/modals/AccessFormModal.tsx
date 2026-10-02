@@ -63,7 +63,7 @@ export const AccessFormModal = React.memo(({
 
         {/* Google Sign-In Option for instant login or automated trial provisioning */}
         {onGoogleGetAccess && (
-          <div className="mb-8 space-y-4"
+          <div className="mb-8 space-y-4">
             <button
               type="button"
               disabled={!isFieldsValid || isSubmitting}
