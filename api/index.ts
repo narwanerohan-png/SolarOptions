@@ -1214,7 +1214,7 @@ app.post("/api/payments/create-order", async (req, res) => {
 
   try {
     const razorpay = getRazorpay();
-    const amount = 100; // ₹1 in paise
+    const amount = 7820000; // ₹78200 in paise
     const currency = "INR";
     const options = {
       amount,
