@@ -609,7 +609,7 @@ export default function SolarApp() {
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'Solar Options Pro Access',
-        description: '30 Days Premium Leads Access',
+        description: '1 Year Premium Leads Access',
         order_id: orderData.order_id,
         handler: async (response: any) => {
           try {
@@ -820,7 +820,7 @@ export default function SolarApp() {
       });
 
       if (response.status === 403) {
-        let errMsg = "Our security engine detected that a 1-day free trial has transitively already been claimed on this email or device browser. Please select premium access to gain instant leads access.";
+        let errMsg = "Our security engine detected that a 1-day free trial has transitively already been claimed on this email or device browser. Please select premium access (1 Year) to gain instant leads access.";
         try {
           const errData = await response.json();
           errMsg = errData.message || errMsg;

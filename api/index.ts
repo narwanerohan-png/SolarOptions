@@ -923,7 +923,7 @@ app.post("/api/google-login", async (req, res) => {
           user: {
             username: normalizedEmail,
             companyName: userData.companyName || companyName || "Subscriber",
-            validUntil: expiry ? (expiry.includes('T') ? new Date(expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : expiry) : "30 Days",
+            validUntil: expiry ? (expiry.includes('T') ? new Date(expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : expiry) : "1 Year",
             isTrial: !isPremium
           }
         });
@@ -1214,7 +1214,7 @@ app.post("/api/payments/create-order", async (req, res) => {
 
   try {
     const razorpay = getRazorpay();
-    const amount = 7820000; // ₹78200 in paise
+    const amount = 4820000; // ₹48200 in paise
     const currency = "INR";
     const options = {
       amount,
@@ -1365,7 +1365,7 @@ app.post("/api/payments/verify", async (req, res) => {
       const userDocRef = serverDb.collection("users").doc(userRecord.uid);
       
       const subscriptionExpiry = new Date();
-      subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 30);
+      subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 365);
 
       const userData = {
         uid: userRecord.uid,
