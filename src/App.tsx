@@ -820,7 +820,7 @@ export default function SolarApp() {
       });
 
       if (response.status === 403) {
-        let errMsg = "Our security engine detected that a 1-day free trial has transitively already been claimed on this email or device browser. Please select premium access (30 Days) to gain instant leads access.";
+        let errMsg = "Our security engine detected that a 1-day free trial has transitively already been claimed on this email or device browser. Please select premium access to gain instant leads access.";
         try {
           const errData = await response.json();
           errMsg = errData.message || errMsg;

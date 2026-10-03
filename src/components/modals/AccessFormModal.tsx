@@ -56,7 +56,7 @@ export const AccessFormModal = React.memo(({
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10">
           <div className="space-y-2 text-left">
             <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
-            <p className="text-gray-400 text-sm font-medium">30-day regional access to industrial facility intelligence.</p>
+            <p className="text-gray-400 text-sm font-medium">45Rs/per lead regional access to industrial facility intelligence.</p>
           </div>
           <div className="bg-emerald-500/10 text-emerald-400 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shrink-0">₹78200 for Year</div>
         </div>
@@ -181,7 +181,7 @@ export const AccessFormModal = React.memo(({
               disabled={isSubmitting}
               className={`flex-[1.5] py-5 bg-emerald-500 text-slate-900 font-black rounded-2xl shadow-3xl shadow-emerald-500/20 transition-all uppercase text-[11px] tracking-widest ${isSubmitting ? 'opacity-40 cursor-not-allowed' : 'hover:bg-emerald-400 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'}`}
             >
-              {isSubmitting ? 'Initializing...' : 'Premium Access (30 Days)'}
+              {isSubmitting ? 'Initializing...' : 'Premium Access'}
             </button>
           </div>
           <button 
