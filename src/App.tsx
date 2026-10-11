@@ -12,6 +12,7 @@ import { AccessFormModal } from './components/modals/AccessFormModal';
 import { ForgotPasswordModal } from './components/modals/ForgotPasswordModal';
 import { CredentialsModal } from './components/modals/CredentialsModal';
 import { AccountLinkingModal } from './components/modals/AccountLinkingModal';
+import { AdminPortal } from './components/AdminPortal';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, linkWithCredential, GoogleAuthProvider } from './lib/firebase';
@@ -155,6 +156,44 @@ function PremiumSolarBackground() {
 
 export default function SolarApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('solaroptions_is_admin') === 'true';
+  });
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleAdminLogin = async (adminEmail: string, adminPass: string) => {
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail, password: adminPass })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, message: data.message || 'Access restricted: Only authorized administrators can log in here.' };
+      }
+
+      localStorage.setItem('solaroptions_admin_token', data.token);
+      localStorage.setItem('activeSessionId', data.sessionId);
+      localStorage.setItem('solaroptions_is_admin', 'true');
+      setIsAdmin(true);
+      setIsLoggedIn(true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error during admin authentication' };
+    }
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('solaroptions_admin_token');
+    localStorage.removeItem('activeSessionId');
+    localStorage.removeItem('solaroptions_is_admin');
+    setIsAdmin(false);
+    setIsLoggedIn(false);
+    navigate('/');
+  };
 
   useEffect(() => {
     // Handle Vite preload errors (chunk loading failures)
@@ -190,6 +229,13 @@ export default function SolarApp() {
   }, []);
 
   useEffect(() => {
+    // 1. Maintain active admin session if present in localStorage
+    if (localStorage.getItem('solaroptions_is_admin') === 'true' && localStorage.getItem('solaroptions_admin_token')) {
+      setIsAdmin(true);
+      setIsLoggedIn(true);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         // Only transition to isLoggedIn = true if we already have a backend-managed activeSessionId.
@@ -201,15 +247,14 @@ export default function SolarApp() {
           setIsLoggedIn(true);
         }
       } else {
-        setIsLoggedIn(false);
-        localStorage.removeItem("activeSessionId");
+        if (localStorage.getItem('solaroptions_is_admin') !== 'true') {
+          setIsLoggedIn(false);
+          localStorage.removeItem("activeSessionId");
+        }
       }
     });
     return () => unsubscribe();
   }, []);
-
-  const navigate = useNavigate();
-  const location = useLocation();
 
   // derivation of currentPage from location for backward compatibility in some logic
   const currentPage = useMemo(() => {
@@ -219,6 +264,7 @@ export default function SolarApp() {
     
     console.log(`[Router] Path: ${rawPath} -> Mapped to: ${path}`);
     
+    if (path === '/admin' || path === '/admin-login') return 'admin';
     if (path.startsWith('/company/')) return 'company';
     if (path === '/solar-rooftop-calculator') return 'consumer';
     if (path === '/3d-layout-designer' || path === '/industrial-intelligence') return 'epc';
@@ -1133,6 +1179,21 @@ export default function SolarApp() {
     if (!formData.username || !formData.password) return;
     setIsSubmitting(true);
     try {
+      // Check if logging in as Admin@solaroptions.in
+      const cleanUser = String(formData.username || '').trim().toLowerCase();
+      if (cleanUser === 'admin@solaroptions.in') {
+        const adminRes = await handleAdminLogin(formData.username, formData.password);
+        if (adminRes.success) {
+          setShowLoginModal(false);
+          navigate('/industrial-intelligence');
+          window.scrollTo(0, 0);
+        } else {
+          alert(adminRes.message || 'Access restricted: Only authorized administrators can log in here.');
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
       // 1. Pre-verify that the user is actually registered in our Firestore users collection
       console.log("[Login] Verifying registration status...");
       const checkResp = await fetch('/api/check-user-registered', {
@@ -1247,6 +1308,16 @@ export default function SolarApp() {
           <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
           {isLoggedIn ? (
             <>
+              {isAdmin && (
+                <button
+                  onClick={() => { window.scrollTo(0, 0); navigate('/admin'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all cursor-pointer"
+                  aria-label="Admin Portal"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Admin Mode</span>
+                </button>
+              )}
               <button 
                 onClick={() => { window.scrollTo(0, 0); navigate('/industrial-intelligence'); }} 
                 className={cn(
@@ -1260,8 +1331,8 @@ export default function SolarApp() {
               <button 
                 onClick={async () => { 
                   try {
-                    localStorage.removeItem("activeSessionId");
-                    await auth.signOut();
+                    handleAdminLogout();
+                    await auth.signOut().catch(() => {});
                   } catch (e) {
                     console.error("Sign out error:", e);
                   }
@@ -1318,6 +1389,12 @@ export default function SolarApp() {
           <>
             <title>Industrial Factory Data Explorer | Lead Generation for Solar EPCs</title>
             <meta name="description" content="Explore thousands of industrial factory rooftops with precision data. Generate leads and scale your EPC solar installation business." />
+          </>
+        )}
+        {currentPage === 'admin' && (
+          <>
+            <title>SolarOptions Administrator Portal | Secure Access</title>
+            <meta name="description" content="Exclusive system operations and administrative portal for SolarOptions platform." />
           </>
         )}
         {currentPage === 'company' && companyLead && (
@@ -1612,6 +1689,7 @@ export default function SolarApp() {
                        <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Privacy Policy</Link>
                        <Link to="/terms-of-service" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Terms of Service</Link>
                        <button onClick={() => setShowFeedbackModal(true)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Feedback</button>
+                       <Link to="/admin" onClick={() => window.scrollTo(0, 0)} className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] hover:text-emerald-400 transition-all">Admin Portal</Link>
                     </div>
                  </div>
                  <div className="mt-12 pt-12 border-t border-white/5 text-[9px] text-gray-600 font-black uppercase tracking-[0.3em] text-center">
@@ -2948,6 +3026,24 @@ export default function SolarApp() {
             )}
           </motion.div>
         )}
+        {currentPage === 'admin' && (
+          <motion.div 
+            key="admin"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <AdminPortal 
+              isAdmin={isAdmin}
+              onAdminLogin={handleAdminLogin}
+              onAdminLogout={handleAdminLogout}
+              onNavigate={(path) => {
+                window.scrollTo(0, 0);
+                navigate(path);
+              }}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Modals */}
@@ -2958,6 +3054,11 @@ export default function SolarApp() {
         onGoogleLogin={handleGoogleLogin}
         onShowForgotPassword={() => setShowForgotPasswordModal(true)}
         onShowAccessForm={() => setShowAccessForm(true)}
+        onShowAdminLogin={() => {
+          setShowLoginModal(false);
+          window.scrollTo(0, 0);
+          navigate('/admin');
+        }}
         isSubmitting={isSubmitting}
       />
 

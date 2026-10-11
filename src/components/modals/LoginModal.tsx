@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sun, X, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Sun, X, LogIn, Eye, EyeOff, Lock } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface LoginModalProps {
   onGoogleLogin?: () => void;
   onShowForgotPassword: () => void;
   onShowAccessForm: () => void;
+  onShowAdminLogin?: () => void;
   isSubmitting: boolean;
 }
 
@@ -19,6 +20,7 @@ export const LoginModal = React.memo(({
   onGoogleLogin,
   onShowForgotPassword, 
   onShowAccessForm,
+  onShowAdminLogin,
   isSubmitting 
 }: LoginModalProps) => {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -129,6 +131,15 @@ export const LoginModal = React.memo(({
               >
                 Don't have access? <span className="font-bold underline">Register Here</span>
               </button>
+              {onShowAdminLogin && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onShowAdminLogin(); }}
+                  className="w-full pt-1 pb-2 text-[10px] text-gray-500 hover:text-emerald-400 font-bold uppercase tracking-widest transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Lock className="w-3 h-3" /> Special Admin Login
+                </button>
+              )}
             </div>
           </div>
         </div>

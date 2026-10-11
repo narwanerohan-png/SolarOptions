@@ -513,7 +513,9 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
     }
 
     // 2. Subscription Verification Check on Every Request
-    if (serverDb) {
+    if (activeUid === "admin_master" || req.user?.email === "admin@solaroptions.in" || req.user?.role === "admin") {
+      isPremium = true;
+    } else if (serverDb) {
       try {
         const userDocRef = serverDb.collection("users").doc(activeUid);
         const userSnap = await userDocRef.get();
@@ -953,6 +955,10 @@ app.post("/api/check-user-registered", async (req, res) => {
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
+    // Dedicated SolarOptions Admin is always registered
+    if (email === "admin@solaroptions.in") {
+      return res.json({ registered: true, isAdmin: true });
+    }
     if (serverDb) {
       const usersRef = serverDb.collection("users");
       const snapshot = await usersRef.where("email", "==", email).get();
@@ -965,6 +971,110 @@ app.post("/api/check-user-registered", async (req, res) => {
     console.error("[Check User Registered Error]", err);
     return res.status(500).json({ error: err.message });
   }
+});
+
+// API: Special Admin Login for SolarOptions
+// Access strictly limited to:
+// Email: Admin@solaroptions.in
+// Password: Check@up
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const providedPassword = String(password || "");
+
+    // Strict authentication check
+    if (normalizedEmail !== "admin@solaroptions.in" || providedPassword !== "Check@up") {
+      console.warn(`[Admin Login Rejected] Unauthorized attempt for email: ${email}`);
+      return res.status(401).json({
+        success: false,
+        error: "unauthorized",
+        message: "Access restricted: Only authorized administrators can log in here."
+      });
+    }
+
+    const sessionId = "admin_sess_" + crypto.randomUUID();
+    const adminToken = "solaroptions_admin_" + crypto.randomBytes(32).toString("hex");
+    const timestamp = new Date().toISOString();
+
+    const adminProfile = {
+      uid: "admin_master",
+      email: "admin@solaroptions.in",
+      role: "admin",
+      companyName: "SolarOptions Administration",
+      plan: "Premium",
+      paymentStatus: "Paid",
+      subscriptionStatus: "Active",
+      subscriptionExpiry: "2099-12-31T23:59:59.999Z",
+      activeSessionId: sessionId,
+      activeToken: adminToken,
+      lastLogin: timestamp,
+      lastActivity: timestamp,
+      updatedAt: timestamp
+    };
+
+    // Store in global memory session cache
+    (globalThis as any).__SOLAROPTIONS_ADMIN_SESSION__ = {
+      sessionId,
+      token: adminToken,
+      email: "admin@solaroptions.in",
+      lastLogin: Date.now()
+    };
+
+    // Persist to Firestore users collection
+    if (serverDb) {
+      try {
+        await serverDb.collection("users").doc("admin_master").set(adminProfile, { merge: true });
+        console.log("[Admin Login] Synchronized admin profile in Firestore users/admin_master");
+      } catch (dbErr: any) {
+        console.warn("[Admin Login Warning] Firestore sync failed, continuing with active session:", dbErr.message);
+      }
+    }
+
+    console.log(`[Admin Login Success] SolarOptions Administrator authenticated: ${normalizedEmail}`);
+    return res.json({
+      success: true,
+      sessionId,
+      token: adminToken,
+      user: {
+        username: "Admin@solaroptions.in",
+        email: "admin@solaroptions.in",
+        role: "admin",
+        companyName: "SolarOptions Administration",
+        plan: "Premium",
+        subscriptionStatus: "Active",
+        validUntil: "Lifetime Access",
+        isTrial: false,
+        isAdmin: true
+      }
+    });
+  } catch (err: any) {
+    console.error("[Admin Login Error]", err);
+    return res.status(500).json({ error: "Internal server error during admin login" });
+  }
+});
+
+// API: Verify Admin Status
+app.get("/api/admin/status", (req, res) => {
+  const authHeader = req.headers.authorization;
+  const clientSessionId = req.headers["x-session-id"];
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ authorized: false });
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+  const adminSession = (globalThis as any).__SOLAROPTIONS_ADMIN_SESSION__;
+
+  if (adminSession && adminSession.token === token && (!clientSessionId || clientSessionId === adminSession.sessionId)) {
+    return res.json({
+      authorized: true,
+      email: "admin@solaroptions.in",
+      role: "admin"
+    });
+  }
+
+  return res.status(401).json({ authorized: false });
 });
 
 // Proxy: Register/Payment Sync

@@ -18,6 +18,13 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
     console.error("[authFetch] Failed to retrieve Firebase ID token:", error);
   }
 
+  if (!token) {
+    const adminToken = localStorage.getItem("solaroptions_admin_token");
+    if (adminToken) {
+      token = adminToken;
+    }
+  }
+
   const newInit: RequestInit = { ...init };
   const headers = new Headers(newInit.headers || {});
 
@@ -41,7 +48,9 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
       if (body.error === "Session expired") {
         console.warn("[authFetch] Session expired. Signing out automatically...");
         localStorage.removeItem("activeSessionId");
-        await auth.signOut();
+        localStorage.removeItem("solaroptions_admin_token");
+        localStorage.removeItem("solaroptions_is_admin");
+        await auth.signOut().catch(() => {});
         // Force fully redirect to login/landing to clear all in-memory state
         window.location.href = "/";
       }

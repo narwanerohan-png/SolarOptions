@@ -137,6 +137,57 @@ export async function verifyFirebaseToken(
     return;
   }
 
+  // Support SolarOptions special Admin token
+  if (token.startsWith("solaroptions_admin_")) {
+    const clientSessionId = req.headers["x-session-id"];
+    let isValidAdmin = false;
+
+    // 1. Check in-memory session cache
+    if ((globalThis as any).__SOLAROPTIONS_ADMIN_SESSION__) {
+      const sess = (globalThis as any).__SOLAROPTIONS_ADMIN_SESSION__;
+      if (sess.token === token && (!clientSessionId || clientSessionId === sess.sessionId)) {
+        isValidAdmin = true;
+      }
+    }
+
+    // 2. Check Firestore database if available
+    if (!isValidAdmin) {
+      try {
+        const db = getAdminDb();
+        const adminDoc = await db.collection("users").doc("admin_master").get();
+        if (adminDoc.exists) {
+          const adminData = adminDoc.data() || {};
+          if (adminData.activeToken === token && (!clientSessionId || clientSessionId === adminData.activeSessionId)) {
+            isValidAdmin = true;
+          }
+        }
+      } catch (e: any) {
+        console.warn("[Firebase Admin Warning] Firestore admin lookup failed:", e.message);
+      }
+    }
+
+    if (isValidAdmin) {
+      req.user = {
+        uid: "admin_master",
+        email: "admin@solaroptions.in",
+        role: "admin",
+        aud: "solaroptions-admin",
+        auth_time: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 86400 * 365,
+        firebase: { identities: {}, sign_in_provider: "custom" },
+        sub: "admin_master",
+        iss: "solaroptions"
+      } as any;
+      return next();
+    } else {
+      res.status(401).json({
+        error: "Session expired",
+        message: "Administrator session expired or invalid."
+      });
+      return;
+    }
+  }
+
   try {
     const app = getAdminApp();
     const auth = getAuth(app);
