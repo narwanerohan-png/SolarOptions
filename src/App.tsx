@@ -2436,21 +2436,9 @@ export default function SolarApp() {
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-8">
-                              <div className="flex items-center gap-2 text-slate-400 min-w-0">
-                                <MapPin className="w-4 h-4 text-slate-300 shrink-0" />
-                                <span className="text-xs font-semibold">{lead.location}</span>
-                              </div>
-                              <a
-                                href={`https://www.google.com/maps?q=${encodeURIComponent(lead.location && lead.location !== 'NA' ? `${lead.factory}, ${lead.location}` : lead.factory)}&t=k`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-300 text-[11px] font-bold tracking-tight transition-all active:scale-95 shadow-xs shrink-0"
-                                title="View satellite location on Google Maps"
-                              >
-                                <span>📍</span> View Location
-                              </a>
+                            <div className="flex items-center gap-2 mb-8 text-slate-400">
+                               <MapPin className="w-4 h-4 text-slate-300" />
+                               <span className="text-xs font-semibold">{lead.location}</span>
                             </div>
                           </div>
                           
@@ -3272,8 +3260,19 @@ export default function SolarApp() {
                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Site Analysis Protocol</span>
                   </div>
                   <h3 className="text-4xl font-black pr-16 leading-tight uppercase tracking-tight">{selectedLead.factory}</h3>
-                  <div className="flex items-center gap-3 text-gray-400 font-medium pt-2">
-                    <MapPin className="w-5 h-5 text-emerald-500" /> {selectedLead.location}
+                  <div className="flex flex-wrap items-center gap-3 text-gray-400 font-medium pt-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-emerald-500" /> {selectedLead.location}
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps?q=${encodeURIComponent(selectedLead.location && selectedLead.location !== 'NA' ? `${selectedLead.factory}, ${selectedLead.location}` : selectedLead.factory)}&t=k`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-400 border border-white/10 hover:border-emerald-500/30 text-xs font-bold tracking-tight transition-all active:scale-95 shadow-xs"
+                      title="View satellite location on Google Maps"
+                    >
+                      <span>📍</span> View Location
+                    </a>
                   </div>
                 </div>
 
