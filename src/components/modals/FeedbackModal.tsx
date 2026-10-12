@@ -30,6 +30,15 @@ export const FeedbackModal = React.memo(({ isOpen, onClose, onSubmit }: Feedback
           <div className="text-[11px] font-black tracking-widest text-emerald-400 uppercase">
             Email Us: <a href="mailto:admin@solaroptions.in" className="hover:text-emerald-300 transition-colors underline decoration-emerald-500/30 underline-offset-4">admin@solaroptions.in</a>
           </div>
+          <p className="text-xs text-gray-400 font-medium leading-relaxed mt-4 pt-3 border-t border-white/5">
+            <span className="text-gray-300 font-semibold">Data Removal &amp; Opt-Out:</span> To request data removal or opt out, please email{' '}
+            <a 
+              href="mailto:admin@solaroptions.in" 
+              className="text-emerald-400 hover:text-emerald-300 underline decoration-emerald-500/30 underline-offset-2 transition-colors font-semibold"
+            >
+              admin@solaroptions.in
+            </a>.
+          </p>
         </div>
         
         <div className="space-y-8">
