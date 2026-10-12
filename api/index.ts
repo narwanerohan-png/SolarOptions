@@ -517,16 +517,24 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
       isPremium = true;
     } else if (serverDb) {
       try {
-        const userDocRef = serverDb.collection("users").doc(activeUid);
-        const userSnap = await userDocRef.get();
+        let userDocRef = serverDb.collection("users").doc(activeUid);
+        let userSnap = await userDocRef.get();
+        if (!userSnap.exists && userEmail && userEmail !== "unknown") {
+          const querySnap = await serverDb.collection("users").where("email", "==", userEmail.toLowerCase()).limit(1).get();
+          if (!querySnap.empty) {
+            userSnap = querySnap.docs[0];
+          }
+        }
         if (!userSnap.exists) {
           console.warn(`[API Access Denied] User profile not found for UID: ${activeUid}`);
           return res.status(403).json({ error: "Access Denied: User profile not found. Please register or sign in again." });
         }
         const userData = userSnap.data() || {};
-        isPremium = userData.plan === "Premium";
         const expiry = userData.subscriptionExpiry;
         const now = new Date().toISOString();
+        const hasValidExpiry = !expiry || expiry >= now;
+        const isPaidPlan = userData.plan === "Premium" || userData.paymentStatus === "Paid" || userData.subscriptionStatus === "Active";
+        isPremium = isPaidPlan && hasValidExpiry;
 
         if (expiry && expiry < now) {
           console.warn(`[API Access Denied] Subscription/Trial expired for: ${userEmail}`);
@@ -707,25 +715,28 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
       const sliced = filtered.slice(offset, offset + limit);
 
       // --- 6. Mask Sensitive Fields in the Paginated List View ---
-      const maskedSliced = sliced.map(item => {
-        const itemToMask = { ...item };
-        
-        const nameKeys = ['Owner Name', 'owner', 'Owner'];
-        const contactKeys = ['Contact Number', 'Contact', 'contact'];
-        const emailKeys = ['Email ID', 'Email', 'email'];
+      // Paying users with active verified subscriptions receive full unmasked contact & owner details
+      const processedSliced = isPremium
+        ? sliced
+        : sliced.map(item => {
+            const itemToMask = { ...item };
+            
+            const nameKeys = ['Owner Name', 'owner', 'Owner'];
+            const contactKeys = ['Contact Number', 'Contact', 'contact'];
+            const emailKeys = ['Email ID', 'Email', 'email'];
 
-        nameKeys.forEach(k => {
-          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
-        });
-        contactKeys.forEach(k => {
-          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
-        });
-        emailKeys.forEach(k => {
-          if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
-        });
+            nameKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
+            });
+            contactKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
+            });
+            emailKeys.forEach(k => {
+              if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
+            });
 
-        return itemToMask;
-      });
+            return itemToMask;
+          });
 
       // --- 7. Audit Logging for Listing Retrieval ---
       await logAuditAction(activeUid, userEmail, "LIST_RETRIEVE", {
@@ -733,7 +744,8 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         limit,
         search,
         region,
-        returnedCount: maskedSliced.length,
+        isPremium,
+        returnedCount: processedSliced.length,
         totalMatchingCount,
         ip: ipAddress
       });
@@ -742,15 +754,16 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
       if (limitQuery || offsetQuery || (search && search !== '') || (region && region !== 'all')) {
         return res.json({
           success: true,
-          data: maskedSliced,
+          data: processedSliced,
           totalCount: totalMatchingCount,
           limit,
           offset,
-          hasMore: offset + limit < totalMatchingCount
+          hasMore: offset + limit < totalMatchingCount,
+          isPremium: !!isPremium
         });
       }
       
-      return res.json(maskedSliced);
+      return res.json(processedSliced);
     }
     
     res.json(upstreamData);
@@ -766,23 +779,25 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
     const rawOffset = offsetQuery ? parseInt(String(offsetQuery), 10) : 0;
     const offset = isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
 
-    const slicedFallback = localInbox.slice(offset, offset + limit).map(item => {
-      const itemToMask = { ...item };
-      const nameKeys = ['Owner Name', 'owner', 'Owner'];
-      const contactKeys = ['Contact Number', 'Contact', 'contact'];
-      const emailKeys = ['Email ID', 'Email', 'email'];
+    const slicedFallback = isPremium
+      ? localInbox.slice(offset, offset + limit)
+      : localInbox.slice(offset, offset + limit).map(item => {
+          const itemToMask = { ...item };
+          const nameKeys = ['Owner Name', 'owner', 'Owner'];
+          const contactKeys = ['Contact Number', 'Contact', 'contact'];
+          const emailKeys = ['Email ID', 'Email', 'email'];
 
-      nameKeys.forEach(k => {
-        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
-      });
-      contactKeys.forEach(k => {
-        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
-      });
-      emailKeys.forEach(k => {
-        if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
-      });
-      return itemToMask;
-    });
+          nameKeys.forEach(k => {
+            if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'name');
+          });
+          contactKeys.forEach(k => {
+            if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'contact');
+          });
+          emailKeys.forEach(k => {
+            if (itemToMask[k]) itemToMask[k] = maskValue(itemToMask[k], 'email');
+          });
+          return itemToMask;
+        });
 
     if (limitQuery || offsetQuery) {
       return res.json({
@@ -791,7 +806,8 @@ app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], ve
         totalCount: localInbox.length,
         limit,
         offset,
-        hasMore: offset + limit < localInbox.length
+        hasMore: offset + limit < localInbox.length,
+        isPremium: !!isPremium
       });
     }
     res.json(slicedFallback);
@@ -879,14 +895,22 @@ app.post("/api/google-login", async (req, res) => {
   if (serverDb) {
     try {
       // 1. Check if the user document exists in the `users` collection
-      const userDocRef = serverDb.collection("users").doc(activeUid);
-      const userSnap = await userDocRef.get();
+      let userDocRef = serverDb.collection("users").doc(activeUid);
+      let userSnap = await userDocRef.get();
+      if (!userSnap.exists && normalizedEmail) {
+        const querySnap = await serverDb.collection("users").where("email", "==", normalizedEmail).limit(1).get();
+        if (!querySnap.empty) {
+          userSnap = querySnap.docs[0];
+        }
+      }
 
       if (userSnap.exists) {
         const userData = userSnap.data() || {};
-        const isPremium = userData.plan === "Premium";
+        const isPaidPlan = userData.plan === "Premium" || userData.paymentStatus === "Paid" || userData.subscriptionStatus === "Active";
         const expiry = userData.subscriptionExpiry;
         const now = new Date().toISOString();
+        const hasValidExpiry = !expiry || expiry >= now;
+        const isPremium = isPaidPlan && hasValidExpiry;
 
         if (expiry && expiry < now) {
           console.warn(`[Google Login] Subscription/Trial expired for ${normalizedEmail}`);
@@ -926,7 +950,8 @@ app.post("/api/google-login", async (req, res) => {
             username: normalizedEmail,
             companyName: userData.companyName || companyName || "Subscriber",
             validUntil: expiry ? (expiry.includes('T') ? new Date(expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : expiry) : "1 Year",
-            isTrial: !isPremium
+            isTrial: !isPremium,
+            isPremium: !!isPremium
           }
         });
       }
@@ -1492,7 +1517,7 @@ app.post("/api/payments/verify", async (req, res) => {
         updatedAt: new Date().toISOString()
       };
 
-      await userDocRef.set(userData);
+      await userDocRef.set(userData, { merge: true });
       console.log(`[Payment API] [Firestore User Created] Created document at users/${userRecord.uid} with plan: Premium`);
 
       // Save to payments collection for complete idempotence ledger

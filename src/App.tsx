@@ -159,6 +159,9 @@ export default function SolarApp() {
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     return typeof window !== 'undefined' && localStorage.getItem('solaroptions_is_admin') === 'true';
   });
+  const [isPaidSubscriber, setIsPaidSubscriber] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && (localStorage.getItem('solaroptions_is_paid') === 'true' || localStorage.getItem('solaroptions_is_admin') === 'true');
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -178,7 +181,9 @@ export default function SolarApp() {
       localStorage.setItem('solaroptions_admin_token', data.token);
       localStorage.setItem('activeSessionId', data.sessionId);
       localStorage.setItem('solaroptions_is_admin', 'true');
+      localStorage.setItem('solaroptions_is_paid', 'true');
       setIsAdmin(true);
+      setIsPaidSubscriber(true);
       setIsLoggedIn(true);
       return { success: true };
     } catch (err: any) {
@@ -190,9 +195,50 @@ export default function SolarApp() {
     localStorage.removeItem('solaroptions_admin_token');
     localStorage.removeItem('activeSessionId');
     localStorage.removeItem('solaroptions_is_admin');
+    localStorage.removeItem('solaroptions_is_paid');
     setIsAdmin(false);
+    setIsPaidSubscriber(false);
     setIsLoggedIn(false);
     navigate('/');
+  };
+
+  const handleOpenFullSpecs = async (lead: Lead) => {
+    setSelectedLead(lead);
+    const isPaid = isPaidSubscriber || isAdmin || localStorage.getItem('solaroptions_is_paid') === 'true' || localStorage.getItem('solaroptions_is_admin') === 'true';
+    if (isPaid || isLoggedIn) {
+      try {
+        const slug = slugify(lead.factory);
+        const res = await authFetch(`/api/facilities?slug=${encodeURIComponent(slug)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const single = Array.isArray(data) ? data[0] : (data.data ? data.data[0] : null);
+          if (single) {
+            const uOwner = single['Owner Name'] || single['owner'] || single['Owner'];
+            const uContact = single['Contact Number'] || single['Contact'] || single['contact'];
+            const uEmail = single['Email ID'] || single['Email'] || single['email'];
+            const isUnmasked = Boolean((uOwner && !uOwner.includes('***')) || (uContact && !uContact.includes('***')));
+            
+            if (isUnmasked && !isPaidSubscriber && !isAdmin) {
+              setIsPaidSubscriber(true);
+              localStorage.setItem('solaroptions_is_paid', 'true');
+            }
+
+            setSelectedLead(prev => {
+              if (!prev || prev.factory !== lead.factory) return prev;
+              return {
+                ...prev,
+                owner: uOwner || prev.owner,
+                contact: uContact || prev.contact,
+                email: uEmail || prev.email,
+                isUnmasked: isUnmasked
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[Full Specs] Single facility on-demand fetch error:", err);
+      }
+    }
   };
 
   useEffect(() => {
@@ -520,6 +566,10 @@ export default function SolarApp() {
           rawLeads = resData.data || [];
           totalCount = resData.totalCount ?? 0;
           backendHasMore = resData.hasMore ?? (rawLeads.length >= 25);
+          if (resData.isPremium || isAdmin) {
+            setIsPaidSubscriber(true);
+            localStorage.setItem("solaroptions_is_paid", "true");
+          }
         }
       } else if (Array.isArray(resData)) {
         rawLeads = resData;
@@ -532,18 +582,24 @@ export default function SolarApp() {
         backendHasMore = false;
       }
 
-      const mapped = rawLeads.map((row) => ({
-        region: (row['Region'] || 'NA').toLowerCase(),
-        factory: row['Factory Name'] || 'NA',
-        location: row['Location'] || 'NA',
-        rooftop: Number(row['Rooftop Space']) || 0,
-        kw: row['Potential kW'] || 0,
-        owner: row['Owner Name'] || 'NA',
-        contact: row['Contact Number'] || row['Contact'] || 'NA',
-        email: row['Email ID'] || row['Email'] || 'NA',
-        monthlyBill: row['Monthly Bill'] || 'NA',
-        monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
-      }));
+      const mapped = rawLeads.map((row) => {
+        const rawOwner = row['Owner Name'] || row['owner'] || row['Owner'] || '';
+        const rawContact = row['Contact Number'] || row['Contact'] || row['contact'] || '';
+        const rawEmail = row['Email ID'] || row['Email'] || row['email'] || '';
+
+        return {
+          region: (row['Region'] || row['region'] || 'NA').toLowerCase(),
+          factory: row['Factory Name'] || row['factory'] || 'NA',
+          location: row['Location'] || row['location'] || 'NA',
+          rooftop: Number(row['Rooftop Space'] || row['rooftop']) || 0,
+          kw: Number(row['Potential kW'] || row['kw']) || 0,
+          owner: rawOwner,
+          contact: rawContact,
+          email: rawEmail,
+          monthlyBill: row['Monthly Bill'] || 'NA',
+          monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
+        };
+      });
 
       if (isInitial) {
         setLiveLeads(mapped);
@@ -680,6 +736,10 @@ export default function SolarApp() {
               throw new Error(errData.error || "Payment verification failed.");
             }
 
+            // Immediately activate verified paid subscription state
+            setIsPaidSubscriber(true);
+            localStorage.setItem("solaroptions_is_paid", "true");
+
             setCredentials({
               username: formData.email,
               password: '',
@@ -687,6 +747,7 @@ export default function SolarApp() {
             });
             setShowAccessForm(false);
             setShowCredentials(true);
+            fetchLiveLeadsBatch(0, true, '', 'all');
           } catch (verifyErr: any) {
             alert("Payment verification failed: " + verifyErr.message);
           } finally {
@@ -1255,10 +1316,18 @@ export default function SolarApp() {
         if (data.sessionId) {
           localStorage.setItem("activeSessionId", data.sessionId);
         }
+        if (data.user?.isPremium) {
+          setIsPaidSubscriber(true);
+          localStorage.setItem("solaroptions_is_paid", "true");
+        } else if (data.user?.isTrial) {
+          setIsPaidSubscriber(false);
+          localStorage.removeItem("solaroptions_is_paid");
+        }
         setIsLoggedIn(true);
         setShowLoginModal(false);
         navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
+        fetchLiveLeadsBatch(0, true, '', 'all');
       } else {
         alert(data.message || "Authentication failed.");
       }
@@ -2443,7 +2512,7 @@ export default function SolarApp() {
                           </div>
                           
                           <button 
-                            onClick={() => setSelectedLead(lead)}
+                            onClick={() => handleOpenFullSpecs(lead)}
                             className="w-full py-5 bg-[#121826] hover:bg-slate-800 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2"
                           >
                             View Full Specs
@@ -3317,12 +3386,34 @@ export default function SolarApp() {
                        <Shield className="w-12 h-12 text-gray-600" />
                      </div>
                      <div className="space-y-1">
-                       <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Decision Authority</p>
-                       <p className="font-bold text-lg text-white">{selectedLead.owner || 'Corporate Manager'}</p>
+                       <div className="flex items-center justify-between">
+                         <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Decision Authority</p>
+                         {(isPaidSubscriber || isAdmin) && selectedLead.owner && !selectedLead.owner.includes('***') && (
+                           <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                             Verified Unmasked
+                           </span>
+                         )}
+                       </div>
+                       <p className="font-bold text-lg text-white">
+                         {selectedLead.owner && selectedLead.owner !== 'NA' && selectedLead.owner !== 'Na'
+                           ? selectedLead.owner 
+                           : ((isPaidSubscriber || isAdmin) ? 'Direct Management / Corporate Board' : 'Corporate Manager')}
+                       </p>
                      </div>
                      <div className="space-y-1">
-                       <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Digital Contact</p>
-                       <p className="font-bold text-lg text-emerald-400">{selectedLead.contact || 'Platform Locked'}</p>
+                       <div className="flex items-center justify-between">
+                         <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Digital Contact</p>
+                         {(isPaidSubscriber || isAdmin) && selectedLead.contact && !selectedLead.contact.includes('***') && selectedLead.contact !== 'Platform Locked' && selectedLead.contact !== 'Na' && selectedLead.contact !== 'NA' && (
+                           <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                             Direct Line
+                           </span>
+                         )}
+                       </div>
+                       <p className="font-bold text-lg text-emerald-400">
+                         {selectedLead.contact && selectedLead.contact !== 'NA' && selectedLead.contact !== 'Na'
+                           ? selectedLead.contact 
+                           : ((isPaidSubscriber || isAdmin) ? 'Contact Not Listed (HQ Direct)' : 'Platform Locked')}
+                       </p>
                      </div>
                      <div className="space-y-1">
                        <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">System Email</p>
