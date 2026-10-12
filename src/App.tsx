@@ -44,6 +44,12 @@ const formatPower = (value: string | number) => {
     : `${formatIndianNumber(num)} kW`;
 };
 
+// Safe checking for masked markers (***) across strings, numbers, null, and undefined
+const isMaskedContactOrOwner = (val: unknown): boolean => {
+  if (val == null) return false;
+  return String(val).includes('***');
+};
+
 // --- DATA ---
 interface Lead {
   factory: string;
@@ -51,11 +57,12 @@ interface Lead {
   rooftop: number;
   kw: number;
   region: string;
-  owner?: string;
-  contact?: string;
+  owner?: string | number;
+  contact?: string | number;
   email?: string;
   monthlyBill?: string | number;
   monthlySavings?: string | number;
+  isUnmasked?: boolean;
 }
 
 const sampleLeadsData: Lead[] = [
@@ -213,10 +220,18 @@ export default function SolarApp() {
           const data = await res.json();
           const single = Array.isArray(data) ? data[0] : (data.data ? data.data[0] : null);
           if (single) {
-            const uOwner = single['Owner Name'] || single['owner'] || single['Owner'];
-            const uContact = single['Contact Number'] || single['Contact'] || single['contact'];
-            const uEmail = single['Email ID'] || single['Email'] || single['email'];
-            const isUnmasked = Boolean((uOwner && !uOwner.includes('***')) || (uContact && !uContact.includes('***')));
+            const rawOwner = single['Owner Name'] ?? single['owner'] ?? single['Owner'];
+            const rawContact = single['Contact Number'] ?? single['Contact'] ?? single['contact'];
+            const rawEmail = single['Email ID'] ?? single['Email'] ?? single['email'];
+
+            const uOwner = rawOwner != null && rawOwner !== '' ? String(rawOwner).trim() : '';
+            const uContact = rawContact != null && rawContact !== '' ? String(rawContact).trim() : '';
+            const uEmail = rawEmail != null && rawEmail !== '' ? String(rawEmail).trim() : '';
+
+            const isUnmasked = Boolean(
+              (uOwner && !isMaskedContactOrOwner(uOwner)) || 
+              (uContact && !isMaskedContactOrOwner(uContact))
+            );
             
             if (isUnmasked && !isPaidSubscriber && !isAdmin) {
               setIsPaidSubscriber(true);
@@ -500,9 +515,13 @@ export default function SolarApp() {
                 location: row['Location'] || 'NA',
                 rooftop: Number(row['Rooftop Space']) || 0,
                 kw: row['Potential kW'] || 0,
-                owner: row['Owner Name'] || 'NA',
-                contact: row['Contact Number'] || row['Contact'] || 'NA',
-                email: row['Email ID'] || row['Email'] || 'NA',
+                owner: row['Owner Name'] != null && row['Owner Name'] !== '' ? String(row['Owner Name']).trim() : 'NA',
+                contact: (row['Contact Number'] != null && row['Contact Number'] !== '')
+                  ? String(row['Contact Number']).trim()
+                  : ((row['Contact'] != null && row['Contact'] !== '') ? String(row['Contact']).trim() : 'NA'),
+                email: (row['Email ID'] != null && row['Email ID'] !== '')
+                  ? String(row['Email ID']).trim()
+                  : ((row['Email'] != null && row['Email'] !== '') ? String(row['Email']).trim() : 'NA'),
                 monthlyBill: row['Monthly Bill'] || 'NA',
                 monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
               }));
@@ -583,9 +602,9 @@ export default function SolarApp() {
       }
 
       const mapped = rawLeads.map((row) => {
-        const rawOwner = row['Owner Name'] || row['owner'] || row['Owner'] || '';
-        const rawContact = row['Contact Number'] || row['Contact'] || row['contact'] || '';
-        const rawEmail = row['Email ID'] || row['Email'] || row['email'] || '';
+        const rawOwner = row['Owner Name'] ?? row['owner'] ?? row['Owner'];
+        const rawContact = row['Contact Number'] ?? row['Contact'] ?? row['contact'];
+        const rawEmail = row['Email ID'] ?? row['Email'] ?? row['email'];
 
         return {
           region: (row['Region'] || row['region'] || 'NA').toLowerCase(),
@@ -593,9 +612,9 @@ export default function SolarApp() {
           location: row['Location'] || row['location'] || 'NA',
           rooftop: Number(row['Rooftop Space'] || row['rooftop']) || 0,
           kw: Number(row['Potential kW'] || row['kw']) || 0,
-          owner: rawOwner,
-          contact: rawContact,
-          email: rawEmail,
+          owner: rawOwner != null && rawOwner !== '' ? String(rawOwner).trim() : '',
+          contact: rawContact != null && rawContact !== '' ? String(rawContact).trim() : '',
+          email: rawEmail != null && rawEmail !== '' ? String(rawEmail).trim() : '',
           monthlyBill: row['Monthly Bill'] || 'NA',
           monthlySavings: row['Monthly Savings'] || row['Monthly Saving'] || 'NA',
         };
@@ -2968,7 +2987,7 @@ export default function SolarApp() {
                                )}
                                
                                <div className="flex gap-4 pt-2">
-                                  <button onClick={() => window.open(`https://wa.me/${item.contact?.replace(/[^0-9]/g, '') || item.contact || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
+                                  <button onClick={() => window.open(`https://wa.me/${String(item.contact || '').replace(/[^0-9]/g, '') || '91862606122'}?text=Hello%20${item.factory || ''},%20this%20is%20from%20SolarOptions.in`, '_blank')} className="px-8 py-3 bg-emerald-500 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-3">
                                      Reply WhatsApp <ArrowRight className="w-4 h-4" />
                                   </button>
                                   <button className="px-8 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-white/5">
@@ -3388,30 +3407,30 @@ export default function SolarApp() {
                      <div className="space-y-1">
                        <div className="flex items-center justify-between">
                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Decision Authority</p>
-                         {(isPaidSubscriber || isAdmin) && selectedLead.owner && !selectedLead.owner.includes('***') && (
+                         {(isPaidSubscriber || isAdmin) && selectedLead.owner && !isMaskedContactOrOwner(selectedLead.owner) && (
                            <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
                              Verified Unmasked
                            </span>
                          )}
                        </div>
                        <p className="font-bold text-lg text-white">
-                         {selectedLead.owner && selectedLead.owner !== 'NA' && selectedLead.owner !== 'Na'
-                           ? selectedLead.owner 
+                         {selectedLead.owner && String(selectedLead.owner).trim() !== '' && String(selectedLead.owner).trim().toUpperCase() !== 'NA'
+                           ? String(selectedLead.owner) 
                            : ((isPaidSubscriber || isAdmin) ? 'Direct Management / Corporate Board' : 'Corporate Manager')}
                        </p>
                      </div>
                      <div className="space-y-1">
                        <div className="flex items-center justify-between">
                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Digital Contact</p>
-                         {(isPaidSubscriber || isAdmin) && selectedLead.contact && !selectedLead.contact.includes('***') && selectedLead.contact !== 'Platform Locked' && selectedLead.contact !== 'Na' && selectedLead.contact !== 'NA' && (
+                         {(isPaidSubscriber || isAdmin) && selectedLead.contact && !isMaskedContactOrOwner(selectedLead.contact) && String(selectedLead.contact) !== 'Platform Locked' && String(selectedLead.contact).trim().toUpperCase() !== 'NA' && (
                            <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
                              Direct Line
                            </span>
                          )}
                        </div>
                        <p className="font-bold text-lg text-emerald-400">
-                         {selectedLead.contact && selectedLead.contact !== 'NA' && selectedLead.contact !== 'Na'
-                           ? selectedLead.contact 
+                         {selectedLead.contact && String(selectedLead.contact).trim() !== '' && String(selectedLead.contact).trim().toUpperCase() !== 'NA'
+                           ? String(selectedLead.contact) 
                            : ((isPaidSubscriber || isAdmin) ? 'Contact Not Listed (HQ Direct)' : 'Platform Locked')}
                        </p>
                      </div>
