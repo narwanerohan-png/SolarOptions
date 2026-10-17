@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
-import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "motion/react";
+import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, ChevronLeft, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import * as THREE from 'three';
@@ -89,7 +89,6 @@ const BACKGROUND_IMAGES_MOBILE = [
 function PremiumSolarBackground() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const { scrollY } = useScroll();
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
@@ -98,18 +97,6 @@ function PremiumSolarBackground() {
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
   }, []);
-
-  // Create buttery smooth dampened scroll for luxury high-end web experience
-  const smoothScrollY = useSpring(scrollY, {
-    damping: 50,
-    stiffness: 90,
-    mass: 0.8
-  });
-  
-  // Real dynamic multi-dimensional wallpaper physics (disabled on mobile for 60fps scrolling)
-  const yParallax = useTransform(smoothScrollY, [0, 8000], [0, -500]);
-  const scaleScroll = useTransform(smoothScrollY, [0, 8000], [1.02, 1.18]);
-  const rotateScroll = useTransform(smoothScrollY, [0, 8000], [0, 0.8]);
 
   useEffect(() => {
     const images = isMobile ? BACKGROUND_IMAGES_MOBILE : BACKGROUND_IMAGES_DESKTOP;
@@ -122,11 +109,8 @@ function PremiumSolarBackground() {
   const imagesToUse = isMobile ? BACKGROUND_IMAGES_MOBILE : BACKGROUND_IMAGES_DESKTOP;
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      <motion.div 
-        style={isMobile ? {} : { y: yParallax, scale: scaleScroll, rotateZ: rotateScroll }}
-        className="absolute inset-0 w-full h-[120%] -top-12 will-change-transformOrigin will-change-transform origin-center"
-      >
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 contain-paint">
+      <div className="absolute inset-0 w-full h-full">
         {imagesToUse.map((img, idx) => {
           const isActive = idx === currentImageIndex;
           return (
@@ -134,12 +118,10 @@ function PremiumSolarBackground() {
               key={img}
               initial={{ opacity: 0 }}
               animate={{ 
-                opacity: isActive ? 0.45 : 0, // Slightly increased target image visibility for premium solar aesthetics
-                scale: isActive && !isMobile ? 1.06 : 1.0,
+                opacity: isActive ? 0.35 : 0
               }}
               transition={{
-                opacity: { duration: 2.5, ease: "easeInOut" },
-                scale: { duration: isMobile ? 0 : 35, ease: "linear" }, // Gentle base Ken-Burns drift (disabled on mobile)
+                opacity: { duration: 2.5, ease: "easeInOut" }
               }}
               className="absolute inset-0 w-full h-full"
             >
@@ -154,8 +136,113 @@ function PremiumSolarBackground() {
         })}
         
         {/* Soft, ultra-premium overlay gradients to ensure pristine high contrast text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/68 to-slate-950" />
-      </motion.div>
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
+const EXPLORER_SLIDES = [
+  {
+    src: '/images/industrial-site-explorer.jpg',
+    alt: 'Industrial Site Explorer — Explore Industrial Rooftop Opportunities',
+    title: 'Industrial Site Explorer',
+    width: 2714,
+    height: 1632,
+  },
+  {
+    src: '/images/Location view.png',
+    alt: 'View Location — Industrial Facility Details',
+    title: 'View Location',
+    width: 2050,
+    height: 1242,
+  },
+];
+
+function IndustrialExplorerSlider() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % EXPLORER_SLIDES.length);
+    }, 4500); // Automatically transitions every 4.5 seconds
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  return (
+    <div 
+      className="rounded-2xl sm:rounded-[32px] bg-slate-950/60 border border-white/10 p-2 sm:p-4 shadow-2xl backdrop-blur-md overflow-hidden group relative"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
+    >
+      <div className="relative w-full aspect-[2714/1632] bg-slate-950/90 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        {/* Horizontal sliding track */}
+        <div 
+          className="flex w-full h-full transition-transform duration-700 ease-in-out will-change-transform"
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+        >
+          {EXPLORER_SLIDES.map((slide, idx) => (
+            <div key={idx} className="w-full h-full shrink-0 relative">
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                width={slide.width}
+                height={slide.height}
+                className="w-full h-full object-cover"
+                decoding="async"
+                loading={idx === 0 ? "eager" : "lazy"}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Slide Indicators / Navigation Controls */}
+        <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 z-20 shadow-xl">
+          {EXPLORER_SLIDES.map((slide, idx) => (
+            <button
+              key={idx}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentSlide(idx);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all ${
+                currentSlide === idx
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${currentSlide === idx ? 'bg-slate-950' : 'bg-gray-500'}`} />
+              <span>{slide.title}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Arrow Navigation */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setCurrentSlide((prev) => (prev === 0 ? EXPLORER_SLIDES.length - 1 : prev - 1));
+          }}
+          aria-label="Previous image"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-white/10 text-white flex items-center justify-center backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all z-20 shadow-xl hover:scale-105 active:scale-95"
+        >
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setCurrentSlide((prev) => (prev + 1) % EXPLORER_SLIDES.length);
+          }}
+          aria-label="Next image"
+          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-white/10 text-white flex items-center justify-center backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all z-20 shadow-xl hover:scale-105 active:scale-95"
+        >
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -1611,115 +1698,152 @@ export default function SolarApp() {
               {/* Content Background: Premium slideshow/parallax of high-quality industrial solar imagery */}
               <PremiumSolarBackground />
 
-              {/* Strategy Section */}
-              <section id="features" className="max-w-7xl mx-auto px-6 py-12 sm:py-20 border-t border-white/5 relative z-10">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -8 }}
-                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
-                >
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
-                    <Database className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">1. Industrial Intelligence</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Explore industrial facilities with mapped rooftop dimensions, estimated solar potential, project capacity, and opportunity insights.
-                  </p>
-                </motion.div>
+              {/* Core Products Showcase */}
+              <section id="features" className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-t border-white/5 relative z-10 space-y-20 sm:space-y-32">
                 
+                {/* 1. Industrial Site Explorer — Main Product (Strongest Visual Emphasis) */}
                 <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.1 }}
-                  whileHover={{ y: -8 }}
-                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
+                  viewport={{ once: true, amount: 0.05 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="relative rounded-3xl sm:rounded-[44px] bg-gradient-to-b from-slate-900/90 via-slate-900/80 to-slate-950/90 border border-emerald-500/30 p-6 sm:p-12 shadow-2xl ring-1 ring-emerald-500/20 backdrop-blur-xl overflow-hidden"
                 >
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
-                    <PenTool className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">2. Layout & Sketching Tools</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Create professional rooftop layouts with automated panel placement, safety spacing, shadow analysis, and 3D visualization.
-                  </p>
-                </motion.div>
+                  <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 blur-[140px] pointer-events-none -mr-48 -mt-48" />
+                  <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/5 blur-[120px] pointer-events-none -ml-24 -mb-24" />
 
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.2 }}
-                  whileHover={{ y: -8 }}
-                  className="flex flex-col p-8 bg-slate-900/60 backdrop-blur-md rounded-[32px] border border-white/5 group transition-all hover:bg-slate-800/60 hover:border-emerald-500/30 min-h-[320px] shadow-2xl"
-                >
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform">
-                    <CheckCircle2 className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">3. Decision Intelligence</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed font-normal opacity-80">
-                    Prioritize opportunities and engage stakeholders with confidence using verified business insights
-                  </p>
-                </motion.div>
-              </div>
-
-              {/* Enterprise Section */}
-              <div className="bg-slate-900/60 border border-white/5 rounded-[40px] p-8 sm:p-16 text-center relative overflow-hidden mb-12 sm:mb-20 backdrop-blur-xl shadow-2xl shadow-black/50 will-change-transform">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] -mr-48 -mt-48 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/5 blur-[120px] -ml-48 -mb-48 pointer-events-none"></div>
-                
-                <div className="relative z-10">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-8"
-                  >
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mt-0.5 block">Premium Platform for EPCs</span>
-                  </motion.div>
-                  
-                  <h2 className="text-4xl sm:text-5xl md:text-6xl font-black mb-8 tracking-tight text-white max-w-3xl mx-auto leading-tight">
-                    Empower your <span className="text-emerald-400">entire</span> sales organization.
-                  </h2>
-                  <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg font-normal leading-relaxed opacity-80">
-                    Enable team with the clarity to plan accurately, reach the right stakeholders, and execute smart for better results.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
-                    <div className="p-8 bg-slate-900 rounded-3xl border border-slate-800 group hover:border-emerald-500/30 transition-all shadow-xl">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Lite Access</p>
-                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Standard Access</p>
-                      <div className="space-y-3">
-                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> 3D Designer Access</p>
-                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Tech Potential Calculator</p>
-                        <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><span className="text-emerald-500">→</span> Est. Savings & Payback Period</p>
+                  <div className="relative z-10">
+                    <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-12">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] mb-4">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        Core Platform · Primary Engine
+                      </div>
+                      <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight mb-4 sm:mb-6 leading-tight">
+                        Explore Industrial <span className="text-emerald-400">Rooftop Opportunities</span>
+                      </h2>
+                      <p className="text-gray-300 text-base sm:text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto">
+                        Discover potential industries, explore rooftop areas, and estimate solar capacity and savings.
+                      </p>
+                      <div className="mt-6 sm:mt-8 flex justify-center">
+                        <button
+                          onClick={() => {
+                            window.scrollTo(0, 0);
+                            navigate('/industrial-intelligence');
+                          }}
+                          className="px-8 sm:px-10 py-4 sm:py-4.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95 uppercase tracking-wider"
+                        >
+                          Explore Opportunities <ArrowRight className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="p-8 bg-slate-800 rounded-3xl border border-emerald-500/30 ring-2 ring-emerald-500/10 scale-105 shadow-2xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-4">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                      </div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Direct Intelligence</p>
-                      <p className="text-3xl font-bold mb-6 text-white tracking-tighter">Enterprise</p>
-                      <div className="space-y-3">
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Potential Industries</p>
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Rooftop Area Dimensions</p>
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Potential Project</p>
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Est. Monthly Savings</p>
-                        <p className="text-xs text-gray-200 font-bold flex items-center gap-2"><span className="text-emerald-400">✓</span> Decision Intelligence</p>
+
+                    {/* High-Fidelity Auto-Sliding Image Showcase */}
+                    <IndustrialExplorerSlider />
+                  </div>
+                </motion.div>
+
+                {/* 2. Solar Calculator (Alternating Layout: Text Left, Image Right) */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.05 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center"
+                >
+                  <div className="lg:col-span-5 text-left space-y-6">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-white/10 text-emerald-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em]">
+                      <Calculator className="w-3.5 h-3.5" />
+                      Instant Analysis
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
+                      Calculate Solar Potential and Savings
+                    </h2>
+                    <p className="text-gray-300 text-sm sm:text-base leading-relaxed font-normal">
+                      Reduce the learning curve for new industry professionals and interns. Estimate solar capacity, electricity savings, and payback in minutes instead of spending months learning calculations manually.
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          window.scrollTo(0, 0);
+                          navigate('/solar-rooftop-calculator');
+                        }}
+                        className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 font-bold text-xs uppercase tracking-widest rounded-xl transition-all inline-flex items-center gap-2 active:scale-95 shadow-lg"
+                      >
+                        Launch Calculator <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-7">
+                    <div className="rounded-2xl sm:rounded-[32px] bg-slate-900/60 border border-white/10 p-2 sm:p-4 shadow-2xl backdrop-blur-md overflow-hidden group">
+                      <div className="relative w-full aspect-[2714/1634] bg-slate-950/90 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+                        <img
+                          src="/images/solar-calculator.jpg"
+                          alt="Calculate Solar Potential and Savings"
+                          width={2714}
+                          height={1634}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+                          decoding="async"
+                          loading="lazy"
+                        />
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
 
-              {/* Removed redundant buttons section */}
-            </section>
+                {/* 3. 3D Rooftop Designer (Supporting Feature — Alternating Layout: Image Left, Text Right) */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.05 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center"
+                >
+                  <div className="lg:col-span-7 order-2 lg:order-1">
+                    <div className="rounded-2xl sm:rounded-[32px] bg-slate-900/60 border border-white/10 p-2 sm:p-4 shadow-2xl backdrop-blur-md overflow-hidden group">
+                      <div className="relative w-full aspect-[2738/1624] bg-slate-950/90 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+                        <img
+                          src="/images/3d-designer.jpg"
+                          alt="Visualize Rooftop Solar Layouts"
+                          width={2738}
+                          height={1624}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+                          decoding="async"
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 order-1 lg:order-2 text-left space-y-6">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-white/10 text-emerald-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em]">
+                      <Box className="w-3.5 h-3.5" />
+                      Supporting Studio Tool
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
+                      Visualize Rooftop Solar Layouts
+                    </h2>
+                    <p className="text-gray-300 text-sm sm:text-base leading-relaxed font-normal">
+                      Create a visual rooftop layout to explore solar panel placement.
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          window.scrollTo(0, 0);
+                          navigate('/3d-layout-designer');
+                        }}
+                        className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 font-bold text-xs uppercase tracking-widest rounded-xl transition-all inline-flex items-center gap-2 active:scale-95 shadow-lg"
+                      >
+                        Start 3D Design <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+
+              </section>
 
             {/* Bottom Background Image Section */}
-            <div className="relative overflow-hidden will-change-transform">
+            <div className="relative overflow-hidden">
 
 
                <div className="relative z-10">
