@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Suppress Vite HMR WebSocket connection rejection in sandbox iframe environment
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event && event.reason && (
+          String(event.reason.message || event.reason).includes('WebSocket') ||
+          String(event.reason.stack || '').includes('@vite/client')
+        )) {
+          event.preventDefault();
+        }
+      });
+    </script>
     <title>SolarOptions.in | Industrial Solar Platform</title>
     <meta name="description" content="Access industrial facilities, evaluate rooftop solar potential, estimate savings, design layouts in 3D, and accelerate project closures with SolarOptions." />
     <meta name="keywords" content="Industrial Rooftop Intelligence, Lead Generation Platform, Rooftop Area Intelligence, Solar Capacity Potential Analysis, Industrial Facility Insights, Decision-Maker Intelligence, 3D Solar Design Tools, Right Rooftops, Design Faster, Close Better, Industrial Solar Platform" />
