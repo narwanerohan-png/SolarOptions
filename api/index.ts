@@ -1770,6 +1770,7 @@ app.get("/sitemap.xml", async (req, res) => {
       "https://www.solaroptions.in/3d-layout-designer",
       "https://www.solaroptions.in/industrial-intelligence",
       "https://www.solaroptions.in/opportunity-inbox",
+      "https://www.solaroptions.in/vs-solar-ladder-solar-connect",
       "https://www.solaroptions.in/privacy-policy",
       "https://www.solaroptions.in/terms-of-service"
     ];
@@ -1975,6 +1976,66 @@ app.get("/company/:slug", async (req, res) => {
     
   } catch (err: any) {
     console.error("[Company Route Error] Error handling company route:", err);
+    const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist", "index.html")
+      : path.join(process.cwd(), "index.html");
+    return res.sendFile(indexPath);
+  }
+});
+
+// Comparison Page Direct Route with Pre-Rendered Meta & Structured Data
+app.get("/vs-solar-ladder-solar-connect", async (req, res) => {
+  try {
+    const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist", "index.html")
+      : path.join(process.cwd(), "index.html");
+
+    let html = fs.readFileSync(indexPath, "utf-8");
+
+    const title = "SolarOptions vs Solar Ladder vs Solar Connect: Comparing Industrial Solar Solutions";
+    const description = "Compare SolarOptions, Solar Ladder, and Solar Connect. Discover how SolarOptions specializes in industrial solar prospecting, rooftop assessments, and pre-sales intelligence for EPCs.";
+    const canonicalUrl = "https://www.solaroptions.in/vs-solar-ladder-solar-connect";
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": title,
+      "url": canonicalUrl,
+      "description": "Factual comparison of SolarOptions, Solar Ladder, and Solar Connect for solar EPC companies, comparing industrial site discovery, rooftop assessments, and business workflows.",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.solaroptions.in/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "SolarOptions vs Solar Ladder vs Solar Connect",
+            "item": canonicalUrl
+          }
+        ]
+      }
+    };
+
+    html = html
+      .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
+      .replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`)
+      .replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${canonicalUrl}" />`)
+      .replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${title}" />`)
+      .replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${description}" />`)
+      .replace(/<meta property="og:url" content=".*?" \/>/, `<meta property="og:url" content="${canonicalUrl}" />`)
+      .replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${title}" />`)
+      .replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${description}" />`)
+      .replace("</head>", `  <script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n  </script>\n</head>`);
+
+    res.setHeader("Content-Type", "text/html");
+    return res.status(200).send(html);
+  } catch (err: any) {
+    console.error("[Route Error] /vs-solar-ladder-solar-connect:", err);
     const indexPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
       ? path.join(process.cwd(), "dist", "index.html")
       : path.join(process.cwd(), "index.html");

@@ -13,6 +13,7 @@ import { ForgotPasswordModal } from './components/modals/ForgotPasswordModal';
 import { CredentialsModal } from './components/modals/CredentialsModal';
 import { AccountLinkingModal } from './components/modals/AccountLinkingModal';
 import { AdminPortal } from './components/AdminPortal';
+import { ComparisonPage } from './components/ComparisonPage';
 import { Point, PanelConfig } from './utils/geometry';
 import { cn } from './lib/utils';
 import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, linkWithCredential, GoogleAuthProvider } from './lib/firebase';
@@ -418,6 +419,7 @@ export default function SolarApp() {
     if (path === '/3d-layout-designer' || path === '/industrial-intelligence') return 'epc';
     if (path === '/privacy' || path === '/privacy-policy') return 'privacy';
     if (path === '/terms' || path === '/terms-of-service') return 'terms';
+    if (path === '/vs-solar-ladder-solar-connect') return 'comparison';
     if (path === '/opportunity-inbox') return 'epc'; // Added support for opportunity-inbox path directly
     return 'landing';
   }, [location.pathname]);
@@ -1579,6 +1581,42 @@ export default function SolarApp() {
             <link rel="canonical" href={`https://www.solaroptions.in/company/${companySlug}`} />
           </>
         )}
+        {currentPage === 'comparison' && (
+          <>
+            <title>SolarOptions vs Solar Ladder vs Solar Connect: Comparing Industrial Solar Solutions</title>
+            <meta name="description" content="Compare SolarOptions, Solar Ladder, and Solar Connect. Discover how SolarOptions specializes in industrial solar prospecting, rooftop assessments, and pre-sales intelligence for EPCs." />
+            <link rel="canonical" href="https://www.solaroptions.in/vs-solar-ladder-solar-connect" />
+            <meta property="og:title" content="SolarOptions vs Solar Ladder vs Solar Connect: Comparing Industrial Solar Solutions" />
+            <meta property="og:description" content="A factual comparison of B2B solar platforms in India. Learn how SolarOptions focuses on industrial solar prospecting, rooftop assessments, and pre-sales intelligence." />
+            <meta property="og:url" content="https://www.solaroptions.in/vs-solar-ladder-solar-connect" />
+            <script type="application/ld+json">
+              {JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "WebPage",
+                "name": "SolarOptions vs Solar Ladder vs Solar Connect: Comparing Industrial Solar Solutions",
+                "url": "https://www.solaroptions.in/vs-solar-ladder-solar-connect",
+                "description": "Factual comparison of SolarOptions, Solar Ladder, and Solar Connect for solar EPC companies, comparing industrial site discovery, rooftop assessments, and business workflows.",
+                "breadcrumb": {
+                  "@type": "BreadcrumbList",
+                  "itemListElement": [
+                    {
+                      "@type": "ListItem",
+                      "position": 1,
+                      "name": "Home",
+                      "item": "https://www.solaroptions.in/"
+                    },
+                    {
+                      "@type": "ListItem",
+                      "position": 2,
+                      "name": "SolarOptions vs Solar Ladder vs Solar Connect",
+                      "item": "https://www.solaroptions.in/vs-solar-ladder-solar-connect"
+                    }
+                  ]
+                }
+              })}
+            </script>
+          </>
+        )}
       </Helmet>
       {/* Global Background Layer */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950 will-change-transform" />
@@ -2380,6 +2418,16 @@ export default function SolarApp() {
                 </div>
               </section>
             </div>
+          </motion.div>
+        )}
+
+        {currentPage === 'comparison' && (
+          <motion.div 
+            key="comparison"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="w-full min-h-[85vh] relative z-20"
+          >
+            <ComparisonPage onOpenAccess={() => setShowAccessForm(true)} />
           </motion.div>
         )}
 
