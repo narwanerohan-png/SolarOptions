@@ -329,11 +329,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Ensure dynamic public images are never held stale in browser cache
+// Ensure dynamic public images are never held stale in browser cache and resolve case-insensitively
 app.use("/images", (req, res, next) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
+
+  const requestedFile = decodeURIComponent(req.path.replace(/^\//, ""));
+  const imagesDir = path.join(process.cwd(), "public", "images");
+  const exactPath = path.join(imagesDir, requestedFile);
+
+  if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
+    return res.sendFile(exactPath);
+  }
+
+  try {
+    const files = fs.readdirSync(imagesDir);
+    const matched = files.find(f => f.toLowerCase() === requestedFile.toLowerCase());
+    if (matched) {
+      return res.sendFile(path.join(imagesDir, matched));
+    }
+  } catch {}
+
   next();
 });
 
