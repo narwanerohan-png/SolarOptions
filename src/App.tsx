@@ -151,7 +151,7 @@ const EXPLORER_SLIDES = [
     height: 1632,
   },
   {
-    src: '/images/Location view.png',
+    src: `/images/Location%20view.png?v=${Date.now()}`,
     alt: 'View Location — Industrial Facility Details',
     title: 'View Location',
     width: 2050,

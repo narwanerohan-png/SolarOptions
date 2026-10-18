@@ -329,6 +329,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ensure dynamic public images are never held stale in browser cache
+app.use("/images", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
 // Request logger
 app.use((req, res, next) => {
   const isApi = req.url.startsWith("/api");
