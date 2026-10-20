@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, ChevronLeft, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock } from "lucide-react";
+import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, ChevronLeft, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
@@ -49,6 +49,93 @@ const formatPower = (value: string | number) => {
 const isMaskedContactOrOwner = (val: unknown): boolean => {
   if (val == null) return false;
   return String(val).includes('***');
+};
+
+// --- ANIMATED COUNTER COMPONENT (with prefers-reduced-motion support) ---
+interface AnimatedCounterProps {
+  value: number;
+  duration?: number;
+  format?: (val: number) => string;
+}
+
+const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ 
+  value, 
+  duration = 1600, 
+  format 
+}) => {
+  const [displayValue, setDisplayValue] = useState<number>(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [hasStarted, setHasStarted] = useState(false);
+
+  useEffect(() => {
+    // Check reduced-motion preferences
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayValue(value);
+      setHasStarted(true);
+      return;
+    }
+
+    const currentElem = ref.current;
+    if (!currentElem) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasStarted) {
+          setHasStarted(true);
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(currentElem);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasStarted, value]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayValue(value);
+      return;
+    }
+
+    let startTime: number | null = null;
+    let animationFrameId: number;
+
+    const easeOutQuart = (t: number): number => {
+      return 1 - Math.pow(1 - t, 4);
+    };
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const easedProgress = easeOutQuart(progress);
+      const current = easedProgress * value;
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [hasStarted, value, duration]);
+
+  const output = useMemo(() => {
+    if (format) {
+      return format(displayValue);
+    }
+    return formatIndianNumber(Math.round(displayValue));
+  }, [displayValue, format]);
+
+  return <span ref={ref}>{output}</span>;
 };
 
 // --- DATA ---
@@ -523,6 +610,41 @@ export default function SolarApp() {
       window.print();
     }
   };
+
+  // Live Platform Aggregated Statistics from Google Sheets dataset
+  const [platformStats, setPlatformStats] = useState<{
+    totalFactories: number;
+    totalRooftopSqFt: number;
+    totalMw: number;
+  }>({
+    totalFactories: 1794,
+    totalRooftopSqFt: 65018600,
+    totalMw: 1000.29
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setStatsLoading(true);
+    fetch('/api/public/stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data && data.success) {
+          setPlatformStats({
+            totalFactories: Number(data.totalFactories) || 0,
+            totalRooftopSqFt: Number(data.totalRooftopSqFt) || 0,
+            totalMw: Number(data.totalMw) || 0
+          });
+        }
+      })
+      .catch(err => {
+        console.warn('[Stats] Failed to fetch live platform statistics:', err.message);
+      })
+      .finally(() => {
+        if (isMounted) setStatsLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn && epcView === 'inbox') {
@@ -1735,6 +1857,114 @@ export default function SolarApp() {
             <div className="relative w-full z-10">
               {/* Content Background: Premium slideshow/parallax of high-quality industrial solar imagery */}
               <PremiumSolarBackground />
+
+              {/* LIVE PLATFORM SCALE Section - Immediately below Hero */}
+              <section id="platform-statistics" className="max-w-7xl mx-auto px-6 pt-10 pb-12 sm:pt-14 sm:pb-16 text-left relative z-20">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 pb-6 border-b border-white/5">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] mb-4">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      LIVE PLATFORM SCALE
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
+                      Platform Scale & Live Metrics
+                    </h2>
+                    <p className="text-gray-400 text-sm sm:text-base mt-2 font-normal max-w-2xl leading-relaxed">
+                      Live platform totals across industrial facility records.
+                    </p>
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono flex items-center gap-2 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Live Synced</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                  {/* Metric 1: Total Factories */}
+                  <div className="p-8 rounded-[32px] bg-slate-900/80 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-all duration-300 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/5 blur-3xl pointer-events-none group-hover:bg-emerald-500/15 transition-colors" />
+                    <div className="flex items-center justify-between mb-6">
+                      <span className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                        Total Factories
+                      </span>
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                        <Factory className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight font-mono">
+                        {statsLoading ? (
+                          <div className="h-12 w-28 bg-slate-800 animate-pulse rounded-lg" />
+                        ) : (
+                          <AnimatedCounter value={platformStats.totalFactories} />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 leading-relaxed font-medium">
+                        Industrial manufacturing facilities indexed across major MIDC clusters.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Metric 2: Total Rooftop Area */}
+                  <div className="p-8 rounded-[32px] bg-slate-900/80 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 transition-all duration-300 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/5 blur-3xl pointer-events-none group-hover:bg-emerald-500/15 transition-colors" />
+                    <div className="flex items-center justify-between mb-6">
+                      <span className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                        Total Rooftop Area
+                      </span>
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                        <Layers className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight font-mono flex items-baseline gap-2">
+                        {statsLoading ? (
+                          <div className="h-12 w-44 bg-slate-800 animate-pulse rounded-lg" />
+                        ) : (
+                          <>
+                            <AnimatedCounter value={platformStats.totalRooftopSqFt} />
+                            <span className="text-xs sm:text-sm font-bold text-gray-400 font-sans uppercase">sq. ft</span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 leading-relaxed font-medium">
+                        Cumulative shadow-free industrial rooftop footprint mapped for solar panel placement.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Metric 3: Total Solar Capacity Potential */}
+                  <div className="p-8 rounded-[32px] bg-gradient-to-b from-slate-900/90 via-slate-900/80 to-slate-950/90 backdrop-blur-xl border border-emerald-500/30 ring-1 ring-emerald-500/20 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/15 blur-3xl pointer-events-none group-hover:bg-emerald-500/25 transition-colors" />
+                    <div className="flex items-center justify-between mb-6">
+                      <span className="text-[10px] sm:text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">
+                        Total Solar Capacity Potential
+                      </span>
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                        <Zap className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-emerald-400 tracking-tight font-mono flex items-baseline gap-2">
+                        {statsLoading ? (
+                          <div className="h-12 w-32 bg-slate-800 animate-pulse rounded-lg" />
+                        ) : (
+                          <>
+                            <AnimatedCounter 
+                              value={platformStats.totalMw} 
+                              format={(v) => String(platformStats.totalMw >= 1000 ? formatIndianNumber(Math.round(v)) : v.toFixed(1))}
+                            />
+                            <span className="text-xs sm:text-sm font-bold text-emerald-300 font-sans uppercase">MW</span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-300 leading-relaxed font-medium">
+                        Aggregated clean solar energy capacity potential calculated from industrial roof assessments.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
               {/* Core Products Showcase */}
               <section id="features" className="max-w-7xl mx-auto px-6 py-16 sm:py-24 border-t border-white/5 relative z-10 space-y-20 sm:space-y-32">

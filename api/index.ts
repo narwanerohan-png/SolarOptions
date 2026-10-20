@@ -522,6 +522,49 @@ app.get("/api/public/company/:slug", async (req, res) => {
   }
 });
 
+// Public endpoint: Live platform statistics calculated dynamically from Google Sheets Sheet1
+app.get(["/api/public/stats", "/api/stats"], async (req, res) => {
+  try {
+    const facilities = await getFacilitiesCachedList();
+
+    let totalFactories = 0;
+    let totalRooftopSqFt = 0;
+    let totalKw = 0;
+
+    if (Array.isArray(facilities) && facilities.length > 0) {
+      totalFactories = facilities.length;
+      for (const item of facilities) {
+        // Rooftop Space
+        const roofRaw = item["Rooftop Space"] || item["rooftop"] || item["Rooftop"] || 0;
+        const roofNum = parseFloat(String(roofRaw).replace(/,/g, "")) || 0;
+        totalRooftopSqFt += roofNum;
+
+        // Potential kW (convert to MW if required)
+        const kwRaw = item["Potential kW"] || item["kw"] || item["Capacity"] || item["KW"] || 0;
+        let kwNum = parseFloat(String(kwRaw).replace(/,/g, "")) || 0;
+        if (kwNum === 0 && roofNum > 0) {
+          kwNum = roofNum / 100;
+        }
+        totalKw += kwNum;
+      }
+    }
+
+    const totalMw = totalKw / 1000;
+
+    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300");
+    return res.status(200).json({
+      success: true,
+      totalFactories,
+      totalRooftopSqFt: Math.round(totalRooftopSqFt),
+      totalKw: Math.round(totalKw),
+      totalMw: Number(totalMw.toFixed(2))
+    });
+  } catch (err: any) {
+    console.error("[Stats API Error]:", err.message);
+    return res.status(500).json({ error: "Failed to calculate platform statistics" });
+  }
+});
+
 // Proxy: Get Leads (with alias /api/facilities to bypass adblockers)
 app.get(["/api/leads", "/api/leads/", "/api/facilities", "/api/facilities/"], verifyFirebaseToken, async (req: any, res) => {
   const activeUid = req.user?.uid || "unknown";
