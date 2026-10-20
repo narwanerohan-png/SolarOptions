@@ -10,6 +10,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply antialiased text-gray-300 bg-slate-950 font-sans;
     text-rendering: optimizeLegibility;
@@ -22,6 +26,11 @@
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-display text-white;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(16, 185, 129, 0.7);
+    outline-offset: 2px;
   }
 }
 
@@ -57,4 +66,13 @@
   animation: drone-drift-reverse 36s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 
+  .animate-drone-drift,
+  .animate-drone-drift-reverse {
+    animation: none !important;
+  }
+}

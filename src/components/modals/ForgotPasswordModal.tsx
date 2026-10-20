@@ -65,7 +65,13 @@ export const ForgotPasswordModal = React.memo(({ isOpen, onClose }: ForgotPasswo
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[500] p-4 backdrop-blur-xl" onClick={handleClose}>
+    <div 
+      className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[500] p-4 backdrop-blur-xl" 
+      onClick={handleClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Forgot Password Modal"
+    >
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -73,7 +79,12 @@ export const ForgotPasswordModal = React.memo(({ isOpen, onClose }: ForgotPasswo
         onClick={e => e.stopPropagation()}
       >
         <div className="absolute top-0 right-0 p-4 sm:p-6">
-          <button onClick={handleClose} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500 cursor-pointer">
+          <button 
+            type="button"
+            onClick={handleClose} 
+            aria-label="Close dialog"
+            className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>

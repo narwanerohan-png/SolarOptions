@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, ChevronLeft, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock, Layers } from "lucide-react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { Sun, Factory, Zap, ArrowRight, CheckCircle2, Calculator, Database, Shield, MapPin, LogIn, ChevronRight, ChevronLeft, Copy, ExternalLink, MessageSquare, HelpCircle, X, PenTool, Layout, Box, Mail, Send, Loader2, Target, ArrowLeft, RefreshCw, ShieldCheck, FileText, Lock, Layers, AlertCircle, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Helmet } from 'react-helmet-async';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
@@ -19,6 +19,61 @@ import { cn } from './lib/utils';
 import { auth, googleProvider, signInWithPopup, signInWithEmailAndPassword, linkWithCredential, GoogleAuthProvider } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { authFetch } from './utils/authFetch';
+
+interface ToastMessage {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+const ToastNotification: React.FC<{
+  toasts: ToastMessage[];
+  onDismiss: (id: string) => void;
+}> = ({ toasts, onDismiss }) => {
+  return (
+    <aside 
+      aria-label="System Notifications"
+      className="fixed top-20 right-4 sm:right-8 z-[1100] flex flex-col gap-3 max-w-sm w-[calc(100vw-2rem)] sm:w-auto pointer-events-none"
+    >
+      <AnimatePresence>
+        {toasts.map(toast => (
+          <motion.div
+            key={toast.id}
+            initial={{ opacity: 0, y: -16, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            role="status"
+            aria-live="polite"
+            className={cn(
+              "pointer-events-auto p-4 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-start gap-3 text-left transition-all",
+              toast.type === 'error' && "bg-slate-900/95 border-rose-500/30 text-rose-200 shadow-rose-950/40",
+              toast.type === 'success' && "bg-slate-900/95 border-emerald-500/30 text-emerald-200 shadow-emerald-950/40",
+              toast.type === 'info' && "bg-slate-900/95 border-white/10 text-gray-200 shadow-slate-950/50"
+            )}
+          >
+            <div className="shrink-0 mt-0.5">
+              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400" />}
+              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+              {toast.type === 'info' && <Info className="w-5 h-5 text-emerald-400" />}
+            </div>
+            <div className="flex-1 text-xs leading-relaxed font-medium">
+              {toast.message}
+            </div>
+            <button
+              type="button"
+              onClick={() => onDismiss(toast.id)}
+              aria-label="Dismiss notification"
+              className="shrink-0 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </aside>
+  );
+};
 
 // --- HELPERS ---
 const slugify = (text: string): string => {
@@ -84,7 +139,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
           setHasStarted(true);
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.05 }
     );
 
     observer.observe(currentElem);
@@ -559,6 +614,26 @@ export default function SolarApp() {
   const [paymentLoadingMessage, setPaymentLoadingMessage] = useState('');
   const [showActionPlanDetails, setShowActionPlanDetails] = useState(false);
   
+  // Toast notifications state and helpers
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // Route-change scroll to top
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Portal State
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [rooftopSearch, setRooftopSearch] = useState('');
@@ -588,6 +663,48 @@ export default function SolarApp() {
     setShowDesignProposal(false);
     setCapturedDesignImage(null);
   };
+
+  // Modal backdrop scroll locking
+  const isAnyModalOpen = Boolean(
+    showAccessForm || 
+    showLoginModal || 
+    showAccountLinkingModal || 
+    showCredentials || 
+    showFeedbackModal || 
+    showQuoteModal || 
+    showForgotPasswordModal || 
+    showDesignProposal ||
+    selectedLead
+  );
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAnyModalOpen]);
+
+  // Global Escape key listener to close modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showDesignProposal) { closeDesignProposal(); return; }
+        if (showQuoteModal) { setShowQuoteModal(false); return; }
+        if (showFeedbackModal) { setShowFeedbackModal(false); return; }
+        if (showForgotPasswordModal) { setShowForgotPasswordModal(false); return; }
+        if (showAccountLinkingModal) { setShowAccountLinkingModal(false); return; }
+        if (showCredentials) { setShowCredentials(false); return; }
+        if (showLoginModal) { setShowLoginModal(false); return; }
+        if (showAccessForm) { setShowAccessForm(false); return; }
+        if (selectedLead) { setSelectedLead(null); return; }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDesignProposal, showQuoteModal, showFeedbackModal, showForgotPasswordModal, showAccountLinkingModal, showCredentials, showLoginModal, showAccessForm, selectedLead]);
 
   const handleDownloadProposal = () => {
     if (glRef.current) {
@@ -903,7 +1020,7 @@ export default function SolarApp() {
 
   const handlePayment = async (formData: any) => {
     if (!formData.email || !formData.email.includes('@') || !formData.contact || formData.contact.length !== 10) {
-      alert("Please enter valid contact details (10-digit mobile and valid corporate email).");
+      showToast("Please enter valid contact details (10-digit mobile and corporate email).", "error");
       return;
     }
 
@@ -977,9 +1094,10 @@ export default function SolarApp() {
             });
             setShowAccessForm(false);
             setShowCredentials(true);
+            showToast("Payment verified successfully! Welcome to SolarOptions Pro.", "success");
             fetchLiveLeadsBatch(0, true, '', 'all');
           } catch (verifyErr: any) {
-            alert("Payment verification failed: " + verifyErr.message);
+            showToast("Payment verification failed: " + verifyErr.message, "error");
           } finally {
             setIsSubmitting(false);
             setPaymentLoadingMessage('');
@@ -1004,7 +1122,7 @@ export default function SolarApp() {
       console.log("AFTER NEW RAZORPAY");
 
       rzp.on('payment.failed', (failedRes: any) => {
-        alert(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}`);
+        showToast(`Payment Failed: ${failedRes.error?.description || 'Transaction declined'}`, "error");
         setIsSubmitting(false);
         setPaymentLoadingMessage('');
       });
@@ -1013,7 +1131,7 @@ export default function SolarApp() {
       rzp.open();
       console.log("AFTER OPEN");
     } catch (orderErr: any) {
-      alert("Payment Checkout Error: " + orderErr.message);
+      showToast("Payment Checkout Error: " + orderErr.message, "error");
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
     }
@@ -1329,7 +1447,7 @@ export default function SolarApp() {
         setIsLoggedIn(true);
         setShowAccountLinkingModal(false);
         setPendingLinkingData(null);
-        alert("Google Account linked successfully! You can now use 1-click Google Sign-In in the future.");
+        showToast("Google Account linked successfully! You can now use 1-click Google Sign-In in the future.", "success");
         navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
       } else {
@@ -1373,13 +1491,13 @@ export default function SolarApp() {
       }
 
       if (errCode === "auth/popup-closed-by-user" || errMsg.includes("popup-closed-by-user")) {
-        alert("Google Sign-In popup was closed before completion. Please try again.");
+        showToast("Google Sign-In popup was closed before completion. Please try again.", "info");
       } else if (errCode === "auth/popup-blocked" || errMsg.includes("popup-blocked") || errMsg.includes("blocked")) {
-        alert("Google Sign-In popup was blocked by your browser. Please allow popups for this site and try again.");
+        showToast("Google Sign-In popup was blocked by your browser. Please allow popups for this site and try again.", "error");
       } else if (errCode === "auth/unauthorized-domain" || errMsg.includes("unauthorized-domain") || errMsg.includes("auth-domain")) {
-        alert("Google Sign-In is not authorized for this domain. Please log in using your username and password or contact support.");
+        showToast("Google Sign-In is not authorized for this domain. Please log in using your username and password or contact support.", "error");
       } else {
-        alert(popupErr.message || "Failed to initialize Google Sign-In.");
+        showToast(popupErr.message || "Failed to initialize Google Sign-In.", "error");
       }
       return;
     }
@@ -1428,7 +1546,7 @@ export default function SolarApp() {
           console.warn("Sign out failed:", signOutErr);
         }
         // Redirect to payment/subscription via showAccessForm
-        alert(errData.message || "Trial already used. Please purchase premium access.");
+        showToast(errData.message || "Trial already used. Please purchase premium access.", "error");
         setShowLoginModal(false);
         setShowAccessForm(true);
         return;
@@ -1447,10 +1565,11 @@ export default function SolarApp() {
         setIsLoggedIn(true);
         setShowLoginModal(false);
         setShowAccessForm(false);
+        showToast("Signed in successfully with Google.", "success");
         navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
       } else {
-        alert(data.message || "Google Sign-In Authentication failed.");
+        showToast(data.message || "Google Sign-In Authentication failed.", "error");
       }
     } catch (e: any) {
       console.error("Google Sign-In login error:", e);
@@ -1459,7 +1578,7 @@ export default function SolarApp() {
       } catch (signOutErr) {
         console.warn("Failed to sign out after login failure:", signOutErr);
       }
-      alert(e.message || "Authentication through Google was unsuccessful.");
+      showToast(e.message || "Authentication through Google was unsuccessful.", "error");
     } finally {
       setIsSubmitting(false);
       setPaymentLoadingMessage('');
@@ -1476,10 +1595,11 @@ export default function SolarApp() {
         const adminRes = await handleAdminLogin(formData.username, formData.password);
         if (adminRes.success) {
           setShowLoginModal(false);
+          showToast("Admin session authenticated.", "success");
           navigate('/industrial-intelligence');
           window.scrollTo(0, 0);
         } else {
-          alert(adminRes.message || 'Access restricted: Only authorized administrators can log in here.');
+          showToast(adminRes.message || 'Access restricted: Only authorized administrators can log in here.', "error");
         }
         setIsSubmitting(false);
         return;
@@ -1499,7 +1619,7 @@ export default function SolarApp() {
 
       const checkData = await checkResp.json();
       if (!checkData.registered) {
-        alert("Account not found. Please use 'Get Access' to create your account or start your free trial.");
+        showToast("Account not found. Please use 'Get Access' to create your account or start your free trial.", "error");
         setIsSubmitting(false);
         return;
       }
@@ -1555,11 +1675,12 @@ export default function SolarApp() {
         }
         setIsLoggedIn(true);
         setShowLoginModal(false);
+        showToast("Logged in successfully.", "success");
         navigate('/industrial-intelligence');
         window.scrollTo(0, 0);
         fetchLiveLeadsBatch(0, true, '', 'all');
       } else {
-        alert(data.message || "Authentication failed.");
+        showToast(data.message || "Authentication failed.", "error");
       }
     } catch (e: any) {
       console.error("Login Error:", e);
@@ -1569,7 +1690,7 @@ export default function SolarApp() {
       } else if (e.code === "auth/invalid-email") {
         errMsg = "Invalid email format.";
       }
-      alert(`Login Error: ${errMsg}`);
+      showToast(`Login Error: ${errMsg}`, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -1819,7 +1940,7 @@ export default function SolarApp() {
                   </button>
                   <button 
                     onClick={() => {
-                        window.scrollTo(0, 1000); // Scroll down to features or 3D section
+                        window.scrollTo(0, 0);
                         navigate('/3d-layout-designer');
                     }}
                     className="w-full sm:w-auto px-10 py-5 bg-white/5 hover:bg-white/10 text-white font-black text-lg rounded-2xl border border-white/10 backdrop-blur-md transition-all flex items-center justify-center gap-2 active:scale-95"
@@ -2669,12 +2790,12 @@ export default function SolarApp() {
           >
             <div className="flex justify-between items-center bg-emerald-500/5 border border-emerald-500/20 p-6 rounded-[32px] backdrop-blur-xl mb-16">
                    <button 
-                    onClick={() => navigate('/')} 
-                    className="flex items-center gap-3 text-xs font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-all bg-emerald-500/10 px-6 py-3 rounded-2xl border border-emerald-500/10"
+                    onClick={() => { window.scrollTo(0, 0); navigate('/'); }} 
+                    className="flex items-center gap-3 text-xs font-black text-emerald-400 uppercase tracking-widest hover:text-white transition-all bg-emerald-500/10 px-6 py-3 rounded-2xl border border-emerald-500/10 cursor-pointer active:scale-95"
                    >
-                     <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                     <ArrowLeft className="w-4 h-4" /> Back to Home
                    </button>
-                   <div className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500/50">Feasibility Terminal v2.1</div>
+                   <div className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500/60">Solar ROI Assessment</div>
             </div>
 
             <div className="text-center mb-16 space-y-4">
@@ -2969,6 +3090,24 @@ export default function SolarApp() {
                           </div>
                         ))
                       )}
+
+                      {/* Empty State when no results found */}
+                      {!isLoadingLeads && liveLeads.length === 0 && (
+                        <div className="col-span-full py-16 px-6 text-center bg-slate-800/40 border border-white/5 rounded-3xl backdrop-blur-md">
+                          <MapPin className="w-10 h-10 text-gray-500 mx-auto mb-4" />
+                          <h3 className="text-lg font-bold text-white mb-2">No industrial facilities found</h3>
+                          <p className="text-sm text-gray-400 max-w-md mx-auto mb-6">
+                            No facilities match your search criteria. Try clearing search terms or selecting another cluster.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => { setRooftopSearch(''); setRegionFilter('all'); }}
+                            className="px-6 py-2.5 bg-emerald-500 text-slate-900 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-emerald-400 transition-all cursor-pointer"
+                          >
+                            Reset Filters
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Progressive Data-Loading & Infinite Scroll Controls */}
@@ -3259,32 +3398,36 @@ export default function SolarApp() {
                         onClick={e => e.stopPropagation()}
                       >
                          <div className="sticky top-0 right-0 p-8 flex justify-end z-10">
-                            <button onClick={closeDesignProposal} className="p-3 bg-slate-100 rounded-full hover:bg-rose-50 transition-colors">
-                              <X className="w-6 h-6 text-slate-400" />
+                            <button 
+                              onClick={closeDesignProposal} 
+                              aria-label="Close design proposal"
+                              className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 text-gray-400 transition-colors border border-white/5 cursor-pointer"
+                            >
+                              <X className="w-6 h-6" />
                             </button>
                          </div>
 
                          <div className="p-12 sm:p-16 space-y-12">
-                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-slate-100 pb-12">
+                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/10 pb-12">
                                <div className="space-y-4">
-                                  <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full w-fit">
+                                  <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full w-fit">
                                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Engineering Specification</span>
                                   </div>
                                   <h2 className="text-4xl font-black italic tracking-tight text-white">
                                     {designFactoryName || 'Untitled Project'}
                                   </h2>
-                                  <p className="text-slate-400 font-medium">Technical Solar PV Proposal & System Simulation</p>
+                                  <p className="text-gray-400 font-medium">Technical Solar PV Proposal & System Simulation</p>
                                </div>
                                <div className="text-right">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Generated On</p>
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Generated On</p>
                                   <p className="text-white font-bold">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                                </div>
                             </div>
 
                             {/* Design Visualization */}
                             <div className="space-y-8">
-                               <div className="w-full aspect-[16/10] bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 relative">
+                               <div className="w-full aspect-[16/10] bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
                                   <ThreeScene 
                                     buildings={designBuildings}
                                     panelZones={designPanelZones}
@@ -3574,9 +3717,10 @@ export default function SolarApp() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'feedback', feedback: msg, timestamp: new Date().toISOString() }),
             });
-            console.log('Feedback submitted successfully');
+            showToast('Thank you! Your feedback has been received.', 'success');
           } catch (error) {
             console.error('Failed to submit feedback:', error);
+            showToast('Unable to submit feedback right now. Please try again later.', 'error');
           }
         }}
       />
@@ -3600,7 +3744,9 @@ export default function SolarApp() {
          <motion.button 
           whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }}
           onClick={() => setShowFeedbackModal(true)}
-          className="w-14 h-14 bg-slate-900 text-emerald-400 rounded-2xl shadow-3xl flex items-center justify-center border border-white/10 hover:border-emerald-500/50 backdrop-blur-md transition-all"
+          aria-label="Send Feedback"
+          title="Send Feedback"
+          className="w-14 h-14 bg-slate-900 text-emerald-400 rounded-2xl shadow-3xl flex items-center justify-center border border-white/10 hover:border-emerald-500/50 backdrop-blur-md transition-all cursor-pointer active:scale-95"
          >
            <MessageSquare className="w-6 h-6" />
          </motion.button>
@@ -3627,7 +3773,8 @@ export default function SolarApp() {
               <div className="absolute top-0 right-0 p-8">
                 <button 
                   onClick={() => setShowQuoteModal(false)}
-                  className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-white/5"
+                  aria-label="Close quote modal"
+                  className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-white/5 cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -3691,7 +3838,10 @@ export default function SolarApp() {
                 <div className="pt-6">
                   <button 
                     onClick={async () => {
-                      if (!quoteData.factory || !quoteData.contact) return alert('Missing essential details.');
+                      if (!quoteData.factory.trim() || !quoteData.contact.trim()) {
+                        showToast('Please provide both company name and contact details.', 'error');
+                        return;
+                      }
                       setIsSubmittingQuote(true);
                       try {
                         await authFetch('/api/feedback', {
@@ -3702,8 +3852,10 @@ export default function SolarApp() {
                         setIsSubmittingQuote(false);
                         setShowQuoteModal(false);
                         setQuoteData({ factory: '', location: '', units: '', contact: '' });
+                        showToast('Feasibility analysis request received. Our industrial solar engineers will reach out!', 'success');
                       } catch (error) {
                         setIsSubmittingQuote(false);
+                        showToast('Unable to submit request. Please verify connection and retry.', 'error');
                       }
                     }}
                     disabled={isSubmittingQuote}
@@ -3737,7 +3889,11 @@ export default function SolarApp() {
               onClick={e => e.stopPropagation()}
             >
                <div className="absolute top-0 right-0 p-10">
-                  <button onClick={() => setSelectedLead(null)} className="w-12 h-12 bg-slate-800 rounded-full hover:bg-rose-500/10 transition-all text-gray-500 hover:text-rose-400 border border-white/5 flex items-center justify-center">
+                  <button 
+                    onClick={() => setSelectedLead(null)} 
+                    aria-label="Close facility details modal"
+                    className="w-12 h-12 bg-slate-800 rounded-full hover:bg-rose-500/10 transition-all text-gray-400 hover:text-rose-400 border border-white/5 flex items-center justify-center cursor-pointer"
+                  >
                     <X className="w-6 h-6" />
                   </button>
                </div>

@@ -186,9 +186,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onOpenAccess }) 
                 {/* Row 2 */}
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-6 font-bold text-white">Industrial Site Discovery</td>
-                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>Yes (1,500+ pre-listed industrial facilities)</span>
+                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>Yes (1,500+ pre-listed industrial facilities)</span>
+                    </div>
                   </td>
                   <td className="py-5 px-6 text-gray-400">
                     No dedicated industrial site database; designed for EPCs to manage their own inbound leads.
@@ -201,9 +203,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onOpenAccess }) 
                 {/* Row 3 */}
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-6 font-bold text-white">Pre-Identified Industrial Prospects</td>
-                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>Yes (Rooftop area, company details, cluster filters)</span>
+                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>Yes (Rooftop area, company details, cluster filters)</span>
+                    </div>
                   </td>
                   <td className="py-5 px-6 text-gray-400">
                     Not a core offering; focuses on lead pipeline management provided by the user.
@@ -216,9 +220,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onOpenAccess }) 
                 {/* Row 4 */}
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-6 font-bold text-white">Rooftop Assessment & Solar Capacity Estimates</td>
-                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>Yes (Rooftop dimensions, usable area, kWp potential)</span>
+                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>Yes (Rooftop dimensions, usable area, kWp potential)</span>
+                    </div>
                   </td>
                   <td className="py-5 px-6 text-gray-300">
                     Yes (Site survey forms, manual roof measurement, proposal calculations).
@@ -231,9 +237,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onOpenAccess }) 
                 {/* Row 5 */}
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-6 font-bold text-white">Solar Feasibility & Savings Calculator</td>
-                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>Yes (Instant C&I tariff, payback, generation estimates)</span>
+                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>Yes (Instant C&I tariff, payback, generation estimates)</span>
+                    </div>
                   </td>
                   <td className="py-5 px-6 text-gray-300">
                     Yes (Quotation calculators, cost estimation, and financial metrics in proposals).
@@ -246,9 +254,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onOpenAccess }) 
                 {/* Row 6 */}
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-6 font-bold text-white">Solar Design & 3D Visualization</td>
-                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>Yes (3D layout designer with automated panel placement & walkway offsets)</span>
+                  <td className="py-5 px-6 text-emerald-400 bg-emerald-500/[0.03] border-x border-emerald-500/20 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>Yes (3D layout designer with automated panel placement & walkway offsets)</span>
+                    </div>
                   </td>
                   <td className="py-5 px-6 text-gray-300">
                     Yes (3D solar modeling tool with shadow analysis and proposal view links).

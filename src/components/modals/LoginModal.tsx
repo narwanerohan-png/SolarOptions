@@ -29,7 +29,13 @@ export const LoginModal = React.memo(({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[250] p-4 backdrop-blur-xl" onClick={onClose}>
+    <div 
+      className="fixed inset-0 bg-slate-950/95 flex items-center justify-center z-[250] p-4 backdrop-blur-xl" 
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Login Modal"
+    >
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -37,7 +43,12 @@ export const LoginModal = React.memo(({
         onClick={e => e.stopPropagation()}
       >
         <div className="absolute top-0 right-0 p-4 sm:p-6">
-          <button onClick={onClose} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500">
+          <button 
+            type="button"
+            onClick={onClose} 
+            aria-label="Close dialog"
+            className="p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-500 cursor-pointer"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -57,7 +68,8 @@ export const LoginModal = React.memo(({
               <button
                 type="button"
                 onClick={onGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 py-4 bg-white/10 hover:bg-white/15 active:scale-[0.98] border border-white/10 hover:border-white/20 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-lg cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-3 py-4 bg-white/10 hover:bg-white/15 active:scale-[0.98] border border-white/10 hover:border-white/20 rounded-2xl font-black text-xs text-white transition-all uppercase tracking-widest shadow-lg cursor-pointer disabled:opacity-50"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" referrerPolicy="no-referrer" />
                 Continue with Google
@@ -70,64 +82,79 @@ export const LoginModal = React.memo(({
               <div className="flex-grow border-t border-slate-800"></div>
             </div>
 
-            <div className="space-y-2 text-left">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Username</label>
-              <input 
-                placeholder="Enter Username" 
-                className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600" 
-                value={loginForm.username}
-                onChange={e => setLoginForm({...loginForm, username: e.target.value})} 
-              />
-            </div>
-            <div className="space-y-2 text-left">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Password</label>
-                <button 
-                  onClick={onShowForgotPassword}
-                  className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest hover:underline"
-                >
-                  Forgot?
-                </button>
-              </div>
-              <div className="relative">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!isSubmitting) onLogin(loginForm);
+              }}
+              className="space-y-6"
+            >
+              <div className="space-y-2 text-left">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Username</label>
                 <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Enter Password" 
-                  className="w-full pl-6 pr-14 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600 animate-none" 
-                  value={loginForm.password}
-                  onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
+                  placeholder="Enter Username" 
+                  disabled={isSubmitting}
+                  className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600 disabled:opacity-60" 
+                  value={loginForm.username}
+                  onChange={e => setLoginForm({...loginForm, username: e.target.value})} 
                 />
-                <button
+              </div>
+              <div className="space-y-2 text-left">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Password</label>
+                  <button 
+                    type="button"
+                    onClick={onShowForgotPassword}
+                    className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest hover:underline cursor-pointer"
+                  >
+                    Forgot?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="Enter Password" 
+                    disabled={isSubmitting}
+                    className="w-full pl-6 pr-14 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-white placeholder:text-gray-600 disabled:opacity-60" 
+                    value={loginForm.password}
+                    onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
+                  />
+                  <button
+                    type="button"
+                    id="toggle-password-visibility"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-emerald-400 transition-colors focus:outline-none cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex gap-4">
+                <button 
                   type="button"
-                  id="toggle-password-visibility"
-                  onClick={() => setShowPassword(prev => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-emerald-400 transition-colors focus:outline-none"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="flex-1 py-4 bg-slate-800 text-slate-400 font-bold rounded-2xl hover:bg-slate-700 transition-all border border-slate-700 cursor-pointer disabled:opacity-50"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-[2] py-4 bg-emerald-500 text-slate-900 font-black text-lg rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+                >
+                  {isSubmitting ? 'Verifying...' : 'Login Now'}
                 </button>
               </div>
-            </div>
-            
-            <div className="flex gap-4">
-              <button 
-                onClick={onClose}
-                className="flex-1 py-4 bg-slate-800 text-slate-400 font-bold rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => onLogin(loginForm)} 
-                className="flex-[2] py-4 bg-emerald-500 text-slate-900 font-black text-lg rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50"
-              >
-                {isSubmitting ? 'Verifying...' : 'Login Now'}
-              </button>
-            </div>
+            </form>
             
             <div className="pt-6 border-t border-slate-800">
               <button 
+                type="button"
                 onClick={() => { onClose(); onShowAccessForm(); }}
-                className="w-full py-4 text-slate-500 text-sm font-medium hover:text-emerald-400 transition-colors"
+                className="w-full py-4 text-slate-500 text-sm font-medium hover:text-emerald-400 transition-colors cursor-pointer"
               >
                 Don't have access? <span className="font-bold underline">Register Here</span>
               </button>

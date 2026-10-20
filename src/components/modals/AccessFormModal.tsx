@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 
 interface AccessFormModalProps {
   isOpen: boolean;
@@ -46,14 +46,29 @@ export const AccessFormModal = React.memo(({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[200] p-4 backdrop-blur-xl" onClick={onClose}>
+    <div 
+      className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[200] p-4 backdrop-blur-xl" 
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Request Data Access Modal"
+    >
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 30 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide" 
+        className="bg-slate-900 text-white p-6 sm:p-12 rounded-[32px] sm:rounded-[50px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-3xl border border-white/5 scrollbar-hide relative" 
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close dialog"
+          className="absolute top-6 right-6 p-3 bg-slate-800 rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-all text-gray-400 cursor-pointer border border-white/5 z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-10 pr-12 sm:pr-0">
           <div className="space-y-2 text-left">
             <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-tight">Request <span className="text-emerald-400 italic font-medium">Data Access.</span></h3>
             <p className="text-gray-400 text-sm font-medium">Regional access to industrial facility intelligence.</p>
